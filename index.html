@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sowfee Health - Mental Wellness Platform</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #6936f5;
+            --secondary: #f8f9fe;
+            --accent: #ff6b6b;
+            --text: #2d2d35;
+            --glass: rgba(255, 255, 255, 0.95);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background: var(--secondary);
+            color: var(--text);
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        header {
+            position: fixed;
+            width: 100%;
+            padding: 1rem 5%;
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: linear-gradient(45deg, var(--primary), #8a63f2);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .nav-auth {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+        }
+
+        .cta-button {
+            background: var(--primary);
+            color: white;
+            padding: 0.8rem 2rem;
+            border-radius: 2rem;
+            text-decoration: none;
+            font-weight: 600;
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .cta-button.outline {
+            background: transparent;
+            color: var(--primary);
+            border-color: var(--primary);
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 15rem 5% 8rem;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            background: linear-gradient(135deg, #f8f0ff 0%, #e6e1ff 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 4rem;
+            line-height: 1.1;
+            margin-bottom: 2rem;
+            background: linear-gradient(45deg, #6936f5, #a83ef5);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            animation: slideUp 1s ease;
+        }
+
+        .hero p {
+            font-size: 1.4rem;
+            margin-bottom: 3rem;
+            color: var(--text);
+            opacity: 0.9;
+        }
+
+        /* Features Section */
+        .features {
+            padding: 8rem 5%;
+            background: white;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .feature-card {
+            padding: 2rem;
+            background: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s;
+            text-align: center;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+        }
+
+        .feature-icon {
+            font-size: 2.5rem;
+            color: var(--primary);
+            margin-bottom: 1rem;
+        }
+
+        /* Demo Section */
+        #demo {
+            padding: 8rem 5%;
+            text-align: center;
+            background: var(--secondary);
+        }
+
+        .video-container {
+            width: 100%;
+            max-width: 800px;
+            margin: 2rem auto;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+
+        /* Contact Section */
+        .contact-section {
+            padding: 8rem 5%;
+            background: linear-gradient(45deg, var(--primary), #8a63f2);
+            color: white;
+        }
+
+        .contact-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .contact-info {
+            padding: 2rem;
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+        }
+
+        .benefits-list {
+            list-style: none;
+            margin-top: 2rem;
+        }
+
+        .benefits-list li {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            font-size: 1.1rem;
+        }
+
+        .contact-form {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            color: var(--text);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid rgba(105, 54, 245, 0.1);
+            border-radius: 10px;
+            background: white;
+            color: var(--text);
+        }
+
+        button[type="submit"] {
+            background: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        /* Animations */
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            header {
+                padding: 1rem;
+            }
+            
+            .nav-auth {
+                gap: 0.8rem;
+            }
+            
+            .cta-button {
+                padding: 0.6rem 1.2rem;
+                font-size: 0.9rem;
+            }
+            
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+            
+            .contact-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">Sowfee</div>
+        <nav class="nav-auth">
+            <a href="#login" class="cta-button outline">Login</a>
+            <a href="#signup" class="cta-button">Get Started</a>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <div class="hero-content">
+            <h1>Transform Student Mental Health Support</h1>
+            <p class="subheading">Proactive wellness monitoring powered by AI insights</p>
+            <div class="cta-group">
+                <a href="#demo" class="cta-button">Watch Demo</a>
+                <a href="#contact" class="cta-button outline">Learn More</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="features">
+        <div class="features-grid">
+            <div class="feature-card">
+                <i class="fas fa-brain feature-icon"></i>
+                <h3>AI-Powered Insights</h3>
+                <p>Real-time emotional analysis using machine learning</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-shield-alt feature-icon"></i>
+                <h3>Secure Platform</h3>
+                <p>End-to-end encryption & FERPA compliance</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-chart-line feature-icon"></i>
+                <h3>Advanced Analytics</h3>
+                <p>Interactive dashboards with real-time data</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-comments feature-icon"></i>
+                <h3>24/7 Support</h3>
+                <p>Dedicated mental health professionals</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-mobile-alt feature-icon"></i>
+                <h3>Mobile Ready</h3>
+                <p>Cross-platform compatibility</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-graduation-cap feature-icon"></i>
+                <h3>Educator Tools</h3>
+                <p>Customizable survey templates</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="demo">
+        <h2>See Our Platform in Action</h2>
+        <div class="video-container">
+            <iframe width="100%" height="450" src="https://www.youtube.com/embed/your-video-id" 
+                    frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowfullscreen></iframe>
+        </div>
+    </section>
+
+    <section class="contact-section">
+        <div class="contact-grid">
+            <div class="contact-info">
+                <h2>Why Choose Sowfee?</h2>
+                <ul class="benefits-list">
+                    <li>
+                        <i class="fas fa-shield-alt" style="color: var(--primary);"></i>
+                        <span>FERPA Compliant & Secure</span>
+                    </li>
+                    <li>
+                        <i class="fas fa-clock" style="color: var(--primary);"></i>
+                        <span>24/7 Support Team</span>
+                    </li>
+                    <li>
+                        <i class="fas fa-chart-line" style="color: var(--primary);"></i>
+                        <span>Real-time Analytics</span>
+                    </li>
+                    <li>
+                        <i class="fas fa-mobile-alt" style="color: var(--primary);"></i>
+                        <span>Mobile-Optimized Platform</span>
+                    </li>
+                </ul>
+            </div>
+            <form class="contact-form">
+                <div class="form-group">
+                    <input type="text" placeholder="Institution Name *" required>
+                </div>
+                <div class="form-group">
+                    <input type="text" placeholder="Your Name *" required>
+                </div>
+                <div class="form-group">
+                    <input type="email" placeholder="Email *" required>
+                </div>
+                <div class="form-group">
+                    <input type="number" placeholder="Estimated Student Population (Optional)">
+                </div>
+                <div class="form-group">
+                    <textarea rows="5" placeholder="Message *" required></textarea>
+                </div>
+                <button type="submit">Send Message</button>
+            </form>
+        </div>
+    </section>
+
+    <script>
+        // Smooth Scroll to Demo
+        document.querySelectorAll('a[href="#demo"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const demoSection = document.querySelector('#demo');
+                const headerOffset = 100;
+                const elementPosition = demoSection.getBoundingClientRect().top;
+                const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+                window.scrollTo({
+                    top: offsetPosition,
+                    behavior: 'smooth'
+                });
+            });
+        });
+
+        // Form Handling
+        const form = document.querySelector('.contact-form');
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            alert('Thank you for your message! We will respond within 24 hours.');
+            form.reset();
+        });
+    </script>
+</body>
+</html>

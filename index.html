@@ -27,7 +27,6 @@
             overflow-x: hidden;
         }
 
-        /* Header */
         header {
             position: fixed;
             width: 100%;
@@ -73,7 +72,6 @@
             border-color: var(--primary);
         }
 
-        /* Hero Section */
         .hero {
             padding: 15rem 5% 8rem;
             min-height: 100vh;
@@ -108,7 +106,6 @@
             opacity: 0.9;
         }
 
-        /* Features Section */
         .features {
             padding: 8rem 5%;
             background: white;
@@ -148,7 +145,6 @@
             margin-bottom: 1rem;
         }
 
-        /* Demo Section */
         #demo {
             padding: 8rem 5%;
             text-align: center;
@@ -164,7 +160,6 @@
             box-shadow: 0 20px 40px rgba(0,0,0,0.2);
         }
 
-        /* Contact Section */
         .contact-section {
             padding: 8rem 5%;
             background: linear-gradient(45deg, var(--primary), #8a63f2);
@@ -248,7 +243,6 @@
             transition: all 0.3s ease;
         }
 
-        /* Animations */
         @keyframes slideUp {
             from {
                 transform: translateY(50px);
@@ -260,7 +254,6 @@
             }
         }
 
-        /* Mobile Responsive */
         @media (max-width: 768px) {
             header {
                 padding: 1rem;
@@ -392,7 +385,7 @@
                     <input type="number" name="students" placeholder="Estimated Student Population (Optional)">
                 </div>
                 <div class="form-group">
-                    <textarea rows="5" name="message" placeholder="Message * (e.g. 'Could you share pricing details?' or 'We'd like to schedule a demo')" required></textarea>
+                    <textarea rows="5" name="message" placeholder="Message * (e.g. 'Could you send pricing details?' or 'We'd like to schedule a demo')" required></textarea>
                 </div>
                 <button type="submit">Send Message</button>
             </form>
@@ -400,7 +393,7 @@
     </section>
 
     <script>
-        // Fixed Smooth Scroll
+        // Smooth Scroll
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function(e) {
                 e.preventDefault();
@@ -416,7 +409,7 @@
             });
         });
 
-        // Form Handling with Formspree
+        // Form Handling
         const form = document.querySelector('.contact-form');
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -424,7 +417,6 @@
             try {
                 const response = await fetch(form.action, {
                     method: 'POST',
-                    action="https://formspree.io/f/xjkgrqdj",
                     body: new FormData(form),
                     headers: {
                         'Accept': 'application/json'
@@ -435,7 +427,6 @@
                     alert('Message sent successfully! We will respond within 24 hours.');
                     form.reset();
                 } else {
-                    const errorData = await response.json();
                     alert('There was a problem sending your message. Please try again.');
                 }
             } catch (error) {

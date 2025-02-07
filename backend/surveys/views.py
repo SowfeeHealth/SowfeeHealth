@@ -5,7 +5,7 @@ from .models import SurveyResponse
 from .serializers import SurveyResponseSerializer
 
 
-@api_view(['GET'])
+@api_view(['GET', 'POST'])
 def handleStudentResponses(request):
     if request.method == "GET":
         surveyResponses = SurveyResponse.objects.all()

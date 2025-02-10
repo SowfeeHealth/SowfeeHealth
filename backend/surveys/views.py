@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from .models import SurveyResponse
 from .serializers import SurveyResponseSerializer
+from django.http import JsonResponse
 
 
 @api_view(['GET', 'POST'])
@@ -16,4 +17,4 @@ def handleStudentResponses(request):
         serializer = SurveyResponseSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-        return Response(serializer.data)
+        return JsonResponse(request.data)

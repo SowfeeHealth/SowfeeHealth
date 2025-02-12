@@ -227,7 +227,7 @@
             <label>Full Name</label>
             <input
               type="text"
-              name="student_name"
+              name="name"
               required
               pattern="[A-Za-z ]+"
               title="Please enter your full name"
@@ -238,7 +238,7 @@
             <label>School Email</label>
             <input
               type="email"
-              name="school_email"
+              name="email"
               required
               pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.edu$"
               title="Please enter a valid .edu email address"
@@ -253,11 +253,11 @@
           </div>
           <div class="likert-scale">
             <label>
-              <input type="radio" name="q1" value="5" required />
+              <input type="radio" name="q1" value="1" required />
               <div class="likert-option">😊 Excellent</div>
             </label>
             <label>
-              <input type="radio" name="q1" value="4" />
+              <input type="radio" name="q1" value="2" />
               <div class="likert-option">🙂 Good</div>
             </label>
             <label>
@@ -265,11 +265,11 @@
               <div class="likert-option">😐 Neutral</div>
             </label>
             <label>
-              <input type="radio" name="q1" value="2" />
+              <input type="radio" name="q1" value="4" />
               <div class="likert-option">😕 Struggling</div>
             </label>
             <label>
-              <input type="radio" name="q1" value="1" />
+              <input type="radio" name="q1" value="5" />
               <div class="likert-option">😞 Difficult</div>
             </label>
           </div>
@@ -312,11 +312,11 @@
           </div>
           <div class="likert-scale">
             <label>
-              <input type="radio" name="q3" value="5" required />
+              <input type="radio" name="q3" value="1" required />
               <div class="likert-option">Very Supported</div>
             </label>
             <label>
-              <input type="radio" name="q3" value="4" />
+              <input type="radio" name="q3" value="2" />
               <div class="likert-option">Supported</div>
             </label>
             <label>
@@ -324,11 +324,11 @@
               <div class="likert-option">Neutral</div>
             </label>
             <label>
-              <input type="radio" name="q3" value="2" />
+              <input type="radio" name="q3" value="4" />
               <div class="likert-option">Unsupported</div>
             </label>
             <label>
-              <input type="radio" name="q3" value="1" />
+              <input type="radio" name="q3" value="5" />
               <div class="likert-option">Very Unsupported</div>
             </label>
           </div>
@@ -341,11 +341,11 @@
           </div>
           <div class="likert-scale">
             <label>
-              <input type="radio" name="q4" value="5" required />
+              <input type="radio" name="q4" value="1" required />
               <div class="likert-option">💤 Excellent</div>
             </label>
             <label>
-              <input type="radio" name="q4" value="4" />
+              <input type="radio" name="q4" value="2" />
               <div class="likert-option">😌 Good</div>
             </label>
             <label>
@@ -353,11 +353,11 @@
               <div class="likert-option">🛌 Average</div>
             </label>
             <label>
-              <input type="radio" name="q4" value="2" />
+              <input type="radio" name="q4" value="4" />
               <div class="likert-option">😣 Poor</div>
             </label>
             <label>
-              <input type="radio" name="q4" value="1" />
+              <input type="radio" name="q4" value="5" />
               <div class="likert-option">😫 Very Poor</div>
             </label>
           </div>
@@ -370,11 +370,11 @@
           </div>
           <div class="likert-scale">
             <label>
-              <input type="radio" name="q5" value="5" required />
+              <input type="radio" name="q5" value="1" required />
               <div class="likert-option">🌟 Very Comfortable</div>
             </label>
             <label>
-              <input type="radio" name="q5" value="4" />
+              <input type="radio" name="q5" value="2" />
               <div class="likert-option">👍 Comfortable</div>
             </label>
             <label>
@@ -382,11 +382,11 @@
               <div class="likert-option">🤔 Neutral</div>
             </label>
             <label>
-              <input type="radio" name="q5" value="2" />
+              <input type="radio" name="q5" value="4" />
               <div class="likert-option">😟 Uncomfortable</div>
             </label>
             <label>
-              <input type="radio" name="q5" value="1" />
+              <input type="radio" name="q5" value="5" />
               <div class="likert-option">😰 Very Uncomfortable</div>
             </label>
           </div>
@@ -423,23 +423,42 @@
       form.addEventListener("change", updateProgress);
 
       form.addEventListener("submit", (e) => {
-        // e.preventDefault();
+        e.preventDefault(); // Prevent default form submission
 
         if (!form.checkValidity()) {
           alert("Please complete all required fields");
           return;
         }
 
-        // Add your submission logic here
+        // Collect form data using FormData API
         const formData = new FormData(form);
-        console.log(Object.fromEntries(formData));
+        console.log(Object.fromEntries(formData)); // Log form data to console for debugging
 
-        // Show confirmation
-        form.reset();
-        progressBar.style.width = "0%";
-        alert(
-          "Thank you for your honest responses! Your input makes a difference."
-        );
+        // Send form data to the server (using Fetch API)
+        fetch("{% url 'survey' %}", {
+          method: "POST",
+          body: formData,
+        })
+          .then((response) => response.json()) // Parse JSON response
+          .then((data) => {
+            if (data.success) {
+              // Show confirmation message if submission is successful
+              alert(data.message); // Display the success message from the response
+
+              // Reset form and progress bar
+              form.reset();
+              progressBar.style.width = "0%";
+            } else {
+              alert(
+                data.error ||
+                  "There was an error processing your survey. Please try again."
+              );
+            }
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+            alert("An error occurred. Please try again later.");
+          });
       });
 
       // Add input validation for school email

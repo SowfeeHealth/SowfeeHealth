@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Survey Results</title>
+  </head>
+  <body>
+    <h1>Survey Results</h1>
+    <table border="1">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Q1</th>
+          <th>Q2</th>
+          <th>Q3</th>
+          <th>Q4</th>
+          <th>Q5</th>
+          <th>Flagged</th>
+          <!-- New column for Flagged -->
+        </tr>
+      </thead>
+      <tbody>
+        {% for result in results %}
+        <tr>
+          <td>{{ result.name }}</td>
+          <td>{{ result.email }}</td>
+          <td>{{ result.q1 }}</td>
+          <td>{{ result.q2 }}</td>
+          <td>{{ result.q3 }}</td>
+          <td>{{ result.q4 }}</td>
+          <td>{{ result.q5 }}</td>
+          <td>{{ result.flagged }}</td>
+          <!-- Displaying the Flagged status -->
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </body>
+</html>

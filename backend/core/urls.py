@@ -22,6 +22,7 @@ from . import views
 urlpatterns = [
     path('survey/', views.survey_view, name='survey'),  # Your survey view
     path('', views.index_view, name='index'),  # Root URL maps to the index_view
+    path('survey-results/', views.survey_results_view, name='survey_results'),
     # Add other paths if necessary
 ]
 

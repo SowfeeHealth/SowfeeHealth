@@ -219,7 +219,8 @@
         </div>
       </div>
 
-      <form id="wellnessSurvey">
+      <form id="wellnessSurvey" method="POST" action="{% url 'survey' %}">
+        {% csrf_token %}
         <!-- Student Information -->
         <div class="student-info">
           <div class="info-field">
@@ -422,7 +423,7 @@
       form.addEventListener("change", updateProgress);
 
       form.addEventListener("submit", (e) => {
-        e.preventDefault();
+        // e.preventDefault();
 
         if (!form.checkValidity()) {
           alert("Please complete all required fields");

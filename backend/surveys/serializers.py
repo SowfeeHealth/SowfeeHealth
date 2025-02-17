@@ -7,6 +7,7 @@ class SurveyResponseSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 class FlaggedStudentsSerializer(serializers.ModelSerializer):
+    student_response = serializers.PrimaryKeyRelatedField(queryset=SurveyResponse.objects.all())  # Handling FK as ID
     class Meta:
         model = FlaggedStudents
         fields = "__all__"

@@ -33,6 +33,37 @@
             max-width: 1400px;
             margin: 0 auto;
         }
+        
+         /* Navigation */
+        .nav-bar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #eee;
+        }
+
+        .nav-btn {
+            background: none;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            color: #666;
+            transition: all 0.3s;
+        }
+
+        .nav-btn.active {
+            background: var(--secondary);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
 
         .header {
             margin-bottom: 2.5rem;
@@ -169,6 +200,154 @@
         .hidden-row {
             display: none;
         }
+.survey-tab {
+            background: white;
+            padding: 3rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+            max-width: 800px;
+            margin: 0 auto;
+            display: none;
+        }
+
+        .survey-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .survey-header h2 {
+            font-size: 1.8rem;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+        }
+
+        .generate-container {
+            text-align: center;
+            padding: 2rem;
+            border: 2px dashed #e8e9f1;
+            border-radius: 16px;
+            margin-bottom: 2rem;
+            transition: all 0.3s;
+        }
+
+        .generate-container:hover {
+            border-color: var(--primary);
+        }
+
+        .generate-btn {
+            background: var(--primary);
+            color: white;
+            padding: 1rem 2.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.8rem;
+            box-shadow: 0 4px 12px rgba(105, 54, 245, 0.2);
+        }
+
+        .generate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(105, 54, 245, 0.3);
+        }
+
+        .link-container {
+            background: var(--secondary);
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-top: 2rem;
+            position: relative;
+            display: none;
+        }
+
+        .survey-link {
+            font-family: monospace;
+            color: var(--primary);
+            word-break: break-all;
+            margin-bottom: 1.5rem;
+            padding-right: 100px;
+        }
+
+        .email-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .email-btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            transition: all 0.3s;
+            min-width: 200px;
+            justify-content: center;
+        }
+
+        .email-btn i {
+            font-size: 1.2rem;
+        }
+
+        .gmail-btn {
+            background: #ea4335;
+            color: white;
+        }
+
+        .outlook-btn {
+            background: #0072c6;
+            color: white;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(255,255,255,0.9);
+            border: 1px solid #e8e9f1;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .copy-btn:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        @media (max-width: 768px) {
+            .survey-tab {
+                padding: 1.5rem;
+            }
+            
+            .generate-btn {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .email-btn {
+                width: 100%;
+            }
+        }
+        </style>
+</head>
+<body>
+    <nav class="nav-bar">
+        <button class="nav-btn active" onclick="showTab('dashboard')">Dashboard</button>
+        <button class="nav-btn" onclick="showTab('survey')">Survey</button>
+    </nav>
+        
     </style>
 </head>
 <body>
@@ -178,6 +357,87 @@
             <p class="subtitle">Comprehensive overview of student mental health data</p>
         </div>
 
+        <!-- New Survey Tab -->
+    <div id="survey" class="survey-tab tab-content">
+        <div class="survey-header">
+            <h2>Create New Survey</h2>
+            <p>Generate and distribute student wellness surveys</p>
+        </div>
+        
+        <div class="generate-container">
+            <button class="generate-btn" onclick="generateSurveyLink()">
+                <i class="fas fa-magic"></i> Generate Survey Link
+            </button>
+            
+            <div class="link-container" id="linkContainer">
+                <button class="copy-btn" onclick="copyLink()">
+                    <i class="fas fa-copy"></i> Copy
+                </button>
+                <div class="survey-link" id="surveyLink"></div>
+                <div class="email-buttons">
+                    <button class="email-btn gmail-btn" onclick="sendViaGmail()">
+                        <i class="fab fa-google"></i> Share via Gmail
+                    </button>
+                    <button class="email-btn outlook-btn" onclick="sendViaOutlook()">
+                        <i class="fab fa-microsoft"></i> Share via Outlook
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+        // Tab Navigation
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.style.display = 'none';
+            });
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(tabName).style.display = 'block';
+            event.currentTarget.classList.add('active');
+        }
+
+        // Survey Link Generation
+        function generateSurveyLink() {
+            const linkId = uuid.v4();
+            const link = `https://sowfee.com/survey/${linkId}`;
+            const container = document.getElementById('linkContainer');
+            const linkDisplay = document.getElementById('surveyLink');
+            
+            linkDisplay.textContent = link;
+            container.style.display = 'block';
+            window.scrollTo({
+                top: document.getElementById('survey').offsetTop,
+                behavior: 'smooth'
+            });
+        }
+
+        // Copy to Clipboard
+        function copyLink() {
+            const link = document.getElementById('surveyLink').textContent;
+            navigator.clipboard.writeText(link)
+                .then(() => alert('Link copied to clipboard!'))
+                .catch(err => console.error('Failed to copy:', err));
+        }
+
+        // Email Integration
+        function sendViaGmail() {
+            const link = document.getElementById('surveyLink').textContent;
+            const subject = "Student Wellness Survey";
+            const body = `Dear Student,\n\nPlease complete the wellness survey:\n${link}\n\nBest regards,\nStudent Support Team`;
+            window.open(`https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+        }
+
+        function sendViaOutlook() {
+            const link = document.getElementById('surveyLink').textContent;
+            const subject = "Student Wellness Survey";
+            const body = `Dear Student,\n\nPlease complete the wellness survey:\n${link}\n\nBest regards,\nStudent Support Team`;
+            window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+        }
+        }
         <!-- Summary Metrics -->
         <div class="metrics-grid">
             <div class="metric-card">

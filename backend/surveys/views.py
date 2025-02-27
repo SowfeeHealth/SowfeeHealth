@@ -40,45 +40,48 @@ def handleStudentResponses(request):
         return Response(serializer.data)
 
     elif request.method == "POST":
-        # Save responses and check if student should be flagged
+        # Extract data
         student_name = request.data.get('student_name')
         school_email = request.data.get('school_email')
 
         # Delete any existing response for the same student
-        SurveyResponse.objects.filter(student_name=student_name, school_email=school_email).delete()
+        SurveyResponse.objects.filter(school_email=school_email).delete()
 
+        # Save the new response first
         serializer = SurveyResponseSerializer(data=request.data)
         if serializer.is_valid():
+            survey_result = serializer.save()  # Save the response
 
-            survey_result = serializer.save()  # This will always create a new response
+            # Delete any existing flagged entry for the same student
+            FlaggedStudents.objects.filter(school_email=school_email).delete()
 
             # Check if student should be flagged
             if any(getattr(survey_result, f'q{i}') >= 3 for i in range(1, 6)):
                 flagged_data = {
                     "school_email": survey_result.school_email,
                     "student_name": survey_result.student_name,
-                    "student_response": survey_result.id
+                    "student_response": survey_result.school_email
                 }
-                # Delete any existing response for the same student
-                FlaggedStudents.objects.filter(student_name=student_name, school_email=school_email).delete()
+                
                 flagged_serializer = FlaggedStudentsSerializer(data=flagged_data)
                 if flagged_serializer.is_valid():
                     flagged_serializer.save()
                     response_data = {
-                    "success": True,
-                    "message": "Thank you for your honest response! Your input makes a difference.",
-                    "data": flagged_serializer.data  
+                        "success": True,
+                        "message": "Thank you for your honest response! Your input makes a difference.",
+                        "data": flagged_serializer.data  
                     }
                     return JsonResponse(response_data)
                 else:
-                    console.log("error occured serializing")
-            else:
-                response_data = {
-                    "success": True,
-                    "message": "Thank you for your honest response! Your input makes a difference.",
-                    "data": serializer.data  
-                }
-                return JsonResponse(response_data)
+                    print("Error occurred when serializing flagged student:", flagged_serializer.errors)
+
+            # Return success response for non-flagged students
+            response_data = {
+                "success": True,
+                "message": "Thank you for your honest response! Your input makes a difference.",
+                "data": serializer.data  
+            }
+            return JsonResponse(response_data)
         else:
             print(f"Serializer Errors: {serializer.errors}")
             return JsonResponse({
@@ -86,6 +89,7 @@ def handleStudentResponses(request):
                 "message": "There was an error with your submission.",
                 "data": serializer.errors
             })
+
 
 
 @api_view(["GET"])

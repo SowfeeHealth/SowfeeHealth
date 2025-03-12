@@ -10,6 +10,7 @@ from django.http import JsonResponse
 
 from .forms import SurveyForm
 from django.contrib import messages
+from students.models import Student
 
 def index_view(request):
     return render(request, 'index.html')
@@ -43,11 +44,21 @@ def handleStudentResponses(request):
         # Save responses and check if student should be flagged
         student_name = request.data.get('student_name')
         school_email = request.data.get('school_email')
+        university_id = Student.objects.filter(student_name=student_name, student_email=school_email).first().university_id
+        serializer_data = {"student_name": request.data["student_name"], 
+                           "school_email": request.data["school_email"],
+                           "university_id": university_id,
+                           "q1": request.data["q1"],
+                           "q2": request.data["q2"],
+                           "q3": request.data["q3"],
+                           "q4": request.data["q4"],
+                           "q5": request.data["q5"]}
+        # request.data["university_id"] = university_id
 
         # Delete any existing response for the same student
         SurveyResponse.objects.filter(student_name=student_name, school_email=school_email).delete()
 
-        serializer = SurveyResponseSerializer(data=request.data)
+        serializer = SurveyResponseSerializer(data=serializer_data)
         if serializer.is_valid():
 
             survey_result = serializer.save()  # This will always create a new response
@@ -71,7 +82,7 @@ def handleStudentResponses(request):
                     }
                     return JsonResponse(response_data)
                 else:
-                    console.log("error occured serializing")
+                    print("error occured serializing")
             else:
                 response_data = {
                     "success": True,
@@ -96,5 +107,6 @@ def handleFlaggedStudents(request):
         flaggedStudentsSerializer = FlaggedStudentsSerializer(flaggedStudents, many=True)
         return Response(flaggedStudentsSerializer.data)
 
-def dashboard_view(request):
-    return render(request, 'dashboard.html')  # Pass data to template
+def dashboard_view(request, university):
+    total_students = len(SurveyResponse.objects.filter(university_id = university))
+    return render(request, 'dashboard.html', {"total_students": total_students})  # Pass data to template

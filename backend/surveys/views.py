@@ -1,46 +1,45 @@
 from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
-from rest_framework.request import Request
-from rest_framework.parsers import JSONParser
-#from django.views.decorators.csrf import csrf_exempt
 from .models import SurveyResponse, FlaggedStudents
+from students.models import Student
 from .serializers import SurveyResponseSerializer, FlaggedStudentsSerializer
 from django.http import JsonResponse
 
-from .forms import SurveyForm
-from django.contrib import messages
-from students.models import Student
 
+@api_view(["GET"])
 def index_view(request):
     return render(request, 'index.html')
 
-#@csrf_exempt
+
+@api_view(["GET", "POST"])
 def survey_view(request):
     if request.method == 'GET':
         return render(request, 'survey.html')  # Render form if it's a GET request
+    
     elif request.method == 'POST':
-        print("POST Data:", request.POST)
 
+        # Check for missing fields
         required_fields = ['student_name', 'school_email', 'q1', 'q2', 'q3', 'q4', 'q5']
         missing_fields = [field for field in required_fields if field not in request.POST]
 
         if missing_fields:
-            print(f"Missing fields: {missing_fields}")
             return JsonResponse({"success": False, "error": f"Missing fields: {', '.join(missing_fields)}"})
 
-        # Call handleStudentResponses directly with request.POST as data
         return handleStudentResponses(request)
+
 
 @api_view(['GET', 'POST'])
 def handleStudentResponses(request):
     if request.method == "GET":
+
         # Get all student responses
         surveyResponses = SurveyResponse.objects.all()
         serializer = SurveyResponseSerializer(surveyResponses, many=True)
         return Response(serializer.data)
 
     elif request.method == "POST":
+
         # Save responses and check if student should be flagged
         student_name = request.data.get('student_name')
         school_email = request.data.get('school_email')
@@ -53,7 +52,6 @@ def handleStudentResponses(request):
                            "q3": request.data["q3"],
                            "q4": request.data["q4"],
                            "q5": request.data["q5"]}
-        # request.data["university_id"] = university_id
 
         # Delete any existing response for the same student
         SurveyResponse.objects.filter(student_name=student_name, school_email=school_email).delete()
@@ -81,16 +79,18 @@ def handleStudentResponses(request):
                     "data": flagged_serializer.data  
                     }
                     return JsonResponse(response_data)
-                else:
-                    print("error occured serializing")
-            else:
-                response_data = {
-                    "success": True,
-                    "message": "Thank you for your honest response! Your input makes a difference.",
-                    "data": serializer.data  
-                }
-                return JsonResponse(response_data)
+
+            # Return success response
+            response_data = {
+                "success": True,
+                "message": "Thank you for your honest response! Your input makes a difference.",
+                "data": serializer.data  
+            }
+            return JsonResponse(response_data)
+        
         else:
+
+            # Return error response
             print(f"Serializer Errors: {serializer.errors}")
             return JsonResponse({
                 "success": False,
@@ -107,6 +107,22 @@ def handleFlaggedStudents(request):
         flaggedStudentsSerializer = FlaggedStudentsSerializer(flaggedStudents, many=True)
         return Response(flaggedStudentsSerializer.data)
 
+
+@api_view(["GET"])
 def dashboard_view(request, university):
-    total_students = len(SurveyResponse.objects.filter(university_id = university))
-    return render(request, 'dashboard.html', {"total_students": total_students})  # Pass data to template
+
+    total_students = len(Student.objects.filter(university_id = university))
+
+    all_flagged_students = FlaggedStudents.objects.all()
+    school_flagged_students = []
+    for student in all_flagged_students:
+        if student.student_response.university_id == university:
+            school_flagged_students.append((student.student_name, student.school_email))
+
+    total_flagged_students = len(school_flagged_students)
+    all_responses = SurveyResponse.objects.filter(university_id = university)
+    total_responses = len(all_responses)
+
+    return render(request, 'dashboard.html', {"total_students": total_students, "flagged_students": school_flagged_students, 
+                                              "total_flagged_students": total_flagged_students, "total_responses": total_responses,
+                                              "response_rate": int(total_responses/total_students * 100)})

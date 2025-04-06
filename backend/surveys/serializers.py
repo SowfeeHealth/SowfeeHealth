@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import SurveyResponse, FlaggedStudents
+from .models import SurveyResponse, FlaggedStudents, Student
 
 class SurveyResponseSerializer(serializers.ModelSerializer):
     class Meta:
@@ -11,3 +11,9 @@ class FlaggedStudentsSerializer(serializers.ModelSerializer):
     class Meta:
         model = FlaggedStudents
         fields = "__all__"
+
+class StudentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Student
+        fields = "__all__"
+

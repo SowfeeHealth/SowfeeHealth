@@ -169,7 +169,7 @@
     <div class="login-container">
       <div class="logo">Sowfee Health</div>
 
-      <form id="loginForm" , method="POST" , action="login/">
+      <form id="loginForm" , method="POST" , action="register/">
         {% csrf_token %}
         <input type="hidden" id="csrf_token" value="{{ csrf_token }}" />
 
@@ -193,7 +193,17 @@
           />
         </div>
 
-        <button type="submit" class="login-btn">Sign In</button>
+        <div class="form-group">
+          <label for="confirm_password">Confirm Password</label>
+          <input
+            type="confirm_password"
+            id="confirm_password"
+            placeholder="Confirm your password"
+            required
+          />
+        </div>
+
+        <button type="submit" class="login-btn">Sign Up</button>
 
         <div class="links">
           <a href="#forgot-password">Forgot Password?</a>

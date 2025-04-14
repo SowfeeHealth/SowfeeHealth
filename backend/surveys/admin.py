@@ -12,6 +12,11 @@ class FlaggedStudentsAdmin(admin.ModelAdmin):
     search_fields = ('student_name', 'school_email')  # Enable search by student name and email
     list_filter = ('student_response',)  # Add a filter option by student response
 
+class StudentAdmin(admin.ModelAdmin):
+    list_display = ('student_name', 'school_email', 'university_id')
+    search_fields = ('student_name', 'school_email')
+    list_filter = ('university_id')
+
 admin.site.register(SurveyResponse, SurveyResponseAdmin)
 
 admin.site.register(FlaggedStudents, FlaggedStudentsAdmin)

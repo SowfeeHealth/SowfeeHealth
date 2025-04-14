@@ -12,7 +12,6 @@ def index_view(request):
     return render(request, 'index.html')
 
 
-@api_view(["GET", "POST"])
 def survey_view(request):
 
     if request.method == 'GET':
@@ -29,7 +28,6 @@ def survey_view(request):
         return student_response_view(request)
 
 
-@api_view(['GET', 'POST'])
 def student_response_view(request):
     
     if request.method == "GET":
@@ -40,17 +38,17 @@ def student_response_view(request):
     elif request.method == "POST":
 
         # Save responses and check if student should be flagged
-        student_name = request.data.get('student_name')
-        school_email = request.data.get('school_email')
-        university_id = Student.objects.filter(student_name=student_name, student_email=school_email).first().university_id
-        serializer_data = {"student_name": request.data["student_name"], 
-                           "school_email": request.data["school_email"],
+        student_name = request.POST.get('student_name')
+        school_email = request.POST.get('school_email')
+        university_id = Student.objects.filter(student_name=student_name, school_email=school_email).first().university_id
+        serializer_data = {"student_name": request.POST["student_name"], 
+                           "school_email": request.POST["school_email"],
                            "university_id": university_id,
-                           "q1": request.data["q1"],
-                           "q2": request.data["q2"],
-                           "q3": request.data["q3"],
-                           "q4": request.data["q4"],
-                           "q5": request.data["q5"]}
+                           "q1": request.POST["q1"],
+                           "q2": request.POST["q2"],
+                           "q3": request.POST["q3"],
+                           "q4": request.POST["q4"],
+                           "q5": request.POST["q5"]}
 
         # Delete any existing response for the same student
         SurveyResponse.objects.filter(student_name=student_name, school_email=school_email).delete()
@@ -131,9 +129,19 @@ def dashboard_view(request, university):
     all_responses = SurveyResponse.objects.filter(university_id = university)
     total_responses = len(all_responses)
 
+    # Get all students with good and bad sleep quality
+    total_good_sleep_quality = 0
+    total_bad_sleep_quality = 0
+    for response in all_responses:
+        if response.q4 <= 2:
+            total_good_sleep_quality += 1
+        elif response.q4 >= 4:
+            total_bad_sleep_quality += 1
+    
     return render(request, 'dashboard.html', {"total_students": total_students, "flagged_students": school_flagged_students, 
                                               "total_flagged_students": total_flagged_students, "total_responses": total_responses,
-                                              "response_rate": int(total_responses/total_students * 100) if total_students > 0 else 0})
+                                              "response_rate": int(total_responses/total_students * 100) if total_students > 0 else 0,
+                                              "total_good_sleep_quality": total_good_sleep_quality, "total_bad_sleep_quality": total_bad_sleep_quality})
 
 
 def login_view(request):

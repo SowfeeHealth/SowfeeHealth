@@ -15,10 +15,10 @@ class FlaggedStudentsAdmin(admin.ModelAdmin):
 class StudentAdmin(admin.ModelAdmin):
     list_display = ('student_name', 'school_email', 'university_id')
     search_fields = ('student_name', 'school_email')
-    list_filter = ('university_id')
+    list_filter = ('university_id',)
 
 admin.site.register(SurveyResponse, SurveyResponseAdmin)
 
 admin.site.register(FlaggedStudents, FlaggedStudentsAdmin)
 
-admin.site.register(Student)
+admin.site.register(Student, StudentAdmin)

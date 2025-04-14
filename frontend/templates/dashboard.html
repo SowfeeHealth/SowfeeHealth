@@ -212,29 +212,48 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for student in flagged_students %}
-                        <tr>
-                            <td>{{ student.0 }}</td>
-                            <td>
-                                <span class="status-indicator">
-                                    <span class="status-dot"></span>
-                                    Needs Intervention
-                                </span>
-                            </td>
-                            <td>{{ student.1 }}</td>
-                        </tr>
-                    {% endfor %}
-                    <tr>
-                        <td>Sarah Johnson</td>
-                        <td>
-                            <span class="status-indicator">
-                                <span class="status-dot"></span>
-                                Needs Intervention
-                            </span>
-                        </td>
-                        <td>sarah.j@university.edu</td>
-                    </tr>
-                    <tr class="hidden-row">
+                    {% if flagged_students|length <= 3 %}
+                        {% for student in flagged_students %}
+                            <tr>
+                                <td>{{ student.0 }}</td>
+                                <td>
+                                    <span class="status-indicator">
+                                        <span class="status-dot"></span>
+                                        Needs Intervention
+                                    </span>
+                                </td>
+                                <td>{{ student.1 }}</td>
+                            </tr>
+                        {% endfor %}
+                    
+                        {% else %}
+                            {% for student in flagged_students|slice:":3" %}
+                                <tr>
+                                    <td>{{ student.0 }}</td>
+                                    <td>
+                                        <span class="status-indicator">
+                                            <span class="status-dot"></span>
+                                            Needs Intervention
+                                        </span>
+                                    </td>
+                                    <td>{{ student.1 }}</td>
+                                </tr>
+                            {% endfor %}
+
+                            {% for student in flagged_students|slice:"3:" %}
+                                <tr class="hidden-row">
+                                    <td>{{ student.0 }}</td>
+                                    <td>
+                                        <span class="status-indicator">
+                                            <span class="status-dot"></span>
+                                            Needs Intervention
+                                        </span>
+                                    </td>
+                                    <td>{{ student.1 }}</td>
+                                </tr>
+                            {% endfor %}
+                    {% endif %}
+                    <!-- <tr class="hidden-row">
                         <td>Michael Chen</td>
                         <td>
                             <span class="status-indicator">
@@ -243,7 +262,7 @@
                             </span>
                         </td>
                         <td>michael.c@university.edu</td>
-                    </tr>
+                    </tr> -->
                     <!-- Add more hidden rows -->
                 </tbody>
             </table>
@@ -328,7 +347,7 @@
             data: {
                 labels: ['At Risk', 'Stable'],
                 datasets: [{
-                    data: [142, 2203],
+                    data: [parseInt("{{ total_flagged_students }}"), parseInt("{{ total_responses }}")],
                     backgroundColor: ['#ff6b6b', '#6936f5']
                 }]
             }
@@ -341,7 +360,7 @@
                 labels: ['Good Sleep', 'Poor Sleep'],
                 datasets: [{
                     label: 'Students',
-                    data: [1203, 345],
+                    data: [parseInt("{{ total_good_sleep_quality }}"), parseInt("{{ total_bad_sleep_quality }}")],
                     backgroundColor: ['#6936f5', '#ff6b6b'],
                     borderRadius: 8
                 }]

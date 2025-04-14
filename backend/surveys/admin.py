@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import SurveyResponse, FlaggedStudents
+from .models import SurveyResponse, FlaggedStudents, Student
 
 class SurveyResponseAdmin(admin.ModelAdmin):
     list_display = ('student_name', 'school_email', 'created', 'q1', 'q2', 'q3', 'q4', 'q5')
@@ -16,4 +16,4 @@ admin.site.register(SurveyResponse, SurveyResponseAdmin)
 
 admin.site.register(FlaggedStudents, FlaggedStudentsAdmin)
 
-
+admin.site.register(Student)

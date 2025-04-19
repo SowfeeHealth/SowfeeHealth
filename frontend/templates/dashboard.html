@@ -1,187 +1,425 @@
 <!DOCTYPE html>
+<link rel="icon" type="image/x-icon" href="/images/sowfeefavicon.png" />
+
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sowfee Health Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body class="bg-gray-100 font-sans">
+    <style>
+      :root {
+        --primary: #6936f5;
+        --secondary: #f8f9fe;
+        --accent: #ff6b6b;
+        --text: #2d2d35;
+      }
 
-    <div class="flex flex-col h-screen">
-        <header class="bg-purple-600 p-4 text-white">
-            <div class="flex justify-between items-center">
-                <h1 class="text-2xl font-bold">Sowfee Health Dashboard</h1>
-                <button id="hamburger" class="text-white focus:outline-none md:hidden">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path>
-                    </svg>
-                </button>
-            </div>
-        </header>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Inter", system-ui, -apple-system, sans-serif;
+      }
 
-        <div class="flex flex-1">
-            <!-- Sidebar -->
-            <nav id="sidebar" class="hidden md:block bg-white w-64 shadow-lg p-4">
-                <ul>
-                    <li><a href="dashboard.html" class="block py-2 text-gray-700 hover:bg-purple-100">Analytics</a></li>
-                    <li><a href="schedule-survey.html" class="block py-2 text-gray-700 hover:bg-purple-100">Create Survey</a></li>
-                </ul>
-            </nav>
+      body {
+        background: #f8f9fe;
+        padding: 2rem;
+        min-height: 100vh;
+      }
 
-            <main class="flex-1 p-6">
-                <!-- Summary Boxes -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                    <div class="bg-white p-4 rounded-lg shadow">
-                        <h3 class="text-lg font-bold mb-2">Total Students</h3>
-                        <p class="text-3xl font-semibold">1,200</p>
-                    </div>
-                    <div class="bg-white p-4 rounded-lg shadow">
-                        <h3 class="text-lg font-bold mb-2">Students at Risk</h3>
-                        <p class="text-3xl font-semibold text-red-500">200</p>
-                    </div>
-                    <div class="bg-white p-4 rounded-lg shadow">
-                        <h3 class="text-lg font-bold mb-2">Surveys Completed</h3>
-                        <p class="text-3xl font-semibold text-green-500">800</p>
-                    </div>
-                </div>
+      .dashboard-container {
+        max-width: 1400px;
+        margin: 0 auto;
+      }
 
-                <!-- Students in Need Table -->
-                <div class="bg-white shadow rounded-lg p-6 mb-6">
-                    <h2 class="font-bold text-xl mb-4">Students in Need</h2>
-                    <table id="studentsTable" class="w-full border border-gray-200">
-                        <thead class="bg-gray-200">
-                            <tr>
-                                <th class="py-3 px-4 text-left">Student Name</th>
-                                <th class="py-3 px-4 text-left">Risk Level</th>
-                                <th class="py-3 px-4 text-left">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr class="border-b">
-                                <td class="py-2 px-4">John Doe</td>
-                                <td class="py-2 px-4">High</td>
-                                <td class="py-2 px-4">
-                                    <button class="bg-purple-500 text-white py-1 px-2 text-sm rounded">Email</button>
-                                    <button class="bg-purple-500 text-white py-1 px-2 text-sm rounded ml-2">View Results</button>
-                                </td>
-                            </tr>
-                            <tr class="border-b">
-                                <td class="py-2 px-4">Jane Smith</td>
-                                <td class="py-2 px-4">Medium</td>
-                                <td class="py-2 px-4">
-                                    <button class="bg-purple-500 text-white py-1 px-2 text-sm rounded">Email</button>
-                                    <button class="bg-purple-500 text-white py-1 px-2 text-sm rounded ml-2">View Results</button>
-                                </td>
-                            </tr>
-                            <tr class="border-b">
-                                <td class="py-2 px-4">Mark Johnson</td>
-                                <td class="py-2 px-4">Low</td>
-                                <td class="py-2 px-4">
-                                    <button class="bg-purple-500 text-white py-1 px-2 text-sm rounded">Email</button>
-                                    <button class="bg-purple-500 text-white py-1 px-2 text-sm rounded ml-2">View Results</button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <!-- See More Button -->
-                    <button id="seeMoreBtn" class="mt-4 text-white bg-purple-500 hover:bg-purple-600 py-1 px-4 rounded-full block mx-auto text-sm">
-                        See More
-                    </button>
-                </div>
+      .header {
+        margin-bottom: 2.5rem;
+      }
 
-                <!-- Charts Section -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
-                    <!-- Total Responses Per Month -->
-                    <div class="bg-white p-4 rounded-lg shadow" style="height: 400px;">
-                        <h3 class="text-lg font-bold mb-4">Total Responses Per Month</h3>
-                        <canvas id="totalResponsesChart" height="200"></canvas>
-                    </div>
+      .header h1 {
+        font-size: 2.2rem;
+        color: var(--text);
+        margin-bottom: 0.5rem;
+        font-weight: 700;
+        background: linear-gradient(45deg, var(--primary), #8a63f2);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
 
-                    <!-- Average Score Over Time -->
-                    <div class="bg-white p-4 rounded-lg shadow" style="height: 400px;">
-                        <h3 class="text-lg font-bold mb-4">Average Score Over Time</h3>
-                        <canvas id="averageScoreChart" height="200"></canvas>
-                    </div>
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2.5rem;
+      }
 
-                    <!-- Emotional Breakdown -->
-                    <div class="bg-white p-4 rounded-lg shadow" style="height: 400px;">
-                        <h3 class="text-lg font-bold mb-4">Emotional Breakdown</h3>
-                        <canvas id="emotionalBreakdownChart" height="200"></canvas>
-                    </div>
+      .metric-card {
+        background: white;
+        padding: 1.8rem;
+        border-radius: 16px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+        transition: transform 0.3s ease;
+      }
 
-                    <!-- Risk Levels -->
-                    <div class="bg-white p-4 rounded-lg shadow" style="height: 400px;">
-                        <h3 class="text-lg font-bold mb-4">Risk Levels</h3>
-                        <canvas id="riskLevelsChart" height="200"></canvas>
-                    </div>
-                </div>
-            </main>
+      .metric-card:hover {
+        transform: translateY(-3px);
+      }
+
+      .metric-value {
+        font-size: 2.4rem;
+        font-weight: 700;
+        color: var(--primary);
+        margin-bottom: 0.5rem;
+      }
+
+      .metric-title {
+        color: #666;
+        font-size: 1rem;
+        font-weight: 500;
+      }
+
+      .students-table-container {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+        padding: 2rem;
+        margin-bottom: 3rem;
+      }
+
+      .students-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .students-table th {
+        text-align: left;
+        padding: 1.2rem;
+        color: #666;
+        font-weight: 500;
+        border-bottom: 2px solid #f0f0f5;
+      }
+
+      .students-table td {
+        padding: 1.2rem;
+        border-bottom: 1px solid #f0f0f5;
+      }
+
+      .status-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.8rem;
+      }
+
+      .status-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 2px 6px rgba(255, 107, 107, 0.2);
+      }
+
+      .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 2rem;
+      }
+
+      .chart-card {
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+      }
+
+      .chart-title {
+        margin-bottom: 1.5rem;
+        color: var(--text);
+        font-size: 1.2rem;
+        font-weight: 600;
+      }
+
+      .chart-container {
+        height: 300px;
+        position: relative;
+      }
+
+      .show-more-btn {
+        transition: all 0.3s ease;
+        border: 2px solid transparent !important;
+        padding: 0.8rem 2rem;
+        background: #6936f5;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        margin-top: 1.5rem;
+        display: block;
+        width: fit-content;
+        margin: 1.5rem auto 0;
+      }
+
+      .show-more-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(105, 54, 245, 0.2);
+      }
+
+      .hidden-row {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="dashboard-container">
+      <div class="header">
+        <h1>Student Wellness Dashboard</h1>
+        <p class="subtitle">
+          Comprehensive overview of student mental health data
+        </p>
+      </div>
+
+      <!-- Summary Metrics -->
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-value">{{ total_responses }}</div>
+          <div class="metric-title">
+            <i class="fas fa-clipboard-check"></i> Surveys Completed
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">{{ total_flagged_students }}</div>
+          <div class="metric-title">
+            <i class="fas fa-exclamation-triangle"></i> Students At Risk
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">{{ response_rate }}%</div>
+          <div class="metric-title">
+            <i class="fas fa-check-circle"></i> Response Rate
+          </div>
+        </div>
+      </div>
+
+      <!-- Students Table -->
+      <div class="students-table-container">
+        <h2 class="chart-title">Students Requiring Immediate Support</h2>
+        <table class="students-table">
+          <thead>
+            <tr>
+              <th>Student Name</th>
+              <th>Status</th>
+              <th>Email</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if flagged_students|length <= 3 %} 
+              {% for student in flagged_students %}
+              <tr>
+                <td>{{ student.0 }}</td>
+                <td>
+                  <span class="status-indicator">
+                    <span class="status-dot"></span>
+                    Needs Intervention
+                  </span>
+                </td>
+                <td>{{ student.1 }}</td>
+              </tr>
+              {% endfor %} 
+            {% else %} 
+              {% for student in flagged_students|slice:":3" %}
+                <tr>
+                  <td>{{ student.0 }}</td>
+                  <td>
+                    <span class="status-indicator">
+                      <span class="status-dot"></span>
+                      Needs Intervention
+                    </span>
+                  </td>
+                  <td>{{ student.1 }}</td>
+                </tr>
+              {% endfor %} 
+              {% for student in flagged_students|slice:"3:" %}
+                <tr class="hidden-row">
+                  <td>{{ student.0 }}</td>
+                  <td>
+                    <span class="status-indicator">
+                      <span class="status-dot"></span>
+                      Needs Intervention
+                    </span>
+                  </td>
+                  <td>{{ student.1 }}</td>
+                </tr>
+              {% endfor %} 
+            {% endif %}
+          </tbody>
+        </table>
+        <button class="show-more-btn" onclick="toggleMoreStudents()">
+          Show More Students
+        </button>
+      </div>
+
+      <!-- Charts Section -->
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3 class="chart-title">Monthly Survey Responses</h3>
+          <div class="chart-container">
+            <canvas id="responsesChart"></canvas>
+          </div>
         </div>
 
-        <footer class="bg-gray-200 text-center p-4">
-            <p>&copy; 2024 Sowfee Health. All rights reserved.</p>
-        </footer>
+        <div class="chart-card">
+          <h3 class="chart-title">At-Risk vs Stable Students</h3>
+          <div class="chart-container">
+            <canvas id="riskChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <h3 class="chart-title">Sleep Quality Distribution</h3>
+          <div class="chart-container">
+            <canvas id="sleepChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <h3 class="chart-title">Campus Support Perception</h3>
+          <div class="chart-container">
+            <canvas id="supportChart"></canvas>
+          </div>
+        </div>
+
+        <!-- New Stress Chart -->
+        <div class="chart-card">
+          <h3 class="chart-title">Stress Levels Analysis</h3>
+          <div class="chart-container">
+            <canvas id="stressChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <h3 class="chart-title">Response Rate Trend</h3>
+          <div class="chart-container">
+            <canvas id="responseRateChart"></canvas>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script>
-        const sidebar = document.getElementById('sidebar');
-        const hamburger = document.getElementById('hamburger');
+      // Toggle more students
+      function toggleMoreStudents() {
+        const hiddenRows = document.querySelectorAll(".hidden-row");
+        hiddenRows.forEach((row) => (row.style.display = "table-row"));
+        document.querySelector(".show-more-btn").style.display = "none";
+      }
 
-        hamburger.addEventListener('click', () => {
-            sidebar.classList.toggle('hidden');
-        });
+      // Monthly Responses Chart
+      new Chart(document.getElementById("responsesChart"), {
+        type: "bar",
+        data: {
+          labels: ["Jan", "Feb", "Mar", "Apr", "May"],
+          datasets: [
+            {
+              label: "Responses",
+              data: [345, 402, 512, 487, 632],
+              backgroundColor: "#6936f5",
+              borderRadius: 8,
+              barThickness: 40,
+            },
+          ],
+        },
+      });
 
-        // Show More Students Function
-        function showMoreRows() {
-            const table = document.getElementById('studentsTable').getElementsByTagName('tbody')[0];
-            const newRow = table.insertRow();
+      // Risk Distribution Chart
+      new Chart(document.getElementById("riskChart"), {
+        type: "doughnut",
+        data: {
+          labels: ["At Risk", "Stable"],
+          datasets: [
+            {
+              data: [
+                parseInt("{{ total_flagged_students }}"),
+                parseInt("{{ total_responses }}"),
+              ],
+              backgroundColor: ["#ff6b6b", "#6936f5"],
+            },
+          ],
+        },
+      });
 
-            newRow.innerHTML = `
-                <td class="py-2 px-4">New Student</td>
-                <td class="py-2 px-4">Medium</td>
-                <td class="py-2 px-4">
-                    <button class="bg-purple-500 text-white py-1 px-2 text-sm rounded">Email</button>
-                    <button class="bg-purple-500 text-white py-1 px-2 text-sm rounded ml-2">View Results</button>
-                </td>
-            `;
-        }
+      // Sleep Quality Chart
+      new Chart(document.getElementById("sleepChart"), {
+        type: "bar",
+        data: {
+          labels: ["Good Sleep", "Poor Sleep"],
+          datasets: [
+            {
+              label: "Students",
+              data: [
+                parseInt("{{ total_good_sleep_quality }}"),
+                parseInt("{{ total_bad_sleep_quality }}"),
+              ],
+              backgroundColor: ["#6936f5", "#ff6b6b"],
+              borderRadius: 8,
+            },
+          ],
+        },
+      });
 
-        // Add Event Listener for "See More" Button
-        document.getElementById('seeMoreBtn').addEventListener('click', showMoreRows);
+      // Support Perception Chart
+      new Chart(document.getElementById("supportChart"), {
+        type: "line",
+        data: {
+          labels: ["Jan", "Feb", "Mar", "Apr", "May"],
+          datasets: [
+            {
+              label: "Feel Supported",
+              data: [68, 72, 75, 74, 78],
+              borderColor: "#6936f5",
+              tension: 0.4,
+              fill: false,
+            },
+          ],
+        },
+      });
 
-        // ChartJS Code for Various Charts
-        function createChart(ctx, chartType, label, data, colors) {
-            new Chart(ctx, {
-                type: chartType,
-                data: {
-                    labels: label,
-                    datasets: [{
-                        label: chartType === 'bar' ? 'Risk Levels' : 'Emotional Breakdown',
-                        data: data,
-                        backgroundColor: colors,
-                        borderColor: colors,
-                        borderWidth: 2,
-                        fill: chartType === 'line', // Fill only for line chart
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: { beginAtZero: true },
-                        y: { beginAtZero: true },
-                    }
-                }
-            });
-        }
+      // New Stress Analysis Chart
+      new Chart(document.getElementById("stressChart"), {
+        type: "bar",
+        data: {
+          labels: ["Low Stress", "Moderate Stress", "High Stress"],
+          datasets: [
+            {
+              label: "Students",
+              data: [800, 1200, 450],
+              backgroundColor: ["#4caf50", "#ffc107", "#ff6b6b"],
+              borderRadius: 8,
+            },
+          ],
+        },
+      });
 
-        // Create Charts
-        createChart(document.getElementById('totalResponsesChart').getContext('2d'), 'bar', ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'], [50, 150, 200, 250, 300, 400], 'rgba(33, 150, 243, 0.7)');
-        createChart(document.getElementById('averageScoreChart').getContext('2d'), 'line', ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'], [85, 90, 88, 91, 87, 92], 'rgba(0, 200, 83, 0.7)');
-        createChart(document.getElementById('emotionalBreakdownChart').getContext('2d'), 'pie', ['Happy', 'Stressed', 'Sad'], [40, 30, 30], ['rgb(76, 175, 80)', 'rgb(63, 81, 181)', 'rgb(244, 67, 54)']);
-        createChart(document.getElementById('riskLevelsChart').getContext('2d'), 'bar', ['High', 'Medium', 'Low'], [50, 100, 150], ['rgb(244, 67, 54)', 'rgb(255, 193, 7)', 'rgb(33, 150, 243)']);
+      // Response Rate Trend Chart
+      new Chart(document.getElementById("responseRateChart"), {
+        type: "line",
+        data: {
+          labels: ["Jan", "Feb", "Mar", "Apr", "May"],
+          datasets: [
+            {
+              label: "Response Rate %",
+              data: [72, 75, 78, 82, 85],
+              borderColor: "#6936f5",
+              tension: 0.4,
+              fill: false,
+            },
+          ],
+        },
+      });
     </script>
-</body>
+  </body>
 </html>

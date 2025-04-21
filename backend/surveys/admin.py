@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import SurveyResponse, FlaggedStudents
+from .models import SurveyResponse, FlaggedStudents, User, Student
 
 class SurveyResponseAdmin(admin.ModelAdmin):
     list_display = ('student_name', 'school_email', 'created', 'q1', 'q2', 'q3', 'q4', 'q5')
@@ -12,8 +12,22 @@ class FlaggedStudentsAdmin(admin.ModelAdmin):
     search_fields = ('student_name', 'school_email')  # Enable search by student name and email
     list_filter = ('student_response',)  # Add a filter option by student response
 
+class UserAdmin(admin.ModelAdmin):
+    list_display = ('email', 'is_admin', 'date_joined')
+    search_fields = ('email',)
+    list_filter = ('is_admin',)
+
+class StudentAdmin(admin.ModelAdmin):
+    list_display = ('student_name', 'school_email', 'university_id')
+    search_fields = ('student_name', 'school_email')
+    list_filter = ('university_id',)
+
 admin.site.register(SurveyResponse, SurveyResponseAdmin)
 
 admin.site.register(FlaggedStudents, FlaggedStudentsAdmin)
+
+admin.site.register(User, UserAdmin)
+
+admin.site.register(Student, StudentAdmin)
 
 

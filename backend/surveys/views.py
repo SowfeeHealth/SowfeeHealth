@@ -61,6 +61,7 @@ def student_response_view(request):
 
             survey_result = serializer.save()  # This will always create a new response
 
+            '''
             # Process student data
             student_data = {
                 "school_email": survey_result.school_email,
@@ -73,7 +74,7 @@ def student_response_view(request):
                 print("Student data", students_serializer.data, flush=True)
             else:
                 print("Error saving student:", students_serializer.errors, flush=True)
-
+            '''
             # Check if student should be flagged
             if any(getattr(survey_result, f'q{i}') >= 3 for i in range(1, 6)):
                 flagged_data = {

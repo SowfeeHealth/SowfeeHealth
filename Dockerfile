@@ -12,9 +12,11 @@ RUN apt-get update && apt-get install -y \
     default-mysql-client \
     && apt-get clean \
     && pip install --no-cache-dir -r requirements.txt
+# Copy the backend directory contents to /app
+COPY backend/ .
 
-# Copy only the backend directory to the app directory
-COPY backend/ /app/
+# Copy frontend templates for Django
+COPY frontend/templates /frontend/templates
 
 # Expose the port that Django runs on
 EXPOSE 8000

@@ -62,14 +62,19 @@ jobs:
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          cat > ~/app/.env << 'EOL'
+          mkdir -p ~/app
+          cat > ~/app/.env << EOL
           MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
           MYSQL_USER=${{ secrets.MYSQL_USER }}
           MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
           MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
           MYSQL_HOST=${{ secrets.MYSQL_HOST }}
           MYSQL_PORT=${{ secrets.MYSQL_PORT }}
+          DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
           EOL
+          
+          # Verify the file was created
+          ls -la ~/app/
 
     - name: Deploy to EC2
       uses: appleboy/ssh-action@master
@@ -89,3 +94,13 @@ jobs:
           
           # 启动所有服务
           docker-compose up -d
+
+    - name: Debug - Check secrets
+      run: |
+        echo "MYSQL_DATABASE is defined: ${{ secrets.MYSQL_DATABASE != '' }}"
+        echo "MYSQL_USER is defined: ${{ secrets.MYSQL_USER != '' }}"
+        echo "MYSQL_PASSWORD is defined: ${{ secrets.MYSQL_PASSWORD != '' }}"
+        echo "MYSQL_ROOT_PASSWORD is defined: ${{ secrets.MYSQL_ROOT_PASSWORD != '' }}"
+        echo "MYSQL_HOST is defined: ${{ secrets.MYSQL_HOST != '' }}"
+        echo "MYSQL_PORT is defined: ${{ secrets.MYSQL_PORT != '' }}"
+        echo "DOCKER_USERNAME is defined: ${{ secrets.DOCKER_USERNAME != '' }}"

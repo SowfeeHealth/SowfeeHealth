@@ -46,8 +46,10 @@ jobs:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
-        source: "docker-compose.prod.yaml"
+        source: "."
         target: "~/app"
+        strip_components: 1        # Flatten folder structure to avoid nested dirs
+
 
     - name: Create .env file on EC2
       uses: appleboy/ssh-action@master

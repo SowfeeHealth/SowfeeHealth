@@ -30,8 +30,19 @@ services:
     environment:
       - MYSQL_HOST=db
       - MYSQL_PORT=3306
+      - DJANGO_SETTINGS_MODULE=core.settings
+      - DEBUG=0
     ports:
       - "8000:8000"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: >
+      bash -c "python manage.py migrate &&
+               python manage.py collectstatic --noinput &&
+               gunicorn core.wsgi:application --bind 0.0.0.0:8000"
 
 volumes:
   mysql_data:

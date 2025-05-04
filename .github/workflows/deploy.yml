@@ -78,6 +78,8 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
           cd ~/app
-          docker-compose -f docker-compose.prod.yaml down || true
+          docker-compose -f docker-compose.prod.yaml down
+          docker system prune -f
           docker pull ${{ secrets.DOCKER_USERNAME }}/django-app:latest
           docker-compose -f docker-compose.prod.yaml up -d
+          docker-compose -f docker-compose.prod.yaml logs web

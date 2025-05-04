@@ -44,7 +44,7 @@ jobs:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
-        source: "docker-compose.yaml,.env"
+        source: "docker-compose.yaml"
         target: "~/app"
 
     - name: Create .env file on EC2
@@ -59,9 +59,8 @@ jobs:
           MYSQL_USER=${{ secrets.MYSQL_USER }}
           MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
           MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
-          MYSQL_HOST=${{ secrets.MYSQL_HOST}}
-          MYSQL_PORT=${{ secrets.MYSQL_PORT}}
-          # 添加其他需要的环境变量
+          MYSQL_HOST=${{ secrets.MYSQL_HOST }}
+          MYSQL_PORT=${{ secrets.MYSQL_PORT }}
           EOL
 
     - name: Deploy to EC2

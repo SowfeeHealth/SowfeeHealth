@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && pip install --no-cache-dir -r requirements.txt
 # Copy the backend directory contents to /app
-COPY backend/ .
+COPY . /backend
 
 # Copy frontend templates for Django
 COPY frontend/templates /frontend/templates

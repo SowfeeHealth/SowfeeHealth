@@ -46,7 +46,7 @@ jobs:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
-        source: "docker-compose.yaml"
+        source: "docker-compose.prod.yaml"
         target: "~/app"
 
     - name: Create .env file on EC2
@@ -77,14 +77,7 @@ jobs:
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          # 进入应用目录
           cd ~/app
-          
-          # 停止现有容器
-          docker-compose down || true
-          
-          # 拉取最新镜像
+          docker-compose -f docker-compose.prod.yaml down || true
           docker pull ${{ secrets.DOCKER_USERNAME }}/django-app:latest
-          
-          # 启动所有服务
-          docker-compose up -d
+          docker-compose -f docker-compose.prod.yaml up -d

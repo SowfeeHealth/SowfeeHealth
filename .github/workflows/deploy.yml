@@ -40,7 +40,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
       
-    - name: Copy docker-compose file to EC2
+    - name: Copy docker-compose file /Dockerfile to EC2
       uses: appleboy/scp-action@master
       with:
         host: ${{ secrets.EC2_HOST }}
@@ -67,6 +67,22 @@ jobs:
           DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
           EOL
 
+    - name: Configure Docker Mirror
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          sudo mkdir -p /etc/docker
+          echo '{
+            "registry-mirrors": [
+              "https://docker.1ms.run",
+              "https://docker.xuanyuan.me"
+            ]
+          }' | sudo tee /etc/docker/daemon.json
+          sudo systemctl restart docker
+
     - name: Deploy to EC2
       uses: appleboy/ssh-action@master
       with:
@@ -75,24 +91,34 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
           cd ~/app
-          # Debug: List files and check permissions
+          
+          # Debug: Check directory contents
+          echo "Directory contents:"
           ls -la
           
-          docker-compose -f docker-compose.prod.yaml down
-          docker system prune -f
+          # Debug: Check Docker images before pull
+          echo "Docker images before pull:"
+          docker images
+          
+          # Pull image with verbose output
+          echo "Pulling Docker image..."
           docker pull ${{ secrets.DOCKER_USERNAME }}/django-app:latest
           
-          # Start database first and wait for it
-          docker-compose -f docker-compose.prod.yaml up -d db
-          sleep 15
+          # Debug: Verify image was pulled
+          echo "Docker images after pull:"
+          docker images | grep django-app
           
-          # Run migrations with more verbosity
-          docker-compose -f docker-compose.prod.yaml run --rm web python manage.py migrate auth
-          docker-compose -f docker-compose.prod.yaml run --rm web python manage.py migrate surveys
-          docker-compose -f docker-compose.prod.yaml run --rm web python manage.py migrate --run-syncdb
+          # Debug: Check image details
+          echo "Image details:"
+          docker inspect ${{ secrets.DOCKER_USERNAME }}/django-app:latest
           
-          # Start all services
+          # Continue with deployment
           docker-compose -f docker-compose.prod.yaml up -d
           
-          # Check logs
+          # Debug: Check running containers
+          echo "Running containers:"
+          docker ps
+          
+          # Debug: Check container logs
+          echo "Container logs:"
           docker-compose -f docker-compose.prod.yaml logs web

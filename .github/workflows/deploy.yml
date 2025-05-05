@@ -46,7 +46,7 @@ jobs:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
-        source: "docker-compose.prod.yaml"
+        source: "docker-compose.prod.yaml, Dockerfile"
         target: "~/app"
 
     - name: Create .env file on EC2
@@ -75,6 +75,9 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
           cd ~/app
+          # Debug: List files and check permissions
+          ls -la
+          
           docker-compose -f docker-compose.prod.yaml down
           docker system prune -f
           docker pull ${{ secrets.DOCKER_USERNAME }}/django-app:latest

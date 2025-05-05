@@ -65,6 +65,9 @@ jobs:
           MYSQL_HOST=${{ secrets.MYSQL_HOST }}
           MYSQL_PORT=${{ secrets.MYSQL_PORT }}
           DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
+          DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
+          DEBUG=False
+          ALLOWED_HOSTS=${{ secrets.EC2_HOST }}
           EOL
 
     - name: Configure Docker Mirror

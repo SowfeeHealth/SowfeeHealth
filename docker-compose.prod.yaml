@@ -30,6 +30,7 @@ services:
       - MYSQL_PORT=3306
       - DJANGO_SETTINGS_MODULE=core.settings
       - DEBUG=0
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}  # Add this line
     ports:
       - "8000:8000"
     working_dir: /app/backend  # Add this line

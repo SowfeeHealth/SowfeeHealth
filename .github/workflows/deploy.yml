@@ -78,6 +78,18 @@ jobs:
           docker-compose -f docker-compose.prod.yaml down
           docker system prune -f
           docker pull ${{ secrets.DOCKER_USERNAME }}/django-app:latest
+          
+          # Start database first and wait for it
+          docker-compose -f docker-compose.prod.yaml up -d db
+          sleep 15
+          
+          # Run migrations with more verbosity
+          docker-compose -f docker-compose.prod.yaml run --rm web python manage.py migrate auth
+          docker-compose -f docker-compose.prod.yaml run --rm web python manage.py migrate surveys
+          docker-compose -f docker-compose.prod.yaml run --rm web python manage.py migrate --run-syncdb
+          
+          # Start all services
           docker-compose -f docker-compose.prod.yaml up -d
-          sleep 10
+          
+          # Check logs
           docker-compose -f docker-compose.prod.yaml logs web

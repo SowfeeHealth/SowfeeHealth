@@ -19,13 +19,43 @@ def index_view(request):
 #@api_view(["GET", "POST"])
 def survey_view(request):
     if request.method == 'GET':
-        return render(request, 'survey.html')  # Render form if it's a GET request
+        return render(request, 'survey.html')
     elif request.method == 'POST':
-        required_fields = ['student_name', 'school_email', 'q1', 'q2', 'q3', 'q4', 'q5']
-        missing_fields = [field for field in required_fields if field not in request.POST]
+        try:
+            print("Received POST data:", request.POST)  # Debug log
+            
+            required_fields = ['student_name', 'school_email', 'q1', 'q2', 'q3', 'q4', 'q5']
+            missing_fields = [field for field in required_fields if field not in request.POST]
 
-        if missing_fields:
-            return Response({"success": False, "error": f"Missing fields: {', '.join(missing_fields)}"}, status=400)
+            if missing_fields:
+                print(f"Missing fields: {missing_fields}")  # Debug log
+                return JsonResponse({"success": False, "error": f"Missing fields: {', '.join(missing_fields)}"})
+
+            serializer_data = {
+                "student_name": request.POST["student_name"],
+                "school_email": request.POST["school_email"],
+                "university_id": request.POST["school_email"].split('@')[1].split('.')[0],
+                "q1": request.POST["q1"],
+                "q2": request.POST["q2"],
+                "q3": request.POST["q3"],
+                "q4": request.POST["q4"],
+                "q5": request.POST["q5"]
+            }
+            
+            print("Serializer data:", serializer_data)  # Debug log
+            
+            serializer = SurveyResponseSerializer(data=serializer_data)
+            if serializer.is_valid():
+                survey_result = serializer.save()
+                print("Survey saved successfully:", survey_result)  # Debug log
+                return JsonResponse({"success": True, "message": "Survey submitted successfully"})
+            else:
+                print("Serializer errors:", serializer.errors)  # Debug log
+                return JsonResponse({"success": False, "errors": serializer.errors})
+                
+        except Exception as e:
+            print("Error saving survey:", str(e))  # Debug log
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
             #return JsonResponse({"success": False, "error": f"Missing fields: {', '.join(missing_fields)}"})
 
         # Call handleStudentResponses directly with request.POST as data

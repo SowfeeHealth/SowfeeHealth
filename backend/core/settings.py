@@ -30,11 +30,11 @@ ALLOWED_HOSTS = [os.getenv('ALLOWED_HOSTS', '*').split(',')]
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # Change this:
-# DEBUG = True
+DEBUG = True
 
 # To this:
 # 保持 DEBUG = False 用于生产环境
-DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+# DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
 ALLOWED_HOSTS = ["*"]
 
@@ -96,9 +96,6 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR.parent, 'frontend', 'static'),
 ]
-
-# 确保 DEBUG 为 True（开发环境）
-#DEBUG = True
 
 CORS_ALLOW_ALL_ORIGINS = True
 

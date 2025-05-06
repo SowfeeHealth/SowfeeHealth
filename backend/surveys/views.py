@@ -16,7 +16,7 @@ from django.contrib import messages
 def index_view(request):
     return render(request, 'index.html')
 
-@api_view(["GET", "POST"])
+#@api_view(["GET", "POST"])
 def survey_view(request):
     if request.method == 'GET':
         return render(request, 'survey.html')  # Render form if it's a GET request
@@ -25,7 +25,8 @@ def survey_view(request):
         missing_fields = [field for field in required_fields if field not in request.POST]
 
         if missing_fields:
-            return JsonResponse({"success": False, "error": f"Missing fields: {', '.join(missing_fields)}"})
+            return Response({"success": False, "error": f"Missing fields: {', '.join(missing_fields)}"}, status=400)
+            #return JsonResponse({"success": False, "error": f"Missing fields: {', '.join(missing_fields)}"})
 
         # Call handleStudentResponses directly with request.POST as data
         return student_response_view(request)

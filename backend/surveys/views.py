@@ -29,7 +29,8 @@ def survey_view(request):
 
         # Call handleStudentResponses directly with request.POST as data
         return student_response_view(request)
-        
+
+@api_view(['GET', 'POST'])
 def student_response_view(request):
     
     if request.method == "GET":

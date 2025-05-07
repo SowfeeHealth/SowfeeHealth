@@ -1,23 +1,23 @@
-# Use an official Python image as base
 FROM python:3.12
 
-# Set the working directory inside the container
 WORKDIR /app
 
-# Copy the requirements file and install dependencies
-COPY requirements.txt .
-
-# Install MySQL client
+# System dependencies
 RUN apt-get update && apt-get install -y \
-    default-mysql-client \
-    && apt-get clean \
-    && pip install --no-cache-dir -r requirements.txt
+    default-libmysqlclient-dev gcc \
+    && apt-get clean
 
-# Copy the entire project structure
-COPY . .
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose the port that Django runs on
+# Copy entrypoint script
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# Copy the full app
+COPY . /app/
+
 EXPOSE 8000
 
-# Set the default command to run Django with proper logging
-CMD ["bash", "-c", "cd backend && python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn core.wsgi:application --bind 0.0.0.0:8000 --log-level debug --access-logfile - --error-logfile -"]
+ENTRYPOINT ["/app/entrypoint.sh"]

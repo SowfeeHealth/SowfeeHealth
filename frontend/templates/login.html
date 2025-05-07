@@ -163,7 +163,8 @@
           font-size: 1.75rem;
         }
       }
-      /* Add these modal styles */
+
+      /* Modal styles */
       .modal {
         display: none;
         position: fixed;
@@ -195,20 +196,21 @@
       }
     </style>
   </head>
+
   <body>
     <div class="login-container">
       <div class="logo">Sowfee Health</div>
 
       <form id="loginForm" method="POST" action="/login/">
         {% csrf_token %}
-        <input type="hidden" id="csrf_token" value="{{ csrf_token }}" />
+        <!-- The hidden csrf token input is not needed, as {% csrf_token %} already inserts it -->
 
         <div class="form-group">
           <label for="email">Email</label>
           <input
             type="email"
             id="email"
-            name="email"  
+            name="email"
             placeholder="Enter your institutional email"
             required
           />
@@ -219,7 +221,7 @@
           <input
             type="password"
             id="password"
-            name="password" 
+            name="password"
             placeholder="Enter your password"
             required
           />
@@ -229,49 +231,50 @@
         <!-- ... rest of the form ... -->
       </form>
 
+      <div style="display: flex; justify-content: center; align-items: center; height: 100px; text-align: center;">
+        <a href="{% url 'register' %}" style="color: var(--primary); text-decoration: none; font-weight: 500;">
+          No Account? Register Now!
+        </a>
+      </div>
+      
       <!-- Modal for messages -->
+      {% if messages %}
       <div id="messageModal" class="modal">
         <div class="modal-content">
           <span class="close-button">&times;</span>
-          <p id="modalMessage"></p>
+          {% for message in messages %}
+          <p
+            style="
+              {% if message.tags == 'success' %} color: #155724; {% else %} color: #721c24; {% endif %}"
+          >
+            {{ message }}
+          </p>
+          {% endfor %}
         </div>
       </div>
-    </div>
+      {% endif %}
 
-    <script>
-      function showModal(message, isSuccess) {
-        const modal = document.getElementById("messageModal");
-        const modalMessage = document.getElementById("modalMessage");
-        modalMessage.textContent = message;
-        modalMessage.style.color = isSuccess ? "#155724" : "#721c24";
-        modal.style.display = "block";
+      <script>
+        window.onload = function () {
+          var modal = document.getElementById("messageModal");
+          modal.style.display = "block";
 
-        const closeButton = document.getElementsByClassName("close-button")[0];
-        closeButton.onclick = function() {
-          modal.style.display = "none";
-        }
-
-        window.onclick = function(event) {
-          if (event.target == modal) {
+          var closeButton = document.getElementsByClassName("close-button")[0];
+          closeButton.onclick = function () {
             modal.style.display = "none";
-          }
-        }
-      }
+            // Trigger the redirect after closing the modal
+            window.location.href = "{{ index_url }}";  // Use the Django 'index' URL
+          };
 
-      document.addEventListener("DOMContentLoaded", function () {
-        const loginForm = document.getElementById("loginForm");
-
-        loginForm.addEventListener("submit", function (event) {
-          // Let the form submit naturally - no preventDefault()
-          // The server's response will handle the redirect or show error messages
-          {% if messages %}
-            event.preventDefault();
-            {% for message in messages %}
-              showModal("{{ message }}", "{{ message.tags }}" === "success");
-            {% endfor %}
-          {% endif %}
-        });
-      });
-    </script>
+          window.onclick = function (event) {
+            if (event.target == modal) {
+              modal.style.display = "none";
+              // Trigger the redirect after clicking outside the modal
+              window.location.href = "{{ index_url }}";  // Use the Django 'index' URL
+            }
+          };
+        };
+      </script>
+      
   </body>
 </html>

@@ -190,8 +190,6 @@ AUTH_USER_MODEL = 'surveys.User'
 # Add logging configuration
 ### 2. **settings.py** 日志配置检查
 
-你的`settings.py`日志配置已经很好了，确保如下内容存在即可：
-```python
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -212,5 +210,5 @@ LOGGING = {
         },
     }
 }
-```
+
 

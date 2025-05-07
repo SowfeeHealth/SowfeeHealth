@@ -32,52 +32,20 @@ def index_view(request):
 # 只保留这一行即可，Django会自动根据settings.py配置输出日志
 logger = logging.getLogger("surveys")
 
+@api_view(["GET", "POST"])
 def survey_view(request):
     if request.method == 'GET':
-        logger.debug("Survey GET request received")
-        return render(request, 'survey.html')
+        return render(request, 'survey.html')  # Render form if it's a GET request
     elif request.method == 'POST':
-        try:
-            logger.debug(f"Survey POST request received with data: {request.POST}")
-            required_fields = ['student_name', 'school_email', 'q1', 'q2', 'q3', 'q4', 'q5']
-            missing_fields = [field for field in required_fields if field not in request.POST]
+        required_fields = ['student_name', 'school_email', 'q1', 'q2', 'q3', 'q4', 'q5']
+        missing_fields = [field for field in required_fields if field not in request.POST]
 
-            if missing_fields:
-                logger.error(f"Missing fields in survey submission: {missing_fields}")
-                return JsonResponse({"success": False, "error": f"Missing fields: {', '.join(missing_fields)}"})
-
-            serializer_data = {
-                "student_name": request.POST["student_name"],
-                "school_email": request.POST["school_email"],
-                "university_id": request.POST["school_email"].split('@')[1].split('.')[0],
-                "q1": request.POST["q1"],
-                "q2": request.POST["q2"],
-                "q3": request.POST["q3"],
-                "q4": request.POST["q4"],
-                "q5": request.POST["q5"]
-            }
-            logger.debug(f"Serializer data: {serializer_data}")
-
-            serializer = SurveyResponseSerializer(data=serializer_data)
-            if serializer.is_valid():
-                survey_result = serializer.save()
-                logger.debug(f"Survey saved successfully: {survey_result}")
-                return JsonResponse({"success": True, "message": "Survey submitted successfully"})
-            else:
-                logger.error(f"Serializer Errors: {serializer.errors}")
-                return JsonResponse({
-                    "success": False,
-                    "message": "There was an error with your submission.",
-                    "data": serializer.errors
-                })
-        except Exception as e:
-            logger.exception(f"Error in survey_view: {str(e)}")
-            return JsonResponse({"success": False, "error": str(e)}, status=500)
-            #return JsonResponse({"success": False, "error": f"Missing fields: {', '.join(missing_fields)}"})
+        if missing_fields:
+            return JsonResponse({"success": False, "error": f"Missing fields: {', '.join(missing_fields)}"})
 
         # Call handleStudentResponses directly with request.POST as data
         return student_response_view(request)
-
+        
 @api_view(['GET', 'POST'])
 def student_response_view(request):
     
@@ -103,7 +71,7 @@ def student_response_view(request):
                            "q5": request.POST["q5"]}
 
         # Delete any existing response for the same student
-        SurveyResponse.objects.filter(student_name=student_name, school_email=school_email).delete()
+        SurveyResponse.objects.filter(school_email=school_email).delete()
 
         serializer = SurveyResponseSerializer(data=serializer_data)
         if serializer.is_valid():

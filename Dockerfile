@@ -20,4 +20,4 @@ COPY . .
 EXPOSE 8000
 
 # Set the default command to run Django with proper logging
-CMD ["bash", "-c", "cd backend && python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn core.wsgi:application --bind 0.0.0.0:8000 --log-level debug --capture-output --enable-stdio-inheritance"]
+CMD ["bash", "-c", "cd backend && python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn core.wsgi:application --bind 0.0.0.0:8000 --log-level debug --access-logfile - --error-logfile -"]

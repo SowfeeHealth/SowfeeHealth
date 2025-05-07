@@ -188,39 +188,29 @@ AUTH_USER_MODEL = 'surveys.User'
 
 
 # Add logging configuration
+### 2. **settings.py** 日志配置检查
+
+你的`settings.py`日志配置已经很好了，确保如下内容存在即可：
+```python
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {message}',
-            'style': '{',
-        },
-    },
     'handlers': {
-        'console': {
-            'level': 'DEBUG',
-            'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
-        },
-        'file': {
-            'level': 'ERROR',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'django_error.log'),
-            'formatter': 'verbose',
+        'console':{
+            'level':'DEBUG',
+            'class':'logging.StreamHandler',
         },
     },
     'loggers': {
-        'django': {
-            'handlers': ['console', 'file'],
-            'level': 'INFO',
-            'propagate': True,
-        },
-        'surveys': {  # Add your app name here
-            'handlers': ['console', 'file'],
+        'surveys': {
+            'handlers': ['console'],
             'level': 'DEBUG',
-            'propagate': True,
         },
-    },
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+    }
 }
+```
 

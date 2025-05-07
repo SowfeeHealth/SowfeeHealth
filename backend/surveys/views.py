@@ -29,6 +29,9 @@ def index_view(request):
     return render(request, 'index.html')
 
 #@api_view(["GET", "POST"])
+# 只保留这一行即可，Django会自动根据settings.py配置输出日志
+logger = logging.getLogger("surveys")
+
 def survey_view(request):
     if request.method == 'GET':
         logger.debug("Survey GET request received")
@@ -36,8 +39,6 @@ def survey_view(request):
     elif request.method == 'POST':
         try:
             logger.debug(f"Survey POST request received with data: {request.POST}")
-            
-            # 替换所有print为logger.debug
             required_fields = ['student_name', 'school_email', 'q1', 'q2', 'q3', 'q4', 'q5']
             missing_fields = [field for field in required_fields if field not in request.POST]
 
@@ -55,22 +56,22 @@ def survey_view(request):
                 "q4": request.POST["q4"],
                 "q5": request.POST["q5"]
             }
-            
             logger.debug(f"Serializer data: {serializer_data}")
-            
+
             serializer = SurveyResponseSerializer(data=serializer_data)
             if serializer.is_valid():
                 survey_result = serializer.save()
                 logger.debug(f"Survey saved successfully: {survey_result}")
                 return JsonResponse({"success": True, "message": "Survey submitted successfully"})
             else:
-                logger.error(f"Serializer errors: {serializer.errors}")
-                return JsonResponse({"success": False, "errors": serializer.errors})
-                
+                logger.error(f"Serializer Errors: {serializer.errors}")
+                return JsonResponse({
+                    "success": False,
+                    "message": "There was an error with your submission.",
+                    "data": serializer.errors
+                })
         except Exception as e:
             logger.exception(f"Error in survey_view: {str(e)}")
-            import traceback
-            logger.error(traceback.format_exc())
             return JsonResponse({"success": False, "error": str(e)}, status=500)
             #return JsonResponse({"success": False, "error": f"Missing fields: {', '.join(missing_fields)}"})
 

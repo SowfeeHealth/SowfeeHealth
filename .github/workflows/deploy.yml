@@ -40,13 +40,13 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
       
-    - name: Copy docker-compose file /Dockerfile and requirements.txt to EC2
+    - name: Copy files to EC2
       uses: appleboy/scp-action@master
       with:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
-        source: "docker-compose.prod.yaml, Dockerfile, requirements.txt"
+        source: "docker-compose.prod.yaml, Dockerfile, requirements.txt, entrypoint.sh"
         target: "~/app"
 
     - name: Create .env file on EC2

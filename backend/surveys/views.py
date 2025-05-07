@@ -2,9 +2,16 @@ from django.shortcuts import render, redirect
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 import logging
+import sys
 
-# Get a logger for this file
+# 获取logger并设置为输出到标准输出
 logger = logging.getLogger(__name__)
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+logger.setLevel(logging.DEBUG)
 
 from rest_framework.request import Request
 from rest_framework.parsers import JSONParser
@@ -24,17 +31,18 @@ def index_view(request):
 #@api_view(["GET", "POST"])
 def survey_view(request):
     if request.method == 'GET':
-        logger.info("Survey GET request received")
+        logger.debug("Survey GET request received")
         return render(request, 'survey.html')
     elif request.method == 'POST':
         try:
-            logger.info(f"Survey POST request received: {request.POST}")
+            logger.debug(f"Survey POST request received with data: {request.POST}")
             
+            # 替换所有print为logger.debug
             required_fields = ['student_name', 'school_email', 'q1', 'q2', 'q3', 'q4', 'q5']
             missing_fields = [field for field in required_fields if field not in request.POST]
 
             if missing_fields:
-                logger.warning(f"Missing fields in survey submission: {missing_fields}")
+                logger.error(f"Missing fields in survey submission: {missing_fields}")
                 return JsonResponse({"success": False, "error": f"Missing fields: {', '.join(missing_fields)}"})
 
             serializer_data = {
@@ -48,19 +56,21 @@ def survey_view(request):
                 "q5": request.POST["q5"]
             }
             
-            print("Serializer data:", serializer_data)  # Debug log
+            logger.debug(f"Serializer data: {serializer_data}")
             
             serializer = SurveyResponseSerializer(data=serializer_data)
             if serializer.is_valid():
                 survey_result = serializer.save()
-                print("Survey saved successfully:", survey_result)  # Debug log
+                logger.debug(f"Survey saved successfully: {survey_result}")
                 return JsonResponse({"success": True, "message": "Survey submitted successfully"})
             else:
-                print("Serializer errors:", serializer.errors)  # Debug log
+                logger.error(f"Serializer errors: {serializer.errors}")
                 return JsonResponse({"success": False, "errors": serializer.errors})
                 
         except Exception as e:
-            logger.exception("Error in survey_view")  # This logs the full traceback
+            logger.exception(f"Error in survey_view: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             return JsonResponse({"success": False, "error": str(e)}, status=500)
             #return JsonResponse({"success": False, "error": f"Missing fields: {', '.join(missing_fields)}"})
 

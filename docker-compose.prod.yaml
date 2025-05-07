@@ -33,6 +33,7 @@ services:
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}  # Add this line
     ports:
       - "8000:8000"
+      - "8001:8001"
     working_dir: /app/backend  # Add this line
     logging:
       driver: "json-file"

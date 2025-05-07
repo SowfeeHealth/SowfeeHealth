@@ -38,44 +38,42 @@ def survey_view(request):
         return render(request, 'survey.html')  # Render form if it's a GET request
     elif request.method == 'POST':
         required_fields = ['student_name', 'school_email', 'q1', 'q2', 'q3', 'q4', 'q5']
-        missing_fields = [field for field in required_fields if field not in request.POST]
+        missing_fields = [field for field in required_fields if field not in request.data]
 
         if missing_fields:
             return JsonResponse({"success": False, "error": f"Missing fields: {', '.join(missing_fields)}"})
 
-        # Call handleStudentResponses directly with request.POST as data
-        return student_response_view(request)
-        
-@api_view(['GET', 'POST'])
-def student_response_view(request):
-    
+        # Important: You can't return a @api_view within another @api_view
+        return handle_student_responses(request)
+
+# Important: You can't return a @api_view within another @api_view
+def handle_student_responses(request):
     if request.method == "GET":
         surveyResponses = SurveyResponse.objects.all()
         serializer = SurveyResponseSerializer(surveyResponses, many=True)
         return Response(serializer.data)
 
     elif request.method == "POST":
-
         # Save responses and check if student should be flagged
-        student_name = request.POST.get('student_name')
-        school_email = request.POST.get('school_email')
+        student_name = request.data.get('student_name')
+        school_email = request.data.get('school_email')
         university_id = school_email.split('@')[1].split('.')[0] if '@' in school_email else 'Unknown'
-        #university_id = Student.objects.filter(student_name=student_name, school_email=school_email).first().university_id
-        serializer_data = {"student_name": request.POST["student_name"], 
-                           "school_email": request.POST["school_email"],
-                           "university_id": university_id,
-                           "q1": request.POST["q1"],
-                           "q2": request.POST["q2"],
-                           "q3": request.POST["q3"],
-                           "q4": request.POST["q4"],
-                           "q5": request.POST["q5"]}
+        serializer_data = {
+            "student_name": request.data["student_name"], 
+            "school_email": request.data["school_email"],
+            "university_id": university_id,
+            "q1": request.data["q1"],
+            "q2": request.data["q2"],
+            "q3": request.data["q3"],
+            "q4": request.data["q4"],
+            "q5": request.data["q5"]
+        }
 
         # Delete any existing response for the same student
         SurveyResponse.objects.filter(school_email=school_email).delete()
 
         serializer = SurveyResponseSerializer(data=serializer_data)
         if serializer.is_valid():
-
             survey_result = serializer.save()  # This will always create a new response
 
             '''
@@ -120,7 +118,6 @@ def student_response_view(request):
             return JsonResponse(response_data)
         
         else:
-
             # Return error response
             print(f"Serializer Errors: {serializer.errors}")
             return JsonResponse({
@@ -129,7 +126,9 @@ def student_response_view(request):
                 "data": serializer.errors
             })
 
-
+@api_view(['GET', 'POST'])
+def student_response_view(request):
+    return handle_student_responses(request)
 
 @api_view(["GET"])
 def flagged_students_view(request):

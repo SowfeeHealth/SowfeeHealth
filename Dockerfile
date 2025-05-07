@@ -19,8 +19,5 @@ COPY . .
 # Expose the port that Django runs on
 EXPOSE 8000
 
-# Create log directory
-RUN mkdir -p /var/log/django
-
-# Set the default command to run Django with better logging
-CMD ["bash", "-c", "cd backend && python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn core.wsgi:application --bind 0.0.0.0:8000 --log-level debug --error-logfile /var/log/django/error.log --access-logfile /var/log/django/access.log"]
+# Set the default command to run Django
+CMD ["bash", "-c", "cd backend && python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn core.wsgi:application --bind 0.0.0.0:8000"]

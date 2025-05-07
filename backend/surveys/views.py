@@ -1,6 +1,11 @@
 from django.shortcuts import render, redirect
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
+import logging
+
+# Get a logger for this file
+logger = logging.getLogger(__name__)
+
 from rest_framework.request import Request
 from rest_framework.parsers import JSONParser
 #from django.views.decorators.csrf import csrf_exempt
@@ -19,16 +24,17 @@ def index_view(request):
 #@api_view(["GET", "POST"])
 def survey_view(request):
     if request.method == 'GET':
+        logger.info("Survey GET request received")
         return render(request, 'survey.html')
     elif request.method == 'POST':
         try:
-            print("Received POST data:", request.POST)  # Debug log
+            logger.info(f"Survey POST request received: {request.POST}")
             
             required_fields = ['student_name', 'school_email', 'q1', 'q2', 'q3', 'q4', 'q5']
             missing_fields = [field for field in required_fields if field not in request.POST]
 
             if missing_fields:
-                print(f"Missing fields: {missing_fields}")  # Debug log
+                logger.warning(f"Missing fields in survey submission: {missing_fields}")
                 return JsonResponse({"success": False, "error": f"Missing fields: {', '.join(missing_fields)}"})
 
             serializer_data = {
@@ -54,7 +60,7 @@ def survey_view(request):
                 return JsonResponse({"success": False, "errors": serializer.errors})
                 
         except Exception as e:
-            print("Error saving survey:", str(e))  # Debug log
+            logger.exception("Error in survey_view")  # This logs the full traceback
             return JsonResponse({"success": False, "error": str(e)}, status=500)
             #return JsonResponse({"success": False, "error": f"Missing fields: {', '.join(missing_fields)}"})
 

@@ -103,7 +103,7 @@ jobs:
           echo "Docker images before pull:"
           docker images
           
-          docker rmi ziywang50/django-app
+          docker rmi ziywang50/django-app -f || true
 
           # Pull image with verbose output
           echo "Pulling Docker image..."

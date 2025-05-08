@@ -1,21 +1,13 @@
 from django.shortcuts import render, redirect
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
-import logging
-import sys
+import logging  # Fixed the typo in import statement
 
-# 获取logger并设置为输出到标准输出
-logger = logging.getLogger(__name__)
-handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-logger.setLevel(logging.DEBUG)
+# Use a single logger configuration
+logger = logging.getLogger("surveys")
 
 from rest_framework.request import Request
 from rest_framework.parsers import JSONParser
-#from django.views.decorators.csrf import csrf_exempt
 from .models import SurveyResponse, FlaggedStudents, Student, User
 from .serializers import SurveyResponseSerializer, FlaggedStudentsSerializer, StudentSerializer
 from django.http import JsonResponse, HttpResponse
@@ -28,14 +20,13 @@ from django.contrib import messages
 def index_view(request):
     return render(request, 'index.html')
 
-#@api_view(["GET", "POST"])
-# 只保留这一行即可，Django会自动根据settings.py配置输出日志
-logger = logging.getLogger("surveys")
+# Remove duplicate logger definition and debug handlers
+# logger = logging.getLogger("surveys")
 
 @api_view(["GET", "POST"])
 def survey_view(request):
     if request.method == 'GET':
-        return render(request, 'survey.html')  # Render form if it's a GET request
+        return render(request, 'survey.html')
     elif request.method == 'POST':
         required_fields = ['student_name', 'school_email', 'q1', 'q2', 'q3', 'q4', 'q5']
         missing_fields = [field for field in required_fields if field not in request.data]
@@ -46,7 +37,6 @@ def survey_view(request):
         # Important: You can't return a @api_view within another @api_view
         return handle_student_responses(request)
 
-# Important: You can't return a @api_view within another @api_view
 def handle_student_responses(request):
     if request.method == "GET":
         surveyResponses = SurveyResponse.objects.all()
@@ -89,9 +79,12 @@ def handle_student_responses(request):
                 students_serializer = StudentSerializer(data=student_data)
                 if students_serializer.is_valid():
                     students_serializer.save()
-                    print("Student data", students_serializer.data, flush=True)
+                    # logger.debug("Student data: %s", students_serializer.data)
+                    
+                    # And similarly for error messages:
+                    # Replace print statements with logger.error or logger.debug
                 else:
-                    print("Error saving student:", students_serializer.errors, flush=True)
+                    logger.error("Error saving student: %s", students_serializer.errors)
 
             # Check if student should be flagged
             if any(getattr(survey_result, f'q{i}') >= 3 for i in range(1, 6)):
@@ -122,7 +115,7 @@ def handle_student_responses(request):
         
         else:
             # Return error response
-            print(f"Serializer Errors: {serializer.errors}")
+            logger.error("Serializer Errors: %s", serializer.errors)
             return JsonResponse({
                 "success": False,
                 "message": "There was an error with your submission.",

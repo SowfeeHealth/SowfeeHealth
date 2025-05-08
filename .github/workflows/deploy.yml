@@ -1,0 +1,134 @@
+name: Deploy to AWS EC2
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: github_actions
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+
+    - name: Login to DockerHub
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Build and push Docker images
+      uses: docker/build-push-action@v2
+      with:
+        push: true
+        tags: |
+          ${{ secrets.DOCKER_USERNAME }}/django-app:latest
+          ${{ secrets.DOCKER_USERNAME }}/django-app:${{ github.run_number }}
+        context: .
+        file: ./Dockerfile
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment: github_actions
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+      
+    - name: Copy files to EC2
+      uses: appleboy/scp-action@master
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        source: "docker-compose.prod.yaml, Dockerfile, requirements.txt"
+        target: "~/app"
+
+    - name: Create .env file on EC2
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          mkdir -p ~/app
+          cat > ~/app/.env << EOL
+          MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
+          MYSQL_USER=${{ secrets.MYSQL_USER }}
+          MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
+          MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
+          MYSQL_HOST=${{ secrets.MYSQL_HOST }}
+          MYSQL_PORT=${{ secrets.MYSQL_PORT }}
+          DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
+          DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
+          DEBUG=False
+          ALLOWED_HOSTS=${{ secrets.EC2_HOST }}
+          ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}
+          ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
+          EOL
+
+    - name: Configure Docker Mirror
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          sudo mkdir -p /etc/docker
+          echo '{
+            "registry-mirrors": [
+              "https://docker.1ms.run",
+              "https://docker.xuanyuan.me"
+            ]
+          }' | sudo tee /etc/docker/daemon.json
+          sudo systemctl restart docker
+
+    - name: Deploy to EC2
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          cd ~/app
+          
+          # Debug: Check directory contents
+          echo "Directory contents:"
+          ls -la
+          
+          # Debug: Check Docker images before pull
+          echo "Docker images before pull:"
+          docker images
+          
+          # Remove existing image
+          docker images ${{ secrets.DOCKER_USERNAME }}/django-app --format "{{.ID}}" | xargs -r docker rmi -f || true
+          docker image prune -f
+          
+          # Pull specific version image
+          echo "Pulling specific version image..."
+          docker pull ${{ secrets.DOCKER_USERNAME }}/django-app:${{ github.run_number }}
+          
+          # Tag as latest for docker-compose
+          docker tag ${{ secrets.DOCKER_USERNAME }}/django-app:${{ github.run_number }} ${{ secrets.DOCKER_USERNAME }}/django-app:latest
+          
+          # Debug: Verify image was pulled
+          echo "Docker images after pull:"
+          docker images | grep django-app
+          
+          # Continue with deployment
+          docker-compose -f docker-compose.prod.yaml up -d
+          
+          # Debug: Check running containers
+          echo "Running containers:"
+          docker ps
+          
+          # Debug: Check container logs
+          echo "Container logs:"
+          docker-compose -f docker-compose.prod.yaml logs web

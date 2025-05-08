@@ -17,4 +17,4 @@ COPY . /app/
 EXPOSE 8000
 
 # 不再使用 entrypoint.sh
-# CMD ["bash", "-c", "cd backend && python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn core.wsgi:application --bind 0.0.0.0:8000 --log-level debug --access-logfile - --error-logfile -"]
+CMD ["bash", "-c", "cd backend && python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn core.wsgi:application --bind 0.0.0.0:8000 --log-level debug --access-logfile - --error-logfile -"]

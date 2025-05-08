@@ -69,36 +69,39 @@ def handle_student_responses(request):
             "q5": request.data["q5"]
         }
 
-        # Delete any existing response for the same student
-        SurveyResponse.objects.filter(school_email=school_email).delete()
+        # Comment out the delete old responses line
+        # SurveyResponse.objects.filter(school_email=school_email).delete()
 
         serializer = SurveyResponseSerializer(data=serializer_data)
         if serializer.is_valid():
             survey_result = serializer.save()  # This will always create a new response
 
-            '''
+            # Check if student already exists
+            student_exists = Student.objects.filter(school_email=survey_result.school_email).exists()
+            
             # Process student data
-            student_data = {
-                "school_email": survey_result.school_email,
-                "student_name": survey_result.student_name,  # university_id will be auto-generated
-                "university_id": university_id
-            }
-            students_serializer = StudentSerializer(data=student_data)
-            if students_serializer.is_valid():
-                students_serializer.save()
-                print("Student data", students_serializer.data, flush=True)
-            else:
-                print("Error saving student:", students_serializer.errors, flush=True)
-            '''
+            if not student_exists:
+                student_data = {
+                    "school_email": survey_result.school_email,
+                    "student_name": survey_result.student_name,  # university_id will be auto-generated
+                    "university_id": university_id
+                }
+                students_serializer = StudentSerializer(data=student_data)
+                if students_serializer.is_valid():
+                    students_serializer.save()
+                    print("Student data", students_serializer.data, flush=True)
+                else:
+                    print("Error saving student:", students_serializer.errors, flush=True)
+
             # Check if student should be flagged
             if any(getattr(survey_result, f'q{i}') >= 3 for i in range(1, 6)):
                 flagged_data = {
                     "school_email": survey_result.school_email,
                     "student_name": survey_result.student_name,
-                    "student_response": survey_result.school_email,
+                    "student_response": survey_result.id,
                 }
-                # Delete any existing response for the same student
-                FlaggedStudents.objects.filter(student_name=student_name, school_email=school_email).delete()
+                # Comment out the delete old responses line
+                # FlaggedStudents.objects.filter(student_name=student_name, school_email=school_email).delete()
                 flagged_serializer = FlaggedStudentsSerializer(data=flagged_data)
                 if flagged_serializer.is_valid():
                     flagged_serializer.save()

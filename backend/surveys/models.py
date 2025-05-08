@@ -52,15 +52,21 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 
 class SurveyResponse(models.Model):
+    # Add an explicit id field as the primary key
+    id = models.AutoField(primary_key=True)
     student_name = models.CharField(max_length=250)
-    school_email = models.EmailField(max_length=250, primary_key=True)
-    university_id = models.CharField(max_length=250, default = "Unknown")
+    school_email = models.EmailField(max_length=250)  # No primary_key=True
+    university_id = models.CharField(max_length=250, default="Unknown")
     created = models.DateTimeField(auto_now_add=True)
     q1 = models.IntegerField(validators=[MaxValueValidator(5), MinValueValidator(1)])
     q2 = models.IntegerField(validators=[MaxValueValidator(5), MinValueValidator(1)])
     q3 = models.IntegerField(validators=[MaxValueValidator(5), MinValueValidator(1)])
     q4 = models.IntegerField(validators=[MaxValueValidator(5), MinValueValidator(1)])
     q5 = models.IntegerField(validators=[MaxValueValidator(5), MinValueValidator(1)])
+
+    class Meta:
+        # Create a unique constraint instead of a composite primary key
+        unique_together = ('school_email', 'created')
 
 class FlaggedStudents(models.Model):
     school_email = models.EmailField(max_length=250)

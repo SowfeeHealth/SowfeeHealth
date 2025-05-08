@@ -103,8 +103,10 @@ jobs:
           echo "Docker images before pull:"
           docker images
           
-          docker rmi ziywang50/django-app -f || true
+          docker images ziywang50/django-app --format "{{.ID}}" | xargs -r docker rmi -f || true
 
+          docker image prune -f
+          
           # Pull image with verbose output
           echo "Pulling Docker image..."
           docker pull ${{ secrets.DOCKER_USERNAME }}/django-app:latest

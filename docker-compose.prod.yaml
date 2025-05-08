@@ -41,9 +41,8 @@ services:
         max-size: "10m"
         max-file: "3"
     # 注释或删除下面的 command 部分，使用 Dockerfile 中的 CMD
-    # command: >
-    #   bash -c "python manage.py migrate &&
-    #            gunicorn core.wsgi:application --bind 0.0.0.0:8000"
+    command: >
+        bash -c "python manage.py migrate && gunicorn core.wsgi:application --bind 0.0.0.0:8000"
     volumes:
       - static_volume:/app/backend/staticfiles
 

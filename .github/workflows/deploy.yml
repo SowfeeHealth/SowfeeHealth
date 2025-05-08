@@ -99,36 +99,15 @@ jobs:
         script: |
           cd ~/app
           
-          # Debug: Check directory contents
-          echo "Directory contents:"
-          ls -la
-          
-          # Debug: Check Docker images before pull
-          echo "Docker images before pull:"
-          docker images
-          
           # Remove existing image
           docker images ${{ secrets.DOCKER_USERNAME }}/django-app --format "{{.ID}}" | xargs -r docker rmi -f || true
           docker image prune -f
           
           # Pull specific version image
-          echo "Pulling specific version image..."
           docker pull ${{ secrets.DOCKER_USERNAME }}/django-app:${{ github.run_number }}
           
           # Tag as latest for docker-compose
           docker tag ${{ secrets.DOCKER_USERNAME }}/django-app:${{ github.run_number }} ${{ secrets.DOCKER_USERNAME }}/django-app:latest
           
-          # Debug: Verify image was pulled
-          echo "Docker images after pull:"
-          docker images | grep django-app
-          
-          # Continue with deployment
+          # Deploy with docker-compose
           docker-compose -f docker-compose.prod.yaml up -d
-          
-          # Debug: Check running containers
-          echo "Running containers:"
-          docker ps
-          
-          # Debug: Check container logs
-          echo "Container logs:"
-          docker-compose -f docker-compose.prod.yaml logs web

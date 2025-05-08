@@ -43,7 +43,7 @@ services:
     # 注释或删除下面的 command 部分，使用 Dockerfile 中的 CMD
     command: >
         bash -c "python manage.py migrate && 
-                 python manage.py shell -c \"from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.filter(email='${ADMIN_EMAIL}').exists() or User.objects.create_superuser('${ADMIN_EMAIL}', '${ADMIN_EMAIL}', '${ADMIN_PASSWORD}')\" && 
+                 python manage.py shell -c \"from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.filter(email='${ADMIN_EMAIL}').exists() or User.objects.create_superuser(email='${ADMIN_EMAIL}', password='${ADMIN_PASSWORD}')\" && 
                  gunicorn core.wsgi:application --bind 0.0.0.0:8000"
     volumes:
       - static_volume:/app/backend/staticfiles

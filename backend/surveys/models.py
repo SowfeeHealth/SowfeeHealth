@@ -16,9 +16,9 @@ class UserManager(BaseUserManager):
     def create_superuser(self, email, password=None):
         user = self.create_user(email=email, password=password)
         user.is_admin = True
-        user.is_staff = True
         user.is_superuser = True
-        user.set_password(password)  # This hashes the password
+        # 不需要设置 is_staff，因为它是一个属性，会根据 is_admin 自动计算
+        # 不需要再次调用 set_password，因为 create_user 已经设置了密码
         user.save(using=self._db)
         return user
 

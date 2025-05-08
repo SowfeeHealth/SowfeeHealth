@@ -68,6 +68,8 @@ jobs:
           DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
           DEBUG=False
           ALLOWED_HOSTS=${{ secrets.EC2_HOST }}
+          ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}
+          ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
           EOL
 
     - name: Configure Docker Mirror
@@ -103,10 +105,11 @@ jobs:
           echo "Docker images before pull:"
           docker images
           
+          # Remove existing image
           docker images ziywang50/django-app --format "{{.ID}}" | xargs -r docker rmi -f || true
 
           docker image prune -f
-          
+
           # Pull image with verbose output
           echo "Pulling Docker image..."
           docker pull ${{ secrets.DOCKER_USERNAME }}/django-app:latest

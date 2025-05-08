@@ -27,7 +27,9 @@ jobs:
       uses: docker/build-push-action@v2
       with:
         push: true
-        tags: ${{ secrets.DOCKER_USERNAME }}/django-app:latest
+        tags: |
+          ${{ secrets.DOCKER_USERNAME }}/django-app:latest
+          ${{ secrets.DOCKER_USERNAME }}/django-app:${{ github.run_number }}
         context: .
         file: ./Dockerfile
 
@@ -106,21 +108,19 @@ jobs:
           docker images
           
           # Remove existing image
-          docker images ziywang50/django-app --format "{{.ID}}" | xargs -r docker rmi -f || true
-
+          docker images ${{ secrets.DOCKER_USERNAME }}/django-app --format "{{.ID}}" | xargs -r docker rmi -f || true
           docker image prune -f
-
-          # Pull image with verbose output
-          echo "Pulling Docker image..."
-          docker pull ${{ secrets.DOCKER_USERNAME }}/django-app:latest
+          
+          # Pull specific version image
+          echo "Pulling specific version image..."
+          docker pull ${{ secrets.DOCKER_USERNAME }}/django-app:${{ github.run_number }}
+          
+          # Tag as latest for docker-compose
+          docker tag ${{ secrets.DOCKER_USERNAME }}/django-app:${{ github.run_number }} ${{ secrets.DOCKER_USERNAME }}/django-app:latest
           
           # Debug: Verify image was pulled
           echo "Docker images after pull:"
           docker images | grep django-app
-          
-          # Debug: Check image details
-          echo "Image details:"
-          docker inspect ${{ secrets.DOCKER_USERNAME }}/django-app:latest
           
           # Continue with deployment
           docker-compose -f docker-compose.prod.yaml up -d

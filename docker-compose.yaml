@@ -13,18 +13,32 @@ services:
       - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   web:
-    build: .
+    # For local development, use build instead of image
+    build: 
+      context: .
+      dockerfile: Dockerfile.dev
+    # Only use the image tag when DOCKER_USERNAME is set
+    image: ${DOCKER_USERNAME:-local}/django-app:latest
     container_name: django-app
     restart: always
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     env_file: .env
+    environment:
+      - MYSQL_HOST=db
+      - MYSQL_PORT=3306
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/backend
+      - ./backend:/app
       - ./frontend:/frontend
 
 volumes:

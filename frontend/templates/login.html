@@ -163,7 +163,8 @@
           font-size: 1.75rem;
         }
       }
-      /* Add these modal styles */
+
+      /* Modal styles */
       .modal {
         display: none;
         position: fixed;
@@ -195,13 +196,14 @@
       }
     </style>
   </head>
+
   <body>
     <div class="login-container">
       <div class="logo">Sowfee Health</div>
 
       <form id="loginForm" method="POST" action="/login/">
         {% csrf_token %}
-        <input type="hidden" id="csrf_token" value="{{ csrf_token }}" />
+        <!-- The hidden csrf token input is not needed, as {% csrf_token %} already inserts it -->
 
         <div class="form-group">
           <label for="email">Email</label>
@@ -242,45 +244,28 @@
           <span class="close-button">&times;</span>
           {% for message in messages %}
           <p
-            style="{% if message.tags == 'success' %}color: #155724;{% else %}color: #721c24;{% endif %}"
+            style="
+              {% if message.tags == 'success' %} color: #155724; {% else %} color: #721c24; {% endif %}"
           >
             {{ message }}
           </p>
           {% endfor %}
         </div>
       </div>
-
-      <script>
-        window.onload = function () {
-          var modal = document.getElementById("messageModal");
-          modal.style.display = "block";
-
-          var closeButton = document.getElementsByClassName("close-button")[0];
-          closeButton.onclick = function () {
-            modal.style.display = "none";
-          };
-
-          window.onclick = function (event) {
-            if (event.target == modal) {
-              modal.style.display = "none";
-            }
-          };
-        };
-      </script>
       {% endif %}
 
       <script>
         window.onload = function () {
           var modal = document.getElementById("messageModal");
           modal.style.display = "block";
-      
+
           var closeButton = document.getElementsByClassName("close-button")[0];
           closeButton.onclick = function () {
             modal.style.display = "none";
             // Trigger the redirect after closing the modal
             window.location.href = "{{ index_url }}";  // Use the Django 'index' URL
           };
-      
+
           window.onclick = function (event) {
             if (event.target == modal) {
               modal.style.display = "none";

@@ -187,25 +187,23 @@ AUTH_USER_MODEL = 'surveys.User'
 
 
 # Add logging configuration
-### 2. **settings.py** 日志配置检查
-
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'handlers': {
         'console':{
-            'level':'DEBUG',
+            'level':'INFO',
             'class':'logging.StreamHandler',
         },
     },
     'loggers': {
         'surveys': {
             'handlers': ['console'],
-            'level': 'DEBUG',
+            'level': 'INFO',  # Changed from DEBUG to INFO
         },
         'django': {
             'handlers': ['console'],
-            'level': 'INFO',
+            'level': 'WARNING',  # Changed from INFO to WARNING
         },
     }
 }

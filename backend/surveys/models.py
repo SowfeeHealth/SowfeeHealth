@@ -2,6 +2,8 @@ from django.db import models
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.utils import timezone
+from django.core.validators import RegexValidator
+from django.core.exceptions import ValidationError
 
 # ✅ Add a custom manager
 class UserManager(BaseUserManager):
@@ -51,11 +53,15 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.is_admin  # This will be used for admin access in the Django admin panel
 
 
+def validate_edu_email(value):
+    if not value.endswith('.edu'):
+        raise ValidationError('Only .edu email addresses are accepted.')
+
 class SurveyResponse(models.Model):
     # Add an explicit id field as the primary key
     id = models.AutoField(primary_key=True)
     student_name = models.CharField(max_length=250)
-    school_email = models.EmailField(max_length=250)  # No primary_key=True
+    school_email = models.EmailField(max_length=250, validators=[validate_edu_email])  # Added validator
     university_id = models.CharField(max_length=250, default="Unknown")
     created = models.DateTimeField(auto_now_add=True)
     q1 = models.IntegerField(validators=[MaxValueValidator(5), MinValueValidator(1)])
@@ -69,11 +75,11 @@ class SurveyResponse(models.Model):
         unique_together = ('school_email', 'created')
 
 class FlaggedStudents(models.Model):
-    school_email = models.EmailField(max_length=250)
+    school_email = models.EmailField(max_length=250, validators=[validate_edu_email])  # Added validator
     student_name = models.CharField(max_length=250)
     student_response = models.ForeignKey(SurveyResponse, on_delete=models.CASCADE)
 
 class Student(models.Model):
-    school_email = models.EmailField(max_length=250, primary_key=True)
+    school_email = models.EmailField(max_length=250, primary_key=True, validators=[validate_edu_email])  # Already has validator
     student_name = models.CharField(max_length=250)
     university_id = models.CharField(max_length=250)

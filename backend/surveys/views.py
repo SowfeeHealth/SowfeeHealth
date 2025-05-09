@@ -44,9 +44,19 @@ def handle_student_responses(request):
         return Response(serializer.data)
 
     elif request.method == "POST":
+        # Get the email and validate it ends with .edu
+        school_email = request.data.get('school_email')
+        
+        # Check if email ends with .edu
+        if not school_email.endswith('.edu'):
+            return JsonResponse({
+                "success": False,
+                "message": "Please use a valid .edu email address.",
+                "error": "Invalid email domain. Only .edu email addresses are accepted."
+            })
+            
         # Save responses and check if student should be flagged
         student_name = request.data.get('student_name')
-        school_email = request.data.get('school_email')
         university_id = school_email.split('@')[1].split('.')[0] if '@' in school_email else 'Unknown'
         serializer_data = {
             "student_name": request.data["student_name"], 

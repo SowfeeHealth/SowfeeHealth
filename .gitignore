@@ -31,4 +31,6 @@ Thumbs.db
 *.bak
 *.tmp
 *.pem
+security_recommendations.md
+db_security_guide.md
 

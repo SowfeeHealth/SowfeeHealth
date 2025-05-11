@@ -19,7 +19,6 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
 ALLOWED_HOSTS = ["*"]
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -118,6 +117,13 @@ DATABASES = {
         'PASSWORD': os.getenv('MYSQL_PASSWORD'),
         'HOST': os.getenv('MYSQL_HOST', 'db'),  # 'db' is the service name in Docker
         'PORT': os.getenv('MYSQL_PORT', '3306'),
+        'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+            'charset': 'utf8mb4',  # 使用utf8mb4字符集，支持所有Unicode字符
+            'isolation_level': 'read committed',  # 设置事务隔离级别
+        },
+        'CONN_MAX_AGE': 60,  # 连接池持久化时间（秒）
+        'ATOMIC_REQUESTS': True,  # 每个HTTP请求在一个事务中执行
     }
 }
 

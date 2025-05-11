@@ -22,8 +22,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
-          memory: 1G
+          cpus: '2'
+          memory: 2G
 
   web:
     image: ${DOCKER_USERNAME}/django-app:latest

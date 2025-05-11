@@ -299,7 +299,15 @@
         <div class="logo">Sowfee</div>
         <nav class="nav-auth">
             <a href="survey.html" class="cta-button">Demo Survey</a>
-
+            <div id="auth-container">
+                <a href="/login/" class="cta-button outline" id="login-button">Login</a>
+                <a href="#" class="cta-button" id="user-button" style="display: none;">
+                    <span id="user-email"></span> ▼
+                </a>
+                <div id="dropdown-menu" style="display: none; position: absolute; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 0.5rem 0; margin-top: 0.5rem; right: 5%;">
+                    <a href="#" id="logout-button" style="display: block; padding: 0.5rem 1rem; color: var(--text); text-decoration: none;">Logout</a>
+                </div>
+            </div>
         </nav>
     </header>
 
@@ -410,6 +418,62 @@
     </section>
 
     <script>
+        // Check authentication status on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuthStatus();
+        });
+
+        // Function to check if user is logged in
+        function checkAuthStatus() {
+            // Get authentication token from cookies or localStorage
+            const token = getCookie('auth_token') || localStorage.getItem('auth_token');
+            const userEmail = getCookie('user_email') || localStorage.getItem('user_email');
+            
+            if (token && userEmail) {
+                // User is logged in
+                document.getElementById('login-button').style.display = 'none';
+                document.getElementById('user-button').style.display = 'inline-block';
+                document.getElementById('user-email').textContent = userEmail;
+            } else {
+                // User is not logged in
+                document.getElementById('login-button').style.display = 'inline-block';
+                document.getElementById('user-button').style.display = 'none';
+            }
+        }
+
+        // Helper function to get cookie value
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+
+        // Toggle dropdown menu
+        document.getElementById('user-button').addEventListener('click', function(e) {
+            e.preventDefault();
+            const dropdown = document.getElementById('dropdown-menu');
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        });
+
+        // Handle logout
+        document.getElementById('logout-button').addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Redirect to server-side logout endpoint
+            window.location.href = '/logout/';
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            const dropdown = document.getElementById('dropdown-menu');
+            const userButton = document.getElementById('user-button');
+            
+            if (dropdown.style.display === 'block' && e.target !== userButton && !userButton.contains(e.target) && e.target !== dropdown && !dropdown.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+
         // Smooth Scroll
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function(e) {

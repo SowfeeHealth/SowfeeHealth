@@ -181,13 +181,23 @@ def login_view(request):
         if user is not None:
             login(request, user)  # Creates a session for the user
             messages.success(request, "Login Successful!")
+            
+            # Set cookies for frontend authentication
+            response = None
+            
             # Check if university_id exists in the Student database
             if Student.objects.filter(university_id=university_id).exists():
                 # Redirect to the 'dashboard' if university_id exists
-                return redirect(reverse('dashboard', kwargs={'university': university_id}))
+                response = redirect(reverse('dashboard', kwargs={'university': university_id}))
             else:
                 # Redirect to the 'index' if university_id does not exist
-                return redirect('index')  # Change 'index' to the actual URL name if it's different
+                response = redirect('index')  # Change 'index' to the actual URL name if it's different
+            
+            # Set auth cookies
+            response.set_cookie('auth_token', request.session.session_key, max_age=3600*24*7)  # 7 days
+            response.set_cookie('user_email', email, max_age=3600*24*7)  # 7 days
+            
+            return response
         else:
             messages.error(request, "Invalid username or password")
 
@@ -213,4 +223,15 @@ def register_view(request):
         messages.success(request, "Registration successful! Please log in.")
         return redirect("login")  # Redirect to login page
     return render(request, "register.html")
+
+def logout_view(request):
+    logout(request)
+    response = redirect('index')
+    
+    # Clear auth cookies
+    response.delete_cookie('auth_token')
+    response.delete_cookie('user_email')
+    
+    messages.success(request, "You have been logged out successfully.")
+    return response
 

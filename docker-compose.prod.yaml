@@ -50,7 +50,7 @@ services:
       - static_volume:/app/backend/staticfiles
 
   nginx:
-    image: nginx:latest
+    image: nginx:1.24
     container_name: nginx
     restart: on-failure:5
     ports:

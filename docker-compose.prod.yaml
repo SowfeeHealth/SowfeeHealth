@@ -54,7 +54,7 @@ services:
     container_name: nginx
     restart: on-failure:5
     ports:
-      - "80:80"
+      - "8080:80"
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d
       - static_volume:/var/www/html/static

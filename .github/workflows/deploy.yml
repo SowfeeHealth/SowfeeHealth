@@ -48,7 +48,7 @@ jobs:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
-        source: "docker-compose.prod.yaml, Dockerfile, requirements.txt"
+        source: "docker-compose.prod.yaml, Dockerfile, requirements.txt, nginx"
         target: "~/app"
 
     - name: Create .env file on EC2

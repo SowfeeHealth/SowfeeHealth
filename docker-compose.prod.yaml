@@ -4,11 +4,6 @@ services:
     container_name: my-mysql-container
     restart: always
     env_file: .env
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --innodb-buffer-pool-size=128M --performance-schema=OFF
     volumes:
       - mysql_data:/var/lib/mysql
@@ -35,14 +30,10 @@ services:
         condition: service_healthy
     env_file: .env
     environment:
-      - MYSQL_HOST=db
-      - MYSQL_PORT=3306
       - DJANGO_SETTINGS_MODULE=core.settings
-      - DEBUG=0
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}  # Add this line
     ports:
       - "8000:8000"
-      - "8001:8001"
     working_dir: /app/backend  # Add this line
     logging:
       driver: "json-file"

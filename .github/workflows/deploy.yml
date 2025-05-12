@@ -83,7 +83,7 @@ jobs:
           ALLOWED_HOSTS=${{ secrets.EC2_HOST }}
           ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}
           ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
-          MYSQL_HEALTH_PASSWORD=${{ secrets.MYSQL_HEALTH_USER_PASSWORD}}
+          MYSQL_HEALTH_USER_PASSWORD=${{ secrets.MYSQL_HEALTH_USER_PASSWORD}}
           EOL
 
     - name: Configure Docker Mirror

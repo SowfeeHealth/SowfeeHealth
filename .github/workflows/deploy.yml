@@ -48,7 +48,9 @@ jobs:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
-        source: "mysql/my.cnf"
+        source: |
+          mysql/my.cnf
+          mysql/create_health_user.sql
         target: "~/app/"
 
     - name: Copy files to EC2
@@ -81,6 +83,7 @@ jobs:
           ALLOWED_HOSTS=${{ secrets.EC2_HOST }}
           ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}
           ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
+          MYSQL_HEALTH_PASSWORD=${{ secrets.MYSQL_HEALTH_USER_PASSWORD}}
           EOL
 
     - name: Configure Docker Mirror
@@ -99,6 +102,7 @@ jobs:
           }' | sudo tee /etc/docker/daemon.json
           sudo systemctl restart docker
 
+
     - name: Deploy to EC2
       uses: appleboy/ssh-action@master
       with:
@@ -111,6 +115,18 @@ jobs:
           # Remove existing image
           # docker images ${{ secrets.DOCKER_USERNAME }}/django-app --format "{{.ID}}" | xargs -r docker rmi -f || true
           # docker image prune -f
+
+          # Wait for MySQL to be fully initialized and available
+          until mysqladmin ping -h localhost --silent; do
+            echo "Waiting for MySQL to be available..."
+            sleep 5
+          done
+
+          # Debugging: Check MySQL status after waiting
+          mysqladmin ping -h localhost --silent && echo "MySQL is ready"
+
+          mysql -u root -p${{ secrets.MYSQL_ROOT_PASSWORD }} < ~/app/mysql/create_health_user.sql
+
           
           # Pull specific version image
           docker pull ${{ secrets.DOCKER_USERNAME }}/django-app:${{ github.run_number }}

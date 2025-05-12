@@ -9,7 +9,7 @@ services:
       - ./mysql/my.cnf:/etc/mysql/conf.d/my.cnf
       - ./mysql/create_health_user.sql:/docker-entrypoint-initdb.d/create_health_user.sql
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u health_user -p$MYSQL_HEALTH_USER_PASSWORD"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u health_user -p$MYSQL_HEALTH_USER_PASSWORD"]
       interval: 10s
       timeout: 8s
       retries: 8

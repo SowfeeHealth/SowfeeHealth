@@ -49,7 +49,7 @@ jobs:
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
         source: |
-          mysql/my.cnf
+          mysql/my.cnf,
           mysql/create_health_user.sql
         target: "~/app/"
 

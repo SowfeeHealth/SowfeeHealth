@@ -115,9 +115,6 @@ jobs:
           # Remove existing image
           # docker images ${{ secrets.DOCKER_USERNAME }}/django-app --format "{{.ID}}" | xargs -r docker rmi -f || true
           # docker image prune -f
-
-          mysql -u root -p${{ secrets.MYSQL_ROOT_PASSWORD }} < ~/app/mysql/create_health_user.sql
-
           
           # Pull specific version image
           docker pull ${{ secrets.DOCKER_USERNAME }}/django-app:${{ github.run_number }}

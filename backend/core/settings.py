@@ -82,6 +82,15 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:5500',
 ]
 
+# 添加 CSRF 配置
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:8080',
+    'http://127.0.0.1:8080',
+    f'http://{os.getenv("EC2_HOST")}:8080',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+]
+
 ROOT_URLCONF = 'core.urls'
 
 TEMPLATES = [

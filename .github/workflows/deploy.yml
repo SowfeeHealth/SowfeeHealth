@@ -115,7 +115,12 @@ jobs:
           # Remove existing image
           # docker images ${{ secrets.DOCKER_USERNAME }}/django-app --format "{{.ID}}" | xargs -r docker rmi -f || true
           # docker image prune -f
-          sudo dnf install -y mysql
+          if ! command -v mysqladmin &> /dev/null; then
+            echo "mysqladmin not found, installing mysql client..."
+            sudo dnf install -y mysql
+          else
+            echo "mysqladmin is already available."
+          fi
 
           # Wait for MySQL to be fully initialized and available
           until mysqladmin ping -h localhost --silent; do

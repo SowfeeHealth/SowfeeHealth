@@ -117,7 +117,7 @@ jobs:
           # docker image prune -f
           if ! command -v mysqladmin &> /dev/null; then
             echo "mysqladmin not found, installing mysql client..."
-            sudo dnf install -y mysql
+            sudo dnf install -y community-mysql
           else
             echo "mysqladmin is already available."
           fi

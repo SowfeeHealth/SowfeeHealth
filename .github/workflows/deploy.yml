@@ -115,22 +115,6 @@ jobs:
           # Remove existing image
           # docker images ${{ secrets.DOCKER_USERNAME }}/django-app --format "{{.ID}}" | xargs -r docker rmi -f || true
           # docker image prune -f
-          if ! command -v mysqladmin &> /dev/null; then
-            echo "mysqladmin not found, installing mysql client..."
-            sudo dnf install -y mariadb
-          else
-            echo "mysqladmin is already available."
-          fi
-
-          # Wait for MySQL to be fully initialized and available
-          until mysqladmin ping -h localhost --silent; do
-            echo "Waiting for MySQL to be available..."
-            sleep 3
-          done
-          echo "Mysql is ready"
-
-          # Debugging: Check MySQL status after waiting
-          mysqladmin ping -h localhost --silent && echo "MySQL is ready"
 
           mysql -u root -p${{ secrets.MYSQL_ROOT_PASSWORD }} < ~/app/mysql/create_health_user.sql
 

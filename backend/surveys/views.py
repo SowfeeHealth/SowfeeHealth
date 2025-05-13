@@ -59,7 +59,7 @@ def handle_student_responses(request):
             
         # Save responses and check if student should be flagged
         student_name = request.data.get('student_name')
-        university_id = school_email.split('@')[1].split('.')[0] if '@' in school_email else 'Unknown'
+        university_id = request.data.get('university_id') or (school_email.split('@')[1].split('.')[0] if '@' in school_email else 'Unknown')
         serializer_data = {
             "student_name": request.data["student_name"], 
             "school_email": request.data["school_email"],

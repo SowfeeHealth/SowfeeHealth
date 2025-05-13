@@ -53,6 +53,15 @@ jobs:
           mysql/create_health_user.sql
         target: "~/app/"
 
+    - name: Copy utils to EC2
+      uses: appleboy/scp-action@master
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        source: "backend/utils/"
+        target: "~/app/"
+
     - name: Copy files to EC2
       uses: appleboy/scp-action@master
       with:
@@ -86,6 +95,7 @@ jobs:
           MYSQL_HEALTH_USER_PASSWORD=${{ secrets.MYSQL_HEALTH_USER_PASSWORD}}
           EC2_HOST=${{secrets.EC2_HOST}}
           EOL
+
 
     - name: Configure Docker Mirror
       uses: appleboy/ssh-action@master
@@ -127,5 +137,4 @@ jobs:
           # Tag as latest for docker-compose
           docker tag ${{ secrets.DOCKER_USERNAME }}/django-app:${{ github.run_number }} ${{ secrets.DOCKER_USERNAME }}/django-app:latest
           
-          # Deploy with docker-compose
-          docker-compose -f docker-compose.prod.yaml up -d
+        

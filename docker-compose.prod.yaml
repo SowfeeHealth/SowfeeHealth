@@ -53,13 +53,11 @@ services:
     image: nginx:1.24
     container_name: nginx
     restart: on-failure:5
+    ports:
+      - "80:80"
     volumes:
       - static_volume:/usr/share/nginx/html
       - /home/ec2-user/app/default.conf:/etc/nginx/conf.d/default.conf
-      - /etc/letsencrypt:/etc/letsencrypt:ro  # 修改为 letsencrypt 目录
-    ports:
-      - "80:80"  # 需要保留 80 端口用于证书续期验证
-      - "443:443"  # 添加 HTTPS 端口
     depends_on:
       - web
 

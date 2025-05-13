@@ -68,7 +68,7 @@ jobs:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
-        source: "docker-compose.prod.yaml, Dockerfile, requirements.txt, default.conf"
+        source: "docker-compose.prod.yaml, Dockerfile, requirements.txt, default.conf, start-containers.sh"
         target: "~/app"
 
     - name: Create .env file on EC2
@@ -124,6 +124,7 @@ jobs:
           cd ~/app
           
           chmod 644 mysql/create_health_user.sql
+          chmod +x start-containers.sh
 
           ls -l mysql/create_health_user.sql
 

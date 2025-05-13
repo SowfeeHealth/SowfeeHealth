@@ -80,13 +80,15 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 # 添加 CSRF 配置
 CSRF_TRUSTED_ORIGINS = [
-    'http://localhost',
-    'http://127.0.0.1',
-    f'http://{os.getenv("EC2_HOST")}',
+    'http://localhost:443',
+    'http://127.0.0.1:443',
+    f'http://{os.getenv("EC2_HOST")}:443',
     'http://localhost:8000',
     'http://127.0.0.1:8000',
     'http://sowfeehealth.com',        
-    'http://www.sowfeehealth.com',       
+    'http://www.sowfeehealth.com',
+    'https://sowfeehealth.com',        
+    'https://www.sowfeehealth.com',       
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -220,5 +222,20 @@ LOGGING = {
         },
     }
 }
+
+
+# 添加安全设置
+if not DEBUG:
+    # HTTPS 设置
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000  # 1 年
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_BROWSER_XSS_FILTER = True
+    X_FRAME_OPTIONS = 'DENY'
 
 

@@ -262,7 +262,6 @@
           Show More Students
         </button>
       </div>
-
       <!-- Charts Section -->
       <div class="charts-grid">
         <div class="chart-card">
@@ -322,11 +321,11 @@
       new Chart(document.getElementById("responsesChart"), {
         type: "bar",
         data: {
-          labels: ["Jan", "Feb", "Mar", "Apr", "May"],
+          labels: JSON.parse("{{ months|safe }}".replace(/'/g, '"')),
           datasets: [
             {
               label: "Responses",
-              data: [345, 402, 512, 487, 632],
+              data: JSON.parse("{{ monthly_total_responses }}"),
               backgroundColor: "#6936f5",
               borderRadius: 8,
               barThickness: 40,
@@ -344,7 +343,7 @@
             {
               data: [
                 parseInt("{{ total_flagged_students }}"),
-                parseInt("{{ total_responses }}"),
+                parseInt("{{ total_stable_students }}"),
               ],
               backgroundColor: ["#ff6b6b", "#6936f5"],
             },
@@ -375,11 +374,11 @@
       new Chart(document.getElementById("supportChart"), {
         type: "line",
         data: {
-          labels: ["Jan", "Feb", "Mar", "Apr", "May"],
+          labels: JSON.parse("{{ months|safe }}".replace(/'/g, '"')),
           datasets: [
             {
               label: "Feel Supported",
-              data: [68, 72, 75, 74, 78],
+              data: JSON.parse("{{ monthly_support_perception }}"),
               borderColor: "#6936f5",
               tension: 0.4,
               fill: false,
@@ -396,7 +395,7 @@
           datasets: [
             {
               label: "Students",
-              data: [800, 1200, 450],
+              data: [parseInt("{{ total_low_stress }}"), parseInt("{{ total_moderate_stress }}"), parseInt("{{ total_high_stress }}")],
               backgroundColor: ["#4caf50", "#ffc107", "#ff6b6b"],
               borderRadius: 8,
             },
@@ -408,11 +407,11 @@
       new Chart(document.getElementById("responseRateChart"), {
         type: "line",
         data: {
-          labels: ["Jan", "Feb", "Mar", "Apr", "May"],
+          labels: JSON.parse("{{ months|safe }}".replace(/'/g, '"')),
           datasets: [
             {
               label: "Response Rate %",
-              data: [72, 75, 78, 82, 85],
+              data: JSON.parse("{{ response_rates }}"),
               borderColor: "#6936f5",
               tension: 0.4,
               fill: false,

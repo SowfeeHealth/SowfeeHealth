@@ -2,6 +2,8 @@ from django.shortcuts import render, redirect
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 import logging  # Fixed the typo in import statement
+import calendar
+from django.utils import timezone
 
 # Use a single logger configuration
 logger = logging.getLogger("surveys")
@@ -167,9 +169,33 @@ def dashboard_view(request, university):
     all_responses = SurveyResponse.objects.filter(university_id = university)
     total_responses = len(all_responses)
 
+    total_good_sleep_quality = len([response for response in all_responses if response.q4 <= 2])
+    total_bad_sleep_quality = len([response for response in all_responses if response.q4 >= 4])
+    total_low_stress = len([response for response in all_responses if response.q1 <= 2])
+    total_moderate_stress = len([response for response in all_responses if response.q1 == 3])
+    total_high_stress = len([response for response in all_responses if response.q1 >= 3])
+
+    # Data for "Monthly Survey Responses"
+    months = list(calendar.month_abbr[1:all_responses.order_by("-created")[0].created.month + 1])
+    months_idx = range(1, all_responses.order_by("-created")[0].created.month + 1)
+    response_rates = []
+    monthly_total_responses = []
+    monthly_support_perception = []
+    for month in months_idx:
+        month_responses = all_responses.filter(created__year = timezone.now().year, created__month = month)
+        month_total_responses = len(month_responses)
+        response_rates.append(int(month_total_responses/total_students * 100))
+        monthly_total_responses.append(month_total_responses)
+        monthly_support_perception.append(len(month_responses.filter(q5__lte = 2)))
+
     return render(request, 'dashboard.html', {"total_students": total_students, "flagged_students": school_flagged_students, 
                                               "total_flagged_students": total_flagged_students, "total_responses": total_responses,
-                                              "response_rate": int(total_responses/total_students * 100) if total_students > 0 else 0})
+                                              "response_rate": int(total_responses/total_students * 100) if total_students > 0 else 0,
+                                              "total_stable_students": total_responses - total_flagged_students, "total_good_sleep_quality": total_good_sleep_quality,
+                                              "total_bad_sleep_quality": total_bad_sleep_quality, "total_low_stress": total_low_stress,
+                                              "total_moderate_stress": total_moderate_stress, "total_high_stress": total_high_stress,
+                                              "months": months, "response_rates": response_rates, "monthly_total_responses": monthly_total_responses,
+                                              "monthly_support_perception": monthly_support_perception})
 
 def login_view(request):
     if request.method == "POST":

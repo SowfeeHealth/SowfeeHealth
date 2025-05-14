@@ -1,17 +1,8 @@
 #!/bin/bash
-set -e
 
-# Substitute environment variables in the SQL file and store in a temp file
-envsubst < /docker-entrypoint-initdb.d/create_health_user.sql > /tmp/processed.sql
+# 替换 SQL 文件中的变量
+envsubst < /docker-entrypoint-initdb.d/create_health_user.sql > /docker-entrypoint-initdb.d/final.sql
 
-# Wait for MySQL to be up
-echo "Waiting for MySQL to be ready..."
-until mysql -h mysql -u root -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1;" &> /dev/null; do
-  sleep 1
-done
-
-echo "Running processed SQL..."
-mysql -h mysql -u root -p"$MYSQL_ROOT_PASSWORD" < /tmp/processed.sql
-
-exec "$@"
+# 启动 MySQL 的原始入口点
+exec docker-entrypoint.sh mysqld
 

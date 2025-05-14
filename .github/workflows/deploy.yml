@@ -50,8 +50,7 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         source: |
           mysql/my.cnf,
-          mysql/create_health_user.sql,
-          mysql/init-entrypoint.sh
+          mysql/create_health_user.sql
         target: "~/app/"
 
     - name: Copy utils to EC2
@@ -125,7 +124,6 @@ jobs:
           cd ~/app
           
           chmod 644 mysql/create_health_user.sql
-          chmod 755 mysql/init-entrypoint.sh
 
           ls -l mysql/create_health_user.sql
 

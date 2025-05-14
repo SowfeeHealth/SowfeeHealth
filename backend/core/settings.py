@@ -80,6 +80,8 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 # 添加 CSRF 配置
 CSRF_TRUSTED_ORIGINS = [
+    'https://localhost',
+    'https://127.0.0.1',
     'http://localhost',
     'http://127.0.0.1',
     f'http://{os.getenv("EC2_HOST")}',

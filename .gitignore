@@ -1,5 +1,6 @@
 # Python
 __pycache__/
+backend/surveys/__pycache__/
 *.py[cod]
 *.swp
 *.swo

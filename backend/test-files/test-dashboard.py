@@ -10,7 +10,7 @@ def generate_random_students_for_CU():
     for i in range(200):
         random_name = faker.name()
         student = Student(school_email=random_name.replace(" ", "")+"@cu.edu", student_name=random_name, 
-                          university_id="College University")
+                          university_id="cu")
         student.save()
 
 

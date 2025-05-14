@@ -326,10 +326,10 @@ def logout_view(request):
     logout(request)
 
     # Clear auth cookies
+    response = redirect('index')
     response.delete_cookie('auth_token')
     response.delete_cookie('user_email')
     
     messages.success(request, "You have been logged out successfully.")
-    response = redirect('index')
     
     return response

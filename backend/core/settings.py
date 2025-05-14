@@ -86,7 +86,9 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8000',
     'http://127.0.0.1:8000',
     'http://sowfeehealth.com',        
-    'http://www.sowfeehealth.com',       
+    'http://www.sowfeehealth.com', 
+    'https://sowfeehealth.com',
+    'http://www.sowfeehealth.com'      
 ]
 
 ROOT_URLCONF = 'core.urls'

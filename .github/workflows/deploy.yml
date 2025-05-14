@@ -137,4 +137,9 @@ jobs:
           # Tag as latest for docker-compose
           docker tag ${{ secrets.DOCKER_USERNAME }}/django-app:${{ github.run_number }} ${{ secrets.DOCKER_USERNAME }}/django-app:latest
           
+          # start container
+          docker-compose -f docker-compose.prod.yaml up -d
+
+          rm -f .env
+
           

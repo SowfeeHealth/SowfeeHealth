@@ -14,7 +14,7 @@ from rest_framework.decorators import api_view
 # Use a single logger configuration
 logger = logging.getLogger("surveys")
 
-
+@api_view(["GET"])
 def index_view(request):
     """
     index_view returns the home page
@@ -22,10 +22,7 @@ def index_view(request):
     if request.method == "GET":
         return render(request, 'index.html')
     
-    else:
-        return HttpResponseBadRequest("Request method not allowed")
-    
-
+@api_view(['GET', 'POST'])
 def survey_view(request):
     """
     survey_view allows students to access the survey page
@@ -33,87 +30,21 @@ def survey_view(request):
     """
     if request.method == 'GET':
         return render(request, 'survey.html')
-    
     elif request.method == 'POST':
-        # Check if the request contains all the data
         required_fields = ['student_name', 'school_email', 'q1', 'q2', 'q3', 'q4', 'q5']
-        missing_fields = [field for field in required_fields if field not in request.POST]
+        missing_fields = [field for field in required_fields if field not in request.data]
 
         if missing_fields:
-            return HttpResponseBadRequest("Missing request data: request doesn't one or more required fields")
+            return JsonResponse({"success": False, "error": f"Missing fields: {', '.join(missing_fields)}"})
 
-        # Get the email and validate it ends with .edu
-        school_email = request.POST.get('school_email')
-
-        # Check if email ends with .edu
-        if not school_email.endswith('.edu'):
-            return HttpResponseBadRequest("Incorrect email address: email address doesn't end with .edu")
-        
-        # Extract request data
-        university_id = request.POST.get('university_id') or (school_email.split('@')[1].split('.')[0] if '@' in school_email else 'Unknown')
-        serializer_data = {
-            "student_name": request.POST["student_name"], 
-            "school_email": request.POST["school_email"],
-            "university_id": university_id,
-            "q1": request.POST["q1"],
-            "q2": request.POST["q2"],
-            "q3": request.POST["q3"],
-            "q4": request.POST["q4"],
-            "q5": request.POST["q5"]
-        }
-
-        # Add the response to the database
-        survey_response_serializer = SurveyResponseSerializer(data=serializer_data)
-        if survey_response_serializer.is_valid():
-            survey_result = survey_response_serializer.save()
-
-            # Create a student if it doesn't exist
-            student = Student.objects.filter(school_email=survey_result.school_email).exists()
-            if not student:
-                student_data = {
-                    "school_email": survey_result.school_email,
-                    "student_name": survey_result.student_name,
-                    "university_id": university_id
-                }
-
-                # Save student to the database
-                students_serializer = StudentSerializer(data=student_data)
-                if students_serializer.is_valid():
-                    students_serializer.save()
-                else:
-                    return HttpResponseServerError("Serializer error: can't store student in the database")
-            
-            # Check if student should be flagged
-            if any(getattr(survey_result, f'q{i}') >= 3 for i in range(1, 6)):
-                flagged_data = {
-                    "school_email": survey_result.school_email,
-                    "student_name": survey_result.student_name,
-                    "student_response": survey_result.id,
-                }
-                
-                flagged_student_serializer = FlaggedStudentsSerializer(data=flagged_data)
-                if flagged_student_serializer.is_valid():
-                    flagged_student_serializer.save()
-                    return JsonResponse({
-                        "success": True,
-                        "message": "Thank you for your honest response! Your input makes a difference.",
-                        "data": flagged_student_serializer.data  
-                    })
-                else:
-                    return HttpResponseServerError("Serializer error: can't store flagged student in the database")
-                
-        else:
-            return HttpResponseServerError("Serializer error: can't store survey responses in the database")
-        
-
-        return JsonResponse({
-                "success": True,
-                "message": "Thank you for your honest response! Your input makes a difference.",
-                "data": survey_response_serializer.data  
-            })
+        # Important: You can't return a @api_view within another @api_view
+        return _handle_student_responses(request)
 
 
-def handle_student_responses(request):
+def _handle_student_responses(request):
+    """
+    A function that serializes student responses, returns proper Json responses and saves them to the database.
+    """
     if request.method == "GET":
         surveyResponses = SurveyResponse.objects.all()
         serializer = SurveyResponseSerializer(surveyResponses, many=True)

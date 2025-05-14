@@ -186,13 +186,13 @@
       <!-- Summary Metrics -->
       <div class="metrics-grid">
         <div class="metric-card">
-          <div class="metric-value">{{ total_responses }}</div>
+          <div class="metric-value">{{ num_responses }}</div>
           <div class="metric-title">
             <i class="fas fa-clipboard-check"></i> Surveys Completed
           </div>
         </div>
         <div class="metric-card">
-          <div class="metric-value">{{ total_flagged_students }}</div>
+          <div class="metric-value">{{ num_flagged_students }}</div>
           <div class="metric-title">
             <i class="fas fa-exclamation-triangle"></i> Students At Risk
           </div>
@@ -325,7 +325,7 @@
           datasets: [
             {
               label: "Responses",
-              data: JSON.parse("{{ monthly_total_responses }}"),
+              data: JSON.parse("{{ monthly_num_responses }}"),
               backgroundColor: "#6936f5",
               borderRadius: 8,
               barThickness: 40,
@@ -342,8 +342,8 @@
           datasets: [
             {
               data: [
-                parseInt("{{ total_flagged_students }}"),
-                parseInt("{{ total_stable_students }}"),
+                parseInt("{{ num_flagged_students }}"),
+                parseInt("{{ num_stable_students }}"),
               ],
               backgroundColor: ["#ff6b6b", "#6936f5"],
             },
@@ -360,8 +360,8 @@
             {
               label: "Students",
               data: [
-                parseInt("{{ total_good_sleep_quality }}"),
-                parseInt("{{ total_bad_sleep_quality }}"),
+                parseInt("{{ num_good_sleep_quality }}"),
+                parseInt("{{ num_bad_sleep_quality }}"),
               ],
               backgroundColor: ["#6936f5", "#ff6b6b"],
               borderRadius: 8,
@@ -395,7 +395,7 @@
           datasets: [
             {
               label: "Students",
-              data: [parseInt("{{ total_low_stress }}"), parseInt("{{ total_moderate_stress }}"), parseInt("{{ total_high_stress }}")],
+              data: [parseInt("{{ num_low_stress }}"), parseInt("{{ num_moderate_stress }}"), parseInt("{{ num_high_stress }}")],
               backgroundColor: ["#4caf50", "#ffc107", "#ff6b6b"],
               borderRadius: 8,
             },
@@ -411,7 +411,7 @@
           datasets: [
             {
               label: "Response Rate %",
-              data: JSON.parse("{{ response_rates }}"),
+              data: JSON.parse("{{ monthly_response_rates }}"),
               borderColor: "#6936f5",
               tension: 0.4,
               fill: false,

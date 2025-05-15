@@ -85,14 +85,14 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost',
     'http://127.0.0.1',
     f'http://{os.getenv("EC2_HOST")}',
+    f'https://{os.getenv("EC2_HOST")}',
     'http://localhost:8000',
     'http://127.0.0.1:8000',
     'http://sowfeehealth.com',        
     'http://www.sowfeehealth.com', 
     'https://sowfeehealth.com',
     'http://www.sowfeehealth.com',
-    'http://3.25.200.42',
-    'https://3.25.200.42',
+    'https://www.sowfeehealth.com',
     'https://sowfeehealth.com/',
     'https://www.sowfeehealth.com/'      
 ]

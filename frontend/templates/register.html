@@ -198,7 +198,7 @@
     <div class="login-container">
       <div class="logo">Sowfee Health</div>
 
-      <form id="loginForm" , method="POST" , action="/register/">
+      <form id="loginForm" method="POST" action="/register/">
         {% csrf_token %}
         <input type="hidden" id="csrf_token" value="{{ csrf_token }}" />
 

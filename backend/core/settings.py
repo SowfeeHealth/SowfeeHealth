@@ -97,6 +97,16 @@ CSRF_TRUSTED_ORIGINS = [
     'https://www.sowfeehealth.com/'      
 ]
 
+# Add these CSRF cookie settings
+CSRF_COOKIE_SECURE = True  # Send cookie only over HTTPS
+CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to access the cookie
+CSRF_USE_SESSIONS = False  # Store CSRF token in cookie, not session
+CSRF_COOKIE_SAMESITE = 'Lax'  # Controls cross-site request behavior
+
+# For development environments, you might need to set this to False if not using HTTPS locally
+if DEBUG:
+    CSRF_COOKIE_SECURE = False
+
 ROOT_URLCONF = 'core.urls'
 
 TEMPLATES = [

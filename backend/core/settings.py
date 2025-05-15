@@ -92,7 +92,9 @@ CSRF_TRUSTED_ORIGINS = [
     'https://sowfeehealth.com',
     'http://www.sowfeehealth.com',
     'http://3.25.200.42',
-    'https://3.25.200.42'      
+    'https://3.25.200.42',
+    'https://sowfeehealth.com/',
+    'https://www.sowfeehealth.com/'      
 ]
 
 ROOT_URLCONF = 'core.urls'

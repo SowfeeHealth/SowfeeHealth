@@ -97,15 +97,6 @@ CSRF_TRUSTED_ORIGINS = [
     'https://www.sowfeehealth.com/'      
 ]
 
-# Add these CSRF cookie settings
-CSRF_COOKIE_SECURE = True  
-CSRF_COOKIE_HTTPONLY = False  
-CSRF_USE_SESSIONS = False  
-CSRF_COOKIE_SAMESITE = 'Lax'  
-
-if DEBUG:
-    CSRF_COOKIE_SECURE = False
-
 ROOT_URLCONF = 'core.urls'
 
 TEMPLATES = [

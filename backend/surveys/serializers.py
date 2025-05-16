@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import SurveyResponse, FlaggedStudents, Student
+from .models import SurveyResponse, FlaggedStudent, Student
 
 class SurveyResponseSerializer(serializers.ModelSerializer):
     """
@@ -11,14 +11,14 @@ class SurveyResponseSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class FlaggedStudentsSerializer(serializers.ModelSerializer):
+class FlaggedStudentSerializer(serializers.ModelSerializer):
     """
-    FlaggedStudentsSerializer helps in converting strings to JSON objects
+    FlaggedStudentSerializer helps in converting strings to JSON objects
     and vice-versa.
     """
     student_response = serializers.PrimaryKeyRelatedField(queryset=SurveyResponse.objects.all())
     class Meta:
-        model = FlaggedStudents
+        model = FlaggedStudent
         fields = "__all__"
 
 

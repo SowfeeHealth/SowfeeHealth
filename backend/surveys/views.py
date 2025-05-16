@@ -1,7 +1,7 @@
 import logging
 import calendar
-from .models import SurveyResponse, FlaggedStudents, Student, User
-from .serializers import SurveyResponseSerializer, FlaggedStudentsSerializer, StudentSerializer
+from .models import SurveyResponse, FlaggedStudent, Student, User
+from .serializers import SurveyResponseSerializer, FlaggedStudentSerializer, StudentSerializer
 from django.shortcuts import render, redirect
 from django.utils import timezone
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseServerError
@@ -111,8 +111,8 @@ def _handle_student_responses(request):
                     "student_response": survey_result.id,
                 }
                 # Comment out the delete old responses line
-                # FlaggedStudents.objects.filter(student_name=student_name, school_email=school_email).delete()
-                flagged_serializer = FlaggedStudentsSerializer(data=flagged_data)
+                # FlaggedStudent.objects.filter(student_name=student_name, school_email=school_email).delete()
+                flagged_serializer = FlaggedStudentSerializer(data=flagged_data)
                 if flagged_serializer.is_valid():
                     flagged_serializer.save()
                     response_data = {
@@ -161,8 +161,8 @@ def flagged_students_view(request):
     in the database
     """
     if request.method == "GET":
-        flagged_students = FlaggedStudents.objects.all()
-        flagged_students_serializer = FlaggedStudentsSerializer(flagged_students, many=True)
+        flagged_students = FlaggedStudent.objects.all()
+        flagged_students_serializer = FlaggedStudentSerializer(flagged_students, many=True)
         return Response(flagged_students_serializer.data)
     
     else:
@@ -194,7 +194,7 @@ def dashboard_view(request, university_id):
     num_students = len(Student.objects.filter(university_id = university_id))
 
     # List of students registered in the university and marked as flagged
-    all_flagged_students = FlaggedStudents.objects.all()
+    all_flagged_students = FlaggedStudent.objects.all()
     school_flagged_students = []
     for student in all_flagged_students:
         if student.student_response.university_id == university_id:

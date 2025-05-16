@@ -105,7 +105,7 @@ class SurveyResponse(models.Model):
         unique_together = ('school_email', 'created')
 
 
-class FlaggedStudents(models.Model):
+class FlaggedStudent(models.Model):
     """
     FlaggedStudents model represents a flagged student based on survey responses
     """

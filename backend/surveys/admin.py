@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import SurveyResponse, FlaggedStudents, User, Student
+from .models import SurveyResponse, FlaggedStudent, User, Student, Institution
 
 # list_dispay: which fields are represented in the change interface of the model in admin
 # list_filter: activate filters in the right side bar of the admin interface
@@ -14,7 +14,7 @@ class SurveyResponseAdmin(admin.ModelAdmin):
     ordering = ('-created',)
 
 # Configure admin interface for FlaggedStudents model
-class FlaggedStudentsAdmin(admin.ModelAdmin):
+class FlaggedStudentAdmin(admin.ModelAdmin):
     list_display = ('student_name', 'school_email', 'student_response')
     search_fields = ('student_name', 'school_email')
     list_filter = ('student_response',)
@@ -31,11 +31,18 @@ class StudentAdmin(admin.ModelAdmin):
     search_fields = ('student_name', 'school_email')
     list_filter = ('university_id',)
 
+# Configure admin interface for Institution model
+class InstitutionAdmin(admin.ModelAdmin):
+    list_display = ('institution_name', 'institution_email_regex')
+    search_fields = ('institution_name',)
+
 # Register models to the admin interface
 admin.site.register(SurveyResponse, SurveyResponseAdmin)
 
-admin.site.register(FlaggedStudents, FlaggedStudentsAdmin)
+admin.site.register(FlaggedStudent, FlaggedStudentAdmin)
 
 admin.site.register(User, UserAdmin)
 
 admin.site.register(Student, StudentAdmin)
+
+admin.site.register(Institution, InstitutionAdmin)

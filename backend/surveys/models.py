@@ -121,3 +121,12 @@ class Student(models.Model):
     school_email = models.EmailField(max_length=250, primary_key=True, validators=[validate_edu_email])
     student_name = models.CharField(max_length=250)
     university_id = models.CharField(max_length=250)
+
+
+class Institution(models.Model):
+    """
+    Institution model represents an institution registered with the system
+    """
+    institution_name = models.CharField(max_length=250)
+    institution_email_regex = models.CharField(max_length=250)
+    admin_details = models.ForeignKey(User, on_delete=models.CASCADE)

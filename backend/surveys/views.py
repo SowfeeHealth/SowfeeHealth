@@ -1,11 +1,13 @@
 import logging
 import calendar
-from .models import SurveyResponse, FlaggedStudent, Student, User
-from .serializers import SurveyResponseSerializer, FlaggedStudentSerializer, StudentSerializer
+import re
+from .models import SurveyResponse, User
+from .serializers import SurveyResponseSerializer, UserSerializer
 from django.shortcuts import render, redirect
 from django.utils import timezone
-from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseServerError
+from django.http import JsonResponse, HttpResponseBadRequest
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 from django.contrib import messages
 from rest_framework.response import Response
@@ -21,7 +23,9 @@ def index_view(request):
     """
     if request.method == "GET":
         return render(request, 'index.html')
-    
+   
+
+@login_required
 @api_view(['GET', 'POST'])
 def survey_view(request):
     """
@@ -29,8 +33,19 @@ def survey_view(request):
     and save survey responses
     """
     if request.method == 'GET':
-        return render(request, 'survey.html')
+        
+        # Extract data for the logged in student
+        student = User.objects.filter(email=request.COOKIES.get("user_email")).first()
+        context = {
+            "student_email": student.email,
+            "student_name": student.name
+        }
+
+        return render(request, 'survey.html', context=context)
+    
     elif request.method == 'POST':
+        
+        # Check whether all the required fields are filled out
         required_fields = ['student_name', 'school_email', 'q1', 'q2', 'q3', 'q4', 'q5']
         missing_fields = [field for field in required_fields if field not in request.data]
 
@@ -45,99 +60,57 @@ def _handle_student_responses(request):
     """
     A function that serializes student responses, returns proper Json responses and saves them to the database.
     """
-    if request.method == "GET":
-        surveyResponses = SurveyResponse.objects.all()
-        serializer = SurveyResponseSerializer(surveyResponses, many=True)
-        return Response(serializer.data)
-
-    elif request.method == "POST":
-        # Get the email and validate it ends with .edu
-        school_email = request.data.get('school_email')
+    # Get the email and validate it ends with .edu
+    school_email = request.data.get('school_email')
+    
+    # Check if email ends with .edu
+    if not school_email.endswith('.edu'):
+        return JsonResponse({
+            "success": False,
+            "message": "Please use a valid .edu email address.",
+            "error": "Invalid email domain. Only .edu email addresses are accepted."
+        })
         
-        # Check if email ends with .edu
-        if not school_email.endswith('.edu'):
-            return JsonResponse({
-                "success": False,
-                "message": "Please use a valid .edu email address.",
-                "error": "Invalid email domain. Only .edu email addresses are accepted."
-            })
-            
-        # Save responses and check if student should be flagged
-        student_name = request.data.get('student_name')
-        university_id = request.data.get('university_id') or (school_email.split('@')[1].split('.')[0] if '@' in school_email else 'Unknown')
-        serializer_data = {
-            "student_name": request.data["student_name"], 
-            "school_email": request.data["school_email"],
-            "university_id": university_id,
-            "q1": request.data["q1"],
-            "q2": request.data["q2"],
-            "q3": request.data["q3"],
-            "q4": request.data["q4"],
-            "q5": request.data["q5"]
+    # Check if the student should be flagged
+    flagged = False
+    if any(getattr(request.data, f'q{i}') >= 3 for i in range(1, 6)):
+        flagged = True
+
+    # Save the student response
+    student = User.objects.filter(email=request.COOKIES.get("user_email")).first()
+    survey_response_serializer_data = {
+        "student": student,
+        "q1": request.data["q1"],
+        "q2": request.data["q2"],
+        "q3": request.data["q3"],
+        "q4": request.data["q4"],
+        "q5": request.data["q5"],
+        "flagged": flagged,
+    }
+
+    survey_response_serializer = SurveyResponseSerializer(data=survey_response_serializer_data)
+    if survey_response_serializer.is_valid():
+        
+        # Save the response to the database
+        survey_response_serializer.save()
+
+        # Return success response
+        response_data = {
+            "success": True,
+            "message": "Thank you for your honest response! Your input makes a difference.",
+            "data": survey_response_serializer.data,
         }
+        return JsonResponse(response_data)
+    
+    else:
 
-        # Comment out the delete old responses line
-        # SurveyResponse.objects.filter(school_email=school_email).delete()
-
-        serializer = SurveyResponseSerializer(data=serializer_data)
-        if serializer.is_valid():
-            survey_result = serializer.save()  # This will always create a new response
-
-            # Check if student already exists
-            student_exists = Student.objects.filter(school_email=survey_result.school_email).exists()
-            
-            # Process student data
-            if not student_exists:
-                student_data = {
-                    "school_email": survey_result.school_email,
-                    "student_name": survey_result.student_name,  # university_id will be auto-generated
-                    "university_id": university_id
-                }
-                students_serializer = StudentSerializer(data=student_data)
-                if students_serializer.is_valid():
-                    students_serializer.save()
-                    # logger.debug("Student data: %s", students_serializer.data)
-                    
-                    # And similarly for error messages:
-                    # Replace print statements with logger.error or logger.debug
-                else:
-                    logger.error("Error saving student: %s", students_serializer.errors)
-
-            # Check if student should be flagged
-            if any(getattr(survey_result, f'q{i}') >= 3 for i in range(1, 6)):
-                flagged_data = {
-                    "school_email": survey_result.school_email,
-                    "student_name": survey_result.student_name,
-                    "student_response": survey_result.id,
-                }
-                # Comment out the delete old responses line
-                # FlaggedStudent.objects.filter(student_name=student_name, school_email=school_email).delete()
-                flagged_serializer = FlaggedStudentSerializer(data=flagged_data)
-                if flagged_serializer.is_valid():
-                    flagged_serializer.save()
-                    response_data = {
-                        "success": True,
-                        "message": "Thank you for your honest response! Your input makes a difference.",
-                        "data": flagged_serializer.data  
-                    }
-                    return JsonResponse(response_data)
-
-            # Return success response
-            response_data = {
-                "success": True,
-                "message": "Thank you for your honest response! Your input makes a difference.",
-                "data": serializer.data  
-            }
-            return JsonResponse(response_data)
-        
-        else:
-            # Return error response
-            logger.error("Serializer Errors: %s", serializer.errors)
-            return JsonResponse({
-                "success": False,
-                "message": "There was an error with your submission.",
-                "data": serializer.errors
-            })
+        # Return error response if serializer errors
+        logger.error("Serializer Errors: %s", survey_response_serializer.errors)
+        return JsonResponse({
+            "success": False,
+            "message": "There was an error with your submission.",
+            "data": survey_response_serializer.errors
+        })
 
 @api_view(['GET'])
 def student_response_view(request):
@@ -263,10 +236,10 @@ def login_view(request):
             response = None
             
             # Redirect to university dashboard if admin is registered with the system
-            if Student.objects.filter(university_id=university_id).exists():
+            if User.objects.filter(email=email).first().is_institution_admin:
                 response = redirect(reverse('dashboard', kwargs={'university_id': university_id}))
             else:
-                response = redirect('index')
+                response = redirect('survey')
             
             # Keep authentication token and email alive for 7 days
             response.set_cookie('auth_token', request.session.session_key, max_age=3600*24*7)
@@ -292,6 +265,8 @@ def register_view(request):
     if request.method == "POST":
 
         # Extract form data
+        institution_name = request.POST.get("institution_name")
+        name=request.POST.get("name")
         email = request.POST.get("email")
         password = request.POST.get("password")
         confirm_password = request.POST.get("confirm_password")
@@ -305,15 +280,30 @@ def register_view(request):
         if User.objects.filter(email=email).exists():
             messages.error(request, "Email already registered.")
             return redirect("register")
-
-        # Create a new user
-        user = User.objects.create_user(email=email, password=password)
-        user.save()
+        
+        # Check if the email address matches the institution's patter
+        institution_details = Institution.objects.filter(institution_name=institution_name).first()
+        match_object = re.fullmatch(institution_details.institution_email_regex, email)
+        if not match_object:
+            messages.error(request, "Email does not match institution's format")
+            return redirect("register")
+        
+        # Create a new student
+        institution_details = Institution.objects.filter(institution_name=institution_name)
+        student = User.objects.create_student(email=email, password=password, institution_details=institution_details.first(), name=name)
+        student.save()
         messages.success(request, "Registration successful! Please log in.")
         return redirect("login")
     
     elif request.method == "GET":
-        return render(request, "register.html")
+
+        # Get all institutions
+        institutions = Institution.objects.all()
+        institution_names = [institution.institution_name for institution in institutions]
+        context = {
+            "institution_names": institution_names
+        }
+        return render(request, "register.html", context=context)
 
     else:
         return HttpResponseBadRequest("Request method not allowed")

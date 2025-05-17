@@ -4,6 +4,13 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 
+class Institution(models.Model):
+    """
+    Institution model represents an institution registered with the system
+    """
+    institution_name = models.CharField(max_length=250)
+    institution_regex_pattern = models.CharField(max_length=250)
+
 
 class UserManager(BaseUserManager):
     """
@@ -82,15 +89,14 @@ class User(AbstractBaseUser, PermissionsMixin):
     """
     User model is used to register and authenticate users
     """
-    name = models.CharField(unique=True, null=True, blank=True, max_length=250)
     email = models.EmailField(unique=True)
     is_admin = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
     is_student = models.BooleanField(default=False)
-    is_institution_admin = models.BooleanField(default=False)   
-    institution_name = models.CharField(max_length=250, null=True, blank=True)  # institution_name required only when student or admin
-    institution_regex = models.CharField(max_length=250, null=True, blank=True) # institution_regex required only when student or admin
+    is_institution_admin = models.BooleanField(default=False) 
+    name = models.CharField(unique=True, null=True, blank=True, max_length=250) # name required only when user is student  
+    institution_details = models.ForeignKey(Institution, null=True, blank=True) # institution_details required only when user is student or admin
     date_joined = models.DateTimeField(default=timezone.now)
 
     USERNAME_FIELD = 'email'

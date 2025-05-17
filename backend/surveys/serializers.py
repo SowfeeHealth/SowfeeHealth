@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import SurveyResponse, User
+from .models import SurveyResponse, User, Institution
 
 class SurveyResponseSerializer(serializers.ModelSerializer):
     """
@@ -18,4 +18,14 @@ class UserSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = User
+        fields = "__all__"
+
+
+class InstitutionSerializer(serializers.ModelSerializer):
+    """
+    InstitutionSerializer helps in converting strings to JSON objects
+    and vice-versa.
+    """
+    class Meta:
+        model = Institution
         fields = "__all__"

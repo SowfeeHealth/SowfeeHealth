@@ -112,6 +112,7 @@ def _handle_student_responses(request):
             "data": survey_response_serializer.errors
         })
 
+
 @api_view(['GET'])
 def student_response_view(request):
     """
@@ -122,21 +123,6 @@ def student_response_view(request):
         survey_responses = SurveyResponse.objects.all()
         survey_response_serializer = SurveyResponseSerializer(survey_responses, many=True)
         return Response(survey_response_serializer.data)
-    
-    else:
-        return HttpResponseBadRequest("Request method not allowed")
-
-
-@api_view(["GET"])
-def flagged_students_view(request):
-    """
-    flagged_students_view is an API view that returns all flagged students
-    in the database
-    """
-    if request.method == "GET":
-        flagged_students = FlaggedStudent.objects.all()
-        flagged_students_serializer = FlaggedStudentSerializer(flagged_students, many=True)
-        return Response(flagged_students_serializer.data)
     
     else:
         return HttpResponseBadRequest("Request method not allowed")

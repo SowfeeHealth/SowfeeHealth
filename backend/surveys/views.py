@@ -1,11 +1,11 @@
 import logging
 import calendar
 import re
-from .models import SurveyResponse, User
-from .serializers import SurveyResponseSerializer, UserSerializer
+from .models import SurveyResponse, User, Institution
+from .serializers import SurveyResponseSerializer, UserSerializer, InstitutionSerializer
 from django.shortcuts import render, redirect
 from django.utils import timezone
-from django.http import JsonResponse, HttpResponseBadRequest
+from django.http import JsonResponse, HttpResponseBadRequest, QueryDict
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
@@ -16,7 +16,6 @@ from rest_framework.decorators import api_view
 # Use a single logger configuration
 logger = logging.getLogger("surveys")
 
-@api_view(["GET"])
 def index_view(request):
     """
     index_view returns the home page
@@ -24,9 +23,15 @@ def index_view(request):
     if request.method == "GET":
         return render(request, 'index.html')
    
+def demo_survey_view(request):
+    """
+    demo_survey_view renders a sample survey response to visitors
+    """
+    if request.method == "GET":
+        return render(request, "survey.html")
 
-@login_required
-@api_view(['GET', 'POST'])
+
+@api_view(["GET", "POST"])
 def survey_view(request):
     """
     survey_view allows students to access the survey page
@@ -34,16 +39,39 @@ def survey_view(request):
     """
     if request.method == 'GET':
         
-        # Extract data for the logged in student
-        student = User.objects.filter(email=request.COOKIES.get("user_email")).first()
-        context = {
-            "student_email": student.email,
-            "student_name": student.name
-        }
+        # Check if user is a developer/wants to just look at the form
+        if request.user.is_authenticated and request.user.is_superuser:
+            context = {
+                "student_email": "",
+                "student_name": ""
+            }
 
-        return render(request, 'survey.html', context=context)
+            return render(request, 'survey.html', context=context)
+        
+        # Check if the user is a student
+        elif request.user.is_authenticated and not request.user.is_institution_admin:
+            # Extract data for the logged in student
+            context = {
+                "student_email": request.user.email,
+                "student_name": request.user.name
+            }
+
+            return render(request, 'survey.html', context=context)
+        
+        # Check if the user is an admin
+        elif request.user.is_authenticated and request.user.is_institution_admin:
+            # Redirect to the dashboard page if the user is an admin
+            redirect("dashboard")
+
+        else:
+            # Redirect to the login page if the user has not logged in
+            return redirect("login")
     
     elif request.method == 'POST':
+        
+        # Check if a valid user is submitting the response
+        if not request.user.is_authenticated:
+            return JsonResponse({"success": False, "error": f"Please login to the application to submit a survey response"})
         
         # Check whether all the required fields are filled out
         required_fields = ['student_name', 'school_email', 'q1', 'q2', 'q3', 'q4', 'q5']
@@ -70,29 +98,28 @@ def _handle_student_responses(request):
             "message": "Please use a valid .edu email address.",
             "error": "Invalid email domain. Only .edu email addresses are accepted."
         })
-        
-    # Check if the student should be flagged
-    flagged = False
-    if any(getattr(request.data, f'q{i}') >= 3 for i in range(1, 6)):
-        flagged = True
 
     # Save the student response
-    student = User.objects.filter(email=request.COOKIES.get("user_email")).first()
+    student = request.user
     survey_response_serializer_data = {
-        "student": student,
+        "student": student.id,
         "q1": request.data["q1"],
         "q2": request.data["q2"],
         "q3": request.data["q3"],
         "q4": request.data["q4"],
         "q5": request.data["q5"],
-        "flagged": flagged,
     }
 
     survey_response_serializer = SurveyResponseSerializer(data=survey_response_serializer_data)
     if survey_response_serializer.is_valid():
         
         # Save the response to the database
-        survey_response_serializer.save()
+        survey_result = survey_response_serializer.save()
+
+        # Check if the student should be flagged
+        if any(getattr(survey_result, f'q{i}') >= 3 for i in range(1, 6)):
+            survey_result.flagged = True
+            survey_result.save()
 
         # Return success response
         response_data = {
@@ -113,27 +140,39 @@ def _handle_student_responses(request):
         })
     
 
-def dashboard_view(request, university_id):
+def dashboard_view(request):
     """
-    dashboard_view returns the dashboard page for a particular university
+    dashboard_view returns the dashboard page for a particular university.
+    """
+    if request.method != "GET":
+        return HttpResponseBadRequest("Bad request: resource not found/bad request")
+    
+    if not request.user.is_authenticated:
+        return redirect("login")
+    
+    if request.user.is_superuser:
+        return redirect(reverse("admin:index"))
+    
+    if not request.user.is_institution_admin:
+        return HttpResponseBadRequest("Bad request: resource not found/bad request")
+    
+    # Get the institution details of the admin
+    institution_details = request.user.institution_details
 
-    university_id: id corresponding to the university
-    """
     # Number of students registered in the unviersity
-    num_students = len(Student.objects.filter(university_id = university_id))
+    num_students = len(User.objects.filter(is_student = True, institution_details = institution_details))
 
     # List of students registered in the university and marked as flagged
-    all_flagged_students = FlaggedStudent.objects.all()
-    school_flagged_students = []
-    for student in all_flagged_students:
-        if student.student_response.university_id == university_id:
-            school_flagged_students.append((student.student_name, student.school_email))
+    all_flagged_responses = SurveyResponse.objects.filter(flagged=True, student__institution_details = institution_details)
+    school_flagged_responses = []
+    for response in all_flagged_responses:
+            school_flagged_responses.append((response.student.name, response.student.email))
 
     # Number of students registered in the university and marked as flagged
-    num_flagged_students = len(school_flagged_students)
+    num_flagged_students = len(school_flagged_responses)
 
     # Number of responses for students registered in the university
-    all_responses = SurveyResponse.objects.filter(university_id = university_id)
+    all_responses = SurveyResponse.objects.filter(student__institution_details = institution_details)
     num_responses = len(all_responses)
 
     num_good_sleep_quality = len([response for response in all_responses if response.q4 <= 2]) # Number of students with good sleep quality
@@ -158,7 +197,7 @@ def dashboard_view(request, university_id):
         monthly_support_perception.append(len(month_responses.filter(q5__lte = 2)))                         # Number of people feeling supported in the current month
 
     context = {
-        "num_students": num_students, "flagged_students": school_flagged_students, 
+        "num_students": num_students, "flagged_students": school_flagged_responses, 
         "num_flagged_students": num_flagged_students, "num_responses": num_responses,
         "response_rate": int(num_responses/num_students * 100) if num_students > 0 else 0,
         "num_stable_students": num_responses - num_flagged_students, "num_good_sleep_quality": num_good_sleep_quality,
@@ -193,7 +232,7 @@ def login_view(request):
             
             # Redirect to university dashboard if admin is registered with the system
             if User.objects.filter(email=email).first().is_institution_admin:
-                response = redirect(reverse('dashboard', kwargs={'university_id': university_id}))
+                response = redirect('dashboard')
             else:
                 response = redirect('survey')
             
@@ -208,6 +247,17 @@ def login_view(request):
             return render(request, 'login.html')
         
     elif request.method == "GET":
+
+        # Check if the user has been already authenticated
+        if request.user.is_authenticated:
+            
+            # Check if the user is an admin
+            user = User.objects.filter(email = request.user.email).first()
+            if user.is_institution_admin:
+                return redirect("dashboard")
+            else:
+                return redirect("survey")
+
         return render(request, 'login.html')
 
     else:
@@ -239,7 +289,7 @@ def register_view(request):
         
         # Check if the email address matches the institution's patter
         institution_details = Institution.objects.filter(institution_name=institution_name).first()
-        match_object = re.fullmatch(institution_details.institution_email_regex, email)
+        match_object = re.fullmatch(institution_details.institution_regex_pattern, email)
         if not match_object:
             messages.error(request, "Email does not match institution's format")
             return redirect("register")
@@ -288,7 +338,7 @@ def student_response_view(request):
     student_response_view is an API view that returns all survey responses
     saved in the database
     """
-    if request.method == "GET":
+    if request.method == "GET" and request.user.is_authenticated and request.user.is_superuser:
         survey_responses = SurveyResponse.objects.all()
         survey_response_serializer = SurveyResponseSerializer(survey_responses, many=True)
         return Response(survey_response_serializer.data)
@@ -303,7 +353,7 @@ def flagged_students_view(request):
     flagged_students_view is an API view that returns all flagged students
     in the database
     """
-    if request.method == "GET":
+    if request.method == "GET" and request.user.is_authenticated and request.user.is_superuser:
         flagged_students = SurveyResponse.objects.filter(flagged=True)
         flagged_students_serializer = SurveyResponseSerializer(flagged_students, many=True)
         return Response(flagged_students_serializer.data)
@@ -318,7 +368,7 @@ def students_view(request):
     students_view is an API view that returns all students
     in the database
     """
-    if request.method == "GET":
+    if request.method == "GET" and request.user.is_authenticated and request.user.is_superuser:
         all_students = User.objects.filter(is_student=True)
         user_serializer = UserSerializer(all_students, many=True)
         return Response(user_serializer.data)

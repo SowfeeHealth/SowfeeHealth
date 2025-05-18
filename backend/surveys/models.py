@@ -11,6 +11,9 @@ class Institution(models.Model):
     institution_name = models.CharField(max_length=250)
     institution_regex_pattern = models.CharField(max_length=250)
 
+    def __str__(self):
+        return self.institution_name
+
 
 class UserManager(BaseUserManager):
     """
@@ -94,9 +97,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_superuser = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
     is_student = models.BooleanField(default=False)
-    is_institution_admin = models.BooleanField(default=False) 
-    name = models.CharField(unique=True, null=True, blank=True, max_length=250) # name required only when user is student  
-    institution_details = models.ForeignKey(Institution, null=True, blank=True) # institution_details required only when user is student or admin
+    is_institution_admin = models.BooleanField(default=False)
+     # name required only when user is student 
+    name = models.CharField(unique=True, null=True, blank=True, max_length=250)
+    # institution_details required only when user is student or admin                            
+    institution_details = models.ForeignKey(Institution, null=True, blank=True, on_delete=models.CASCADE)
     date_joined = models.DateTimeField(default=timezone.now)
 
     USERNAME_FIELD = 'email'
@@ -147,7 +152,7 @@ class SurveyResponse(models.Model):
     flagged = models.BooleanField(default=False)
 
     class Meta:
-        unique_together = ('school_email', 'created')
+        unique_together = ('student', 'created')
 
     def __str__(self):
         return f"{self.student.name} - {str(self.created)}"

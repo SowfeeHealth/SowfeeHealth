@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import SurveyResponse, User, Institution
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
 # Description of ModelAdmin attributes:
 # list_dispay: which fields are represented in the list display interface in admin
@@ -18,10 +19,10 @@ class SurveyResponseAdmin(admin.ModelAdmin):
 
 
 # Configure admin interface for User model
-class UserAdmin(admin.ModelAdmin):
+class UserAdmin(BaseUserAdmin):
     list_display = ('email', 'name', 'is_admin', 'is_superuser', 'date_joined', 'institution_details')
     fieldsets = (
-        ("Personal Information", {"fields": ("email", "name", "password", "institution_details")}),
+        (None, {"fields": ("email", "name", "password", "institution_details")}),
         ('Permissions', {"fields": ("is_institution_admin", "is_superuser", "groups", "user_permissions")}),
         ('Important dates', {"fields": ("last_login", "date_joined")}),
     )

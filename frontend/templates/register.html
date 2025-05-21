@@ -244,6 +244,19 @@
       .step.finish {
         background-color: #8a63f2;
       }
+
+      .error_message {
+        font-size: x-small;
+        color: red;
+        display: block;
+        margin-top: 2px;
+      }
+
+      .required-symbol {
+        font-size: small;
+        color: red;
+      }
+
     </style>
   </head>
   <body>
@@ -259,23 +272,24 @@
 
           <!-- Institution selection dropdown -->
           <div class="form-group select-container">
-            <label for="institution">Institution</label>
+            <label for="institution">Institution <span class="required-symbol">*</span></label>
               <select
                 class="form-select"
                 name="institution_name"
                 id="institution"
                 required
               >
-                <option value"" selected disabled> Select your institution </option>
+                <option value="" selected disabled> Select your institution </option>
                 {% for institution_name in institution_names %}
                   <option value="{{ institution_name }}"> {{ institution_name }}</option>
                 {% endfor %}
               </select>
+              <span id="institution-error" class="error_message"></span>
           </div>
           
           <!-- Full name input -->
           <div class="form-group">
-            <label for="name">Full Name</label>
+            <label for="name">Full Name <span class="required-symbol">*</span></label>
             <input
               type="text"
               id="name"
@@ -283,6 +297,7 @@
               placeholder="Enter your full name"
               required="required"
               />
+            <span id="name-error" class="error_message"></span>
           </div>
         </div>
         
@@ -290,7 +305,7 @@
         <div id="two">
           <!-- Insitutional email input -->
           <div class="form-group">
-            <label for="email">Email</label>
+            <label for="email">Email <span class="required-symbol">*</span></label>
             <input
               type="email"
               id="email"
@@ -298,11 +313,12 @@
               placeholder="Enter your institutional email"
               required
             />
+            <span id="email-error" class="error_message"></span>
           </div>
 
           <!-- Password input -->
           <div class="form-group">
-            <label for="password">Password</label>
+            <label for="password">Password <span class="required-symbol">*</span></label>
             <input
               type="password"
               id="password"
@@ -310,11 +326,12 @@
               placeholder="Enter your password"
               required
             />
+            <span id="password-error" class="error_message"></span>
           </div>
 
           <!-- Confirm password input -->
           <div class="form-group">
-            <label for="confirm_password">Confirm Password</label>
+            <label for="confirm_password">Confirm Password <span class="required-symbol">*</span></label>
             <input
               type="password"
               id="confirm_password"
@@ -322,6 +339,7 @@
               placeholder="Confirm your password"
               required
             />
+            <span id="confirm-password-error" class="error_message"></span>
           </div>
         </div>
 
@@ -334,6 +352,7 @@
           <div style="float:right; display: flex;">
             <button type="button" class="login-btn" id="prevBtn"> Previous </button>
             <button type="button" class="login-btn" id="nextBtn"> Next </button>
+            <button type="submit" class="login-btn" id="submit_btn" style="height: fit-content; margin-top: 40px;"> Submit </button>
           </div>
         </div>
 
@@ -375,13 +394,102 @@
       {% endif %}
 
       <script>
+        const form_element = document.getElementById("loginForm");
         const nav_left = document.getElementById("prevBtn");
         const nav_right = document.getElementById("nextBtn");
+        const submit_btn = document.getElementById("submit_btn");
         const step_dots = document.getElementsByClassName("step");
+        const institution_input = document.getElementById("institution");
+        const name_input = document.getElementById("name");
+        const email_input = document.getElementById("email");
+        const password_input = document.getElementById("password");
+        const confirm_password_input = document.getElementById("confirm_password");
         const form_steps = ["one", "two"];
         let current_step = 0;
+        
+        /** 
+         * show_error displays an error message below inputs
+         * @param {} input input element constaining the error
+         * @param {string} value error message to display
+        */
+        function show_error(input, value) {
+          const form_control = input.parentElement;
+          const error_span = form_control.querySelector(".error_message");
+          error_span.textContent = value;
+        };
 
-        const update_step_visibility = () => {
+        /** 
+         * clear_error removes the error message displayed for an input
+         * @param {} input input element with an error message displayed
+        */
+        function clear_error(input) {
+          const form_control = input.parentElement;
+          const error_span = form_control.querySelector(".error_message");
+          error_span.textContent = "";
+        }
+
+        /** 
+         * validate_step checks if all the inputs were entered correctly in the current step
+         * @param {number} step current step
+        */
+        function validate_step(step) {
+          let is_valid = true;
+
+          if (current_step === 0) {
+            // Check is an institution was selected
+            if (institution_input.value.trim() === "") {
+              show_error(institution_input, "Please select an institution");
+              is_valid = false;
+            }
+
+            // Check if a name was entered
+            if (name_input.value.trim() === "") {
+              show_error(name_input, "Please enter a name");
+              is_valid = false;
+            }
+
+          } else {
+            // Check is a valid email was entered
+            if (email_input.value.trim() === "") {
+              show_error(email_input, "Please enter an email");
+              is_valid = false;
+            } else if (/^.+@.+\.edu/.test(email_input.value) === false) {
+              show_error(email_input, "Please enter a valid institution email");
+              is_valid = false;
+            }
+            
+            // Check if a password was entered
+            if (password_input.value.trim() === "") {
+              show_error(password_input, "Please enter a password");
+              is_valid = false;
+            } 
+            
+            // Check if confirm password was entered
+            if (confirm_password_input.value.trim() === "") {
+              show_error(confirm_password_input, "Please enter a password");
+              is_valid = false;
+            }
+          }
+
+          return is_valid;
+
+        };
+
+        /** 
+         * setup_real_time_validation adds event listeners to clear error messages
+        */
+        function setup_real_time_validation() {
+          name_input.addEventListener("input", () => clear_error(name_input));
+          institution_input.addEventListener("change", () => clear_error(institution_input));
+          email_input.addEventListener("input", () => clear_error(email_input));
+          password_input.addEventListener("input", () => clear_error(password_input));
+          confirm_password_input.addEventListener("input", () => clear_error(confirm_password_input));
+        };
+
+        /** 
+         * update_step_visibility allows users to move to the next step
+        */
+        function update_step_visibility() {
           
           form_steps.forEach((step, idx) => {
             document.getElementById(step).style.display = "none";
@@ -391,28 +499,29 @@
           document.getElementById(form_steps[current_step]).style.display = "block";
           step_dots[current_step].style.backgroundColor = "#8a63f2";
           nav_left.style.display = current_step === 0 ? "none" : "block";
-          if (current_step === form_steps.length - 1) {
-            nav_right.textContent = "Submit";
-            nav_right.setAttribute("type", "submit");
-          } else {
-            nav_right.textContent = "Next";
-            nav_right.setAttribute("type", "button");
-          }
+          nav_right.style.display = current_step === form_steps.length - 1 ? "none" : "block";
+          submit_btn.style.display = current_step === form_steps.length - 1 ? "block" : "none";
         };
 
         document.addEventListener("DOMContentLoaded", () => {
           nav_left.style.display = "none";
           update_step_visibility();
+          setup_real_time_validation();
+          form_element.addEventListener("submit", (e) => {
+            if (!validate_step(current_step)) {
+              e.preventDefault();
+            }
+          });
 
           nav_left.addEventListener("click", () => {
-            if (current_step > 0) {
+            if ((current_step > 0) && validate_step(current_step)) {
               current_step -= 1;
               update_step_visibility();
             }
           });
 
           nav_right.addEventListener("click", () => {
-            if (current_step < form_steps.length - 1) {
+            if ((current_step < form_steps.length - 1) && validate_step(current_step)) {
               current_step += 1;
               update_step_visibility();
             }

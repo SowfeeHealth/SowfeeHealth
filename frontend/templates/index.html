@@ -298,7 +298,10 @@
     <header>
         <div class="logo">Sowfee</div>
         <nav class="nav-auth">
-            <a href="/survey/" class="cta-button">Demo Survey</a>
+            <!-- Dispay demo button to only visitors -->
+            {% if not request.user.is_authenticated %}
+                <a href="/demo-survey/" class="cta-button">Demo Survey</a>
+            {% endif %}
             <div id="auth-container">
                 <a href="/login/" class="cta-button outline" id="login-button">Login</a>
                 <a href="#" class="cta-button" id="user-button" style="display: none;">
@@ -306,6 +309,12 @@
                 </a>
                 <div id="dropdown-menu" style="display: none; position: absolute; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 0.5rem 0; margin-top: 0.5rem; right: 5%;">
                     <a href="#" id="logout-button" style="display: block; padding: 0.5rem 1rem; color: var(--text); text-decoration: none;">Logout</a>
+                    <!-- Display dashboard to admins and superusers -->
+                    {% if request.user.is_authenticated and request.user.is_institution_admin or request.user.is_authenticated and request.user.is_superuser %}
+                        <a href="#" id="dashboard-button" style="display: block; padding: 0.5rem 1rem; color: var(--text); text-decoration: none">Dashboard</a>
+                    {% elif request.user.is_authenticated %}
+                        <a href="/survey/" id="survey-button" style="display: block; padding: 0.5rem 1rem; color: var(--text); text-decoration: none">New Survey</a>
+                    {% endif %}
                 </div>
             </div>
         </nav>
@@ -462,6 +471,22 @@
             
             // Redirect to server-side logout endpoint
             window.location.href = '/logout/';
+        });
+
+        // Handle dashboard re-direct
+        document.getElementById('dashboard-button').addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Redirect to server-side dashboard endpoint
+            window.location.href = "/dashboard/";
+        });
+
+        // Handle survey re-direct
+        document.getElementById('survey-button').addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Redirect to server-side dashboard endpoint
+            window.location.href = "/survey/";
         });
 
         // Close dropdown when clicking outside

@@ -286,8 +286,14 @@ def register_view(request):
             messages.error(request, "Email already registered.")
             return redirect("register")
         
-        # Check if the email address matches the institution's patter
-        institution_details = Institution.objects.filter(institution_name=institution_name).first()
+        # Check if the institution exists
+        institution_details = Institution.objects.filter(institution_name=institution_name)
+        if (len(institution_details) == 0):
+            messages.error(request, "Institution does not exist")
+            return redirect("register")
+        
+        # Check if the email address matches the institution's pattern
+        institution_details = institution_details.first()
         match_object = re.fullmatch(institution_details.institution_regex_pattern, email, re.IGNORECASE)
         if not match_object:
             messages.error(request, "Email does not match institution's format")

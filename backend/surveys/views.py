@@ -7,7 +7,6 @@ from django.shortcuts import render, redirect
 from django.utils import timezone
 from django.http import JsonResponse, HttpResponseBadRequest, QueryDict
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 from django.contrib import messages
 from rest_framework.response import Response
@@ -289,7 +288,7 @@ def register_view(request):
         
         # Check if the email address matches the institution's patter
         institution_details = Institution.objects.filter(institution_name=institution_name).first()
-        match_object = re.fullmatch(institution_details.institution_regex_pattern, email)
+        match_object = re.fullmatch(institution_details.institution_regex_pattern, email, re.IGNORECASE)
         if not match_object:
             messages.error(request, "Email does not match institution's format")
             return redirect("register")

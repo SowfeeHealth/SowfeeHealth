@@ -91,7 +91,7 @@ def _handle_student_responses(request):
     school_email = request.data.get('school_email')
     
     # Check if email ends with .edu
-    if not school_email.endswith('.edu'):
+    if not school_email.lower().endswith('.edu'):
         return JsonResponse({
             "success": False,
             "message": "Please use a valid .edu email address.",

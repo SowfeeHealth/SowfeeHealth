@@ -42,7 +42,7 @@ services:
         max-file: "3"
     # 注释或删除下面的 command 部分，使用 Dockerfile 中的 CMD
     command: >
-        bash -c "python manage.py migrate && 
+        bash -c "python manage.py makemigrations surveys && python manage.py migrate && 
                  python manage.py collectstatic --noinput &&
                  python manage.py shell -c \"from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.filter(email='${ADMIN_EMAIL}').exists() or User.objects.create_superuser(email='${ADMIN_EMAIL}', password='${ADMIN_PASSWORD}')\" && 
                  gunicorn core.wsgi:application --bind 0.0.0.0:8000"

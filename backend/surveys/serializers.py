@@ -1,32 +1,33 @@
 from rest_framework import serializers
-from .models import SurveyResponse, FlaggedStudents, Student
+from .models import SurveyResponse, User, Institution
 
 class SurveyResponseSerializer(serializers.ModelSerializer):
     """
     SurveyResponseSerializer helps in converting strings to JSON objects
     and vice-versa.
     """
+    student = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
     class Meta:
         model = SurveyResponse
         fields = "__all__"
 
 
-class FlaggedStudentsSerializer(serializers.ModelSerializer):
+class UserSerializer(serializers.ModelSerializer):
     """
-    FlaggedStudentsSerializer helps in converting strings to JSON objects
+    UserSerializer helps in converting strings to JSON objects
     and vice-versa.
     """
-    student_response = serializers.PrimaryKeyRelatedField(queryset=SurveyResponse.objects.all())
+    institution_details = serializers.PrimaryKeyRelatedField(queryset=Institution.objects.all())
     class Meta:
-        model = FlaggedStudents
+        model = User
         fields = "__all__"
 
 
-class StudentSerializer(serializers.ModelSerializer):
+class InstitutionSerializer(serializers.ModelSerializer):
     """
-    StudentSerializer helps in converting strings to JSON objects
+    InstitutionSerializer helps in converting strings to JSON objects
     and vice-versa.
     """
     class Meta:
-        model = Student
+        model = Institution
         fields = "__all__"

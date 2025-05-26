@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Survey Template Management</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2em; background: #f9f9f9; }
+        h1, h2 { color: #333; }
+        .container { background: #fff; padding: 2em; border-radius: 8px; box-shadow: 0 2px 8px #eee; max-width: 800px; margin: auto; }
+        .template-list { margin-bottom: 2em; }
+        .template-item { padding: 0.5em 0; border-bottom: 1px solid #eee; }
+        .template-item:last-child { border-bottom: none; }
+        .btn { padding: 0.4em 1em; border: none; border-radius: 4px; background: #007bff; color: #fff; cursor: pointer; margin-right: 0.5em; }
+        .btn:disabled { background: #aaa; }
+        .question-list { margin-top: 1em; }
+        .question-item { margin-bottom: 1em; padding: 1em; background: #f4f8fb; border-radius: 4px; }
+        .error-message { color: #b00; margin: 1em 0; }
+        .success-message { color: #080; margin: 1em 0; }
+        label { display: block; margin-top: 0.5em; }
+        input, select, textarea { width: 100%; padding: 0.4em; margin-top: 0.2em; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Survey Template Management</h1>
+    <div id="messages"></div>
+    <div class="template-list">
+        <h2>Your Survey Templates</h2>
+        <div id="templates"></div>
+        <button class="btn" id="create-template-btn">Create New Template</button>
+    </div>
+    <div id="questions-section" style="display:none;">
+        <h2>Questions for Template <span id="current-template-id"></span></h2>
+        <div id="questions"></div>
+        <h3>Add New Question</h3>
+        <form id="add-question-form">
+            <label>Question Text:<input type="text" id="question-text" required></label>
+            <label>Type:
+                <select id="question-type">
+                    <option value="likert">Likert</option>
+                    <option value="text">Text</option>
+                </select>
+            </label>
+            <label>Order:<input type="number" id="question-order" min="1" required></label>
+            <button class="btn" type="submit">Add Question</button>
+        </form>
+    </div>
+</div>
+<script>
+const templatesDiv = document.getElementById('templates');
+const createBtn = document.getElementById('create-template-btn');
+const messagesDiv = document.getElementById('messages');
+const questionsSection = document.getElementById('questions-section');
+const questionsDiv = document.getElementById('questions');
+const addQuestionForm = document.getElementById('add-question-form');
+const currentTemplateIdSpan = document.getElementById('current-template-id');
+let currentTemplateId = null;
+
+function showMessage(msg, type='success') {
+    messagesDiv.innerHTML = `<div class="${type}-message">${msg}</div>`;
+    setTimeout(() => { messagesDiv.innerHTML = ''; }, 2500);
+}
+
+function fetchTemplates() {
+    templatesDiv.innerHTML = 'Loading...';
+    fetch('/api/survey-templates/')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                if (data.templates.length === 0) {
+                    templatesDiv.innerHTML = '<em>No templates found.</em>';
+                } else {
+                    templatesDiv.innerHTML = data.templates.map(t =>
+                        `<div class="template-item">
+                            <strong>ID:</strong> ${t.id}
+                            <button class="btn" onclick="selectTemplate(${t.id})">Edit Questions</button>
+                        </div>`
+                    ).join('');
+                }
+            } else {
+                templatesDiv.innerHTML = `<div class="error-message">${data.error || 'Failed to load templates.'}</div>`;
+            }
+        })
+        .catch(() => {
+            templatesDiv.innerHTML = '<div class="error-message">Error loading templates.</div>';
+        });
+}
+
+createBtn.onclick = function() {
+    createBtn.disabled = true;
+    fetch('/api/survey-templates/', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showMessage('Template created!');
+                fetchTemplates();
+            } else {
+                showMessage(data.error || 'Failed to create template.', 'error');
+            }
+        })
+        .catch(() => showMessage('Error creating template.', 'error'))
+        .finally(() => { createBtn.disabled = false; });
+};
+
+window.selectTemplate = function(templateId) {
+    currentTemplateId = templateId;
+    currentTemplateIdSpan.textContent = templateId;
+    questionsSection.style.display = '';
+    fetchQuestions(templateId);
+};
+
+function fetchQuestions(templateId) {
+    questionsDiv.innerHTML = 'Loading...';
+    fetch(`/api/survey-templates/${templateId}/questions/`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                if (!data.questions || data.questions.length === 0) {
+                    questionsDiv.innerHTML = '<em>No questions for this template.</em>';
+                } else {
+                    questionsDiv.innerHTML = data.questions.map(q =>
+                        `<div class="question-item">
+                            <strong>Q${q.order}:</strong> ${q.question_text} <em>(${q.question_type})</em>
+                            <button class="btn" onclick="deleteQuestion(${q.id})">Delete</button>
+                        </div>`
+                    ).join('');
+                }
+            } else {
+                questionsDiv.innerHTML = `<div class="error-message">${data.error || 'Failed to load questions.'}</div>`;
+            }
+        })
+        .catch(() => {
+            questionsDiv.innerHTML = '<div class="error-message">Error loading questions.</div>';
+        });
+}
+
+addQuestionForm.onsubmit = function(e) {
+    e.preventDefault();
+    if (!currentTemplateId) return;
+    const payload = {
+        question_text: document.getElementById('question-text').value,
+        question_type: document.getElementById('question-type').value,
+        order: parseInt(document.getElementById('question-order').value)
+    };
+    fetch(`/api/survey-templates/${currentTemplateId}/questions/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showMessage('Question added!');
+            fetchQuestions(currentTemplateId);
+            addQuestionForm.reset();
+        } else {
+            showMessage(data.error || 'Failed to add question.', 'error');
+        }
+    })
+    .catch(() => showMessage('Error adding question.', 'error'));
+};
+
+window.deleteQuestion = function(questionId) {
+    if (!currentTemplateId) return;
+    if (!confirm('Are you sure you want to delete this question?')) return;
+    fetch(`/api/survey-templates/${currentTemplateId}/questions/`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question_id: questionId })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showMessage('Question deleted!');
+            fetchQuestions(currentTemplateId);
+        } else {
+            showMessage(data.error || 'Failed to delete question.', 'error');
+        }
+    })
+    .catch(() => showMessage('Error deleting question.', 'error'));
+};
+
+fetchTemplates();
+</script>
+</body>
+</html>
+<body>
+  <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+</body>

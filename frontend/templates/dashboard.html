@@ -278,27 +278,33 @@
           </div>
         </div>
 
+        {% if has_sleep_questions %}
         <div class="chart-card">
           <h3 class="chart-title">Sleep Quality Distribution</h3>
           <div class="chart-container">
             <canvas id="sleepChart"></canvas>
           </div>
         </div>
+        {% endif %}
 
+        {% if has_support_questions %}
         <div class="chart-card">
           <h3 class="chart-title">Campus Support Perception</h3>
           <div class="chart-container">
             <canvas id="supportChart"></canvas>
           </div>
         </div>
+        {% endif %}
 
-        <!-- New Stress Chart -->
+        {% if has_stress_questions %}
+        <!-- Stress Chart -->
         <div class="chart-card">
           <h3 class="chart-title">Stress Levels Analysis</h3>
           <div class="chart-container">
             <canvas id="stressChart"></canvas>
           </div>
         </div>
+        {% endif %}
 
         <div class="chart-card">
           <h3 class="chart-title">Response Rate Trend</h3>

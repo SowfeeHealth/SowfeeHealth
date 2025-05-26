@@ -1,4 +1,4 @@
-﻿-- 删除已存在的用户
+-- 删除已存在的用户
 DROP USER IF EXISTS 'health_user'@'localhost';
 DROP USER IF EXISTS 'health_user'@'%';
 DROP USER IF EXISTS 'health_user'@'172.18.0.2';

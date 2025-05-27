@@ -652,7 +652,7 @@ def survey_questions_view(request, template_id):
     elif request.method == "POST":
         # Add a new question to the template
         try:
-            data = json.loads(request.body)
+            data = request.data
             
             # Get the highest current order value
             highest_order = SurveyQuestion.objects.filter(survey_template=template).order_by('-order').first()
@@ -662,6 +662,7 @@ def survey_questions_view(request, template_id):
                 survey_template=template,
                 question_text=data.get('question_text', 'New Question'),
                 question_type=data.get('question_type', QuestionType.LIKERT),
+                category=data.get('question_category', QuestionCategory.GENERAL),
                 order=new_order
             )
             
@@ -677,7 +678,7 @@ def survey_questions_view(request, template_id):
     elif request.method == "DELETE":
         # Delete a question from the template
         try:
-            data = json.loads(request.body)
+            data = request.data
             question_id = data.get('question_id')
             
             if not question_id:

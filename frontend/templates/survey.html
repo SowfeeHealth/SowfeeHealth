@@ -338,14 +338,25 @@
                                     const likertScale = document.createElement('div');
                                     likertScale.className = 'likert-scale';
                                     
-                                    // Define Likert options
-                                    const options = [
+                                    // Define default Likert options
+                                    const defaultOptions = [
                                         { value: 1, emoji: '😞', text: 'Very Poor' },
                                         { value: 2, emoji: '😕', text: 'Poor' },
                                         { value: 3, emoji: '😐', text: 'Neutral' },
                                         { value: 4, emoji: '🙂', text: 'Good' },
                                         { value: 5, emoji: '😊', text: 'Excellent' }
                                     ];
+                                    
+                                    // Use custom answer choices if available
+                                    const options = defaultOptions.map(option => {
+                                        if (question.answer_choices && question.answer_choices[option.value]) {
+                                            return {
+                                                ...option,
+                                                text: question.answer_choices[option.value]
+                                            };
+                                        }
+                                        return option;
+                                    });
                                     
                                     // Add each option
                                     options.forEach(option => {

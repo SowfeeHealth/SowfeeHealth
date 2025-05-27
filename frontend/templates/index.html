@@ -311,7 +311,8 @@
                     <a href="#" id="logout-button" style="display: block; padding: 0.5rem 1rem; color: var(--text); text-decoration: none;">Logout</a>
                     <!-- Display dashboard to admins and superusers -->
                     {% if request.user.is_authenticated and request.user.is_institution_admin or request.user.is_authenticated and request.user.is_superuser %}
-                        <a href="#" id="dashboard-button" style="display: block; padding: 0.5rem 1rem; color: var(--text); text-decoration: none">Dashboard</a>
+                        <a href="/dashboard/" id="dashboard-button" style="display: block; padding: 0.5rem 1rem; color: var(--text); text-decoration: none">Dashboard</a>
+                        <a href="/admin/survey-templates/" id="edit-templates-button" style="display: block; padding: 0.5rem 1rem; color: var(--text); text-decoration: none">Edit Templates</a>
                     {% elif request.user.is_authenticated %}
                         <a href="/survey/" id="survey-button" style="display: block; padding: 0.5rem 1rem; color: var(--text); text-decoration: none">New Survey</a>
                     {% endif %}

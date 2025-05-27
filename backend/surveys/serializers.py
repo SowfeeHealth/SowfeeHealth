@@ -5,7 +5,7 @@ from .models import SurveyResponse, User, Institution, SurveyTemplate, SurveyQue
 class SurveyQuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = SurveyQuestion
-        fields = ['id', 'question_text', 'question_type', 'category', 'order']
+        fields = ['id', 'question_text', 'question_type', 'category', 'order', 'answer_choices']
 
 class QuestionResponseSerializer(serializers.ModelSerializer):
     class Meta:

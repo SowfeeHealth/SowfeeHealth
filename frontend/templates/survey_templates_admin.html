@@ -1,24 +1,244 @@
 <!DOCTYPE html>
 <html lang="en">
+    <link rel="icon" type="image/x-icon" href="/images/sowfeefavicon.png">
+
 <head>
     <meta charset="UTF-8">
-    <title>Survey Template Management</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sowfee Health - Survey Template Management</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 2em; background: #f9f9f9; }
-        h1, h2 { color: #333; }
-        .container { background: #fff; padding: 2em; border-radius: 8px; box-shadow: 0 2px 8px #eee; max-width: 800px; margin: auto; }
-        .template-list { margin-bottom: 2em; }
-        .template-item { padding: 0.5em 0; border-bottom: 1px solid #eee; }
-        .template-item:last-child { border-bottom: none; }
-        .btn { padding: 0.4em 1em; border: none; border-radius: 4px; background: #007bff; color: #fff; cursor: pointer; margin-right: 0.5em; }
-        .btn:disabled { background: #aaa; }
-        .question-list { margin-top: 1em; }
-        .question-item { margin-bottom: 1em; padding: 1em; background: #f4f8fb; border-radius: 4px; }
-        .error-message { color: #b00; margin: 1em 0; }
-        .success-message { color: #080; margin: 1em 0; }
-        label { display: block; margin-top: 0.5em; }
-        input, select, textarea { width: 100%; padding: 0.4em; margin-top: 0.2em; }
+        :root {
+            --primary: #6936f5;
+            --secondary: #f8f9fe;
+            --accent: #ff6b6b;
+            --text: #2d2d35;
+            --radius: 12px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background: var(--secondary);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 4rem 1.5rem;
+            animation: fadeIn 0.6s ease;
+        }
+
+        h1 {
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+            font-size: 2.5rem;
+            text-align: center;
+        }
+
+        h2 {
+            color: var(--primary);
+            margin: 2rem 0 1rem;
+            font-size: 1.8rem;
+        }
+
+        h3 {
+            color: var(--text);
+            margin: 1.5rem 0 1rem;
+            font-size: 1.4rem;
+        }
+
+        h4 {
+            color: var(--text);
+            margin: 1rem 0 0.5rem;
+            font-size: 1.2rem;
+        }
+
+        .template-list {
+            margin-bottom: 2rem;
+            background: white;
+            padding: 2rem;
+            border-radius: var(--radius);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.05);
+            animation: slideUp 0.6s ease;
+        }
+
+        .template-item {
+            padding: 1rem 0;
+            border-bottom: 1px solid rgba(105, 54, 245, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .template-item:last-child {
+            border-bottom: none;
+        }
+
+        .template-info {
+            flex-grow: 1;
+        }
+
+        .template-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            background: var(--primary);
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(105, 54, 245, 0.15);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(105, 54, 245, 0.2);
+        }
+
+        .btn:disabled {
+            background: #aaa;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-delete {
+            background-color: var(--accent);
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.15);
+        }
+
+        .btn-delete:hover {
+            box-shadow: 0 6px 16px rgba(255, 107, 107, 0.2);
+        }
+
+        #questions-section {
+            background: white;
+            padding: 2rem;
+            border-radius: var(--radius);
+            margin-top: 2rem;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.05);
+            animation: slideUp 0.6s ease;
+        }
+
+        .question-list {
+            margin-top: 1.5rem;
+        }
+
+        .question-item {
+            margin-bottom: 1rem;
+            padding: 1.5rem;
+            background: rgba(105, 54, 245, 0.03);
+            border-radius: 8px;
+            border: 1px solid rgba(105, 54, 245, 0.1);
+            position: relative;
+        }
+
+        .question-item strong {
+            color: var(--primary);
+        }
+
+        .question-item em {
+            color: #666;
+            font-style: normal;
+            opacity: 0.8;
+        }
+
+        .question-item small {
+            display: block;
+            margin-top: 0.5rem;
+            color: #666;
+        }
+
+        .answer-choices-display {
+            margin-top: 0.8rem;
+            padding: 0.8rem;
+            background: rgba(105, 54, 245, 0.05);
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .error-message {
+            color: var(--accent);
+            margin: 1rem 0;
+            padding: 1rem;
+            background: rgba(255, 107, 107, 0.1);
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .success-message {
+            color: #38b2ac;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: rgba(56, 178, 172, 0.1);
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        label {
+            display: block;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid rgba(105, 54, 245, 0.15);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            margin-bottom: 1rem;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(105, 54, 245, 0.1);
+            outline: none;
+        }
+
+        #answer-choices-section {
+            margin-top: 1.5rem;
+            padding: 1.5rem;
+            background: rgba(105, 54, 245, 0.03);
+            border-radius: 8px;
+            border: 1px solid rgba(105, 54, 245, 0.1);
+        }
+
+        .answer-choice-inputs {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .info-text {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
@@ -33,17 +253,17 @@
     </div>
     <div id="questions-section" style="display:none;">
         <h2>Questions for Template <span id="current-template-id"></span></h2>
-        <div id="questions"></div>
+        <div id="questions" class="question-list"></div>
         <h3>Add New Question</h3>
         <form id="add-question-form">
-            <label>Question Text:<input type="text" id="question-text" required></label>
-            <label>Type:
-                <select id="question-type">
+            <label>Question Text<input type="text" id="question-text" required></label>
+            <label>Type
+                <select id="question-type" onchange="toggleAnswerChoicesSection()">
                     <option value="likert">Likert</option>
                     <option value="text">Text</option>
                 </select>
             </label>
-            <label>Category:
+            <label>Category
                 <select id="question-category">
                     <option value="general">General Question</option>
                     <option value="sleep">Sleep Quality</option>
@@ -51,7 +271,20 @@
                     <option value="support">Support Perception</option>
                 </select>
             </label>
-            <label>Order:<input type="number" id="question-order" min="1" required></label>
+            <label>Order<input type="number" id="question-order" min="1" required></label>
+            
+            <div id="answer-choices-section">
+                <h4>Custom Answer Choices</h4>
+                <p class="info-text">Define custom text for each answer choice. Emojis will remain fixed.</p>
+                <div class="answer-choice-inputs">
+                    <label>1 (😞)<input type="text" id="answer-choice-1" placeholder="Very Poor"></label>
+                    <label>2 (😕)<input type="text" id="answer-choice-2" placeholder="Poor"></label>
+                    <label>3 (😐)<input type="text" id="answer-choice-3" placeholder="Neutral"></label>
+                    <label>4 (🙂)<input type="text" id="answer-choice-4" placeholder="Good"></label>
+                    <label>5 (😊)<input type="text" id="answer-choice-5" placeholder="Excellent"></label>
+                </div>
+            </div>
+            
             <button class="btn" type="submit">Add Question</button>
         </form>
     </div>
@@ -85,8 +318,13 @@ function fetchTemplates() {
                 } else {
                     templatesDiv.innerHTML = data.templates.map(t =>
                         `<div class="template-item">
-                            <strong>ID:</strong> ${t.id}
-                            <button class="btn" onclick="selectTemplate(${t.id})">Edit Questions</button>
+                            <div class="template-info">
+                                <strong>Template ID:</strong> ${t.id}
+                            </div>
+                            <div class="template-actions">
+                                <button class="btn" onclick="selectTemplate(${t.id})">Edit Questions</button>
+                                <button class="btn btn-delete" onclick="deleteTemplate(${t.id})">Delete</button>
+                            </div>
                         </div>`
                     ).join('');
                 }
@@ -101,12 +339,13 @@ function fetchTemplates() {
 
 createBtn.onclick = function() {
     createBtn.disabled = true;
-    fetch('/api/survey-templates/', { method: 'POST', 
+    fetch('/api/survey-templates/', { 
+        method: 'POST', 
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken  // ✅ ADD THIS
+            'X-CSRFToken': csrfToken
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({})
     })
         .then(r => r.json())
         .then(data => {
@@ -137,13 +376,25 @@ function fetchQuestions(templateId) {
                 if (!data.questions || data.questions.length === 0) {
                     questionsDiv.innerHTML = '<em>No questions for this template.</em>';
                 } else {
-                    questionsDiv.innerHTML = data.questions.map(q =>
-                        `<div class="question-item">
+                    questionsDiv.innerHTML = data.questions.map(q => {
+                        let answerChoicesHtml = '';
+                        if (q.question_type === 'likert' && q.answer_choices) {
+                            answerChoicesHtml = `<div class="answer-choices-display"><small>Custom answers: `;
+                            for (let i = 1; i <= 5; i++) {
+                                if (q.answer_choices[i]) {
+                                    answerChoicesHtml += `${i}: ${q.answer_choices[i]} `;
+                                }
+                            }
+                            answerChoicesHtml += `</small></div>`;
+                        }
+                        
+                        return `<div class="question-item">
                             <strong>Q${q.order}:</strong> ${q.question_text} <em>(${q.question_type})</em>
                             <div><small>Category: ${q.category}</small></div>
-                            <button class="btn" onclick="deleteQuestion(${q.id})">Delete</button>
-                        </div>`
-                    ).join('');
+                            ${answerChoicesHtml}
+                            <button class="btn btn-delete" onclick="deleteQuestion(${q.id})">Delete</button>
+                        </div>`;
+                    }).join('');
                 }
             } else {
                 questionsDiv.innerHTML = `<div class="error-message">${data.error || 'Failed to load questions.'}</div>`;
@@ -154,15 +405,50 @@ function fetchQuestions(templateId) {
         });
 }
 
+function toggleAnswerChoicesSection() {
+    const questionType = document.getElementById('question-type').value;
+    const answerChoicesSection = document.getElementById('answer-choices-section');
+    
+    if (questionType === 'likert') {
+        answerChoicesSection.style.display = 'block';
+    } else {
+        answerChoicesSection.style.display = 'none';
+    }
+}
+
+// Call this on page load to set initial state
+document.addEventListener('DOMContentLoaded', function() {
+    toggleAnswerChoicesSection();
+});
+
 addQuestionForm.onsubmit = function(e) {
     e.preventDefault();
     if (!currentTemplateId) return;
+    
+    const questionType = document.getElementById('question-type').value;
     const payload = {
         question_text: document.getElementById('question-text').value,
-        question_type: document.getElementById('question-type').value,
+        question_type: questionType,
         question_category: document.getElementById('question-category').value,
         order: parseInt(document.getElementById('question-order').value)
     };
+    
+    // Add answer choices if it's a likert question
+    if (questionType === 'likert') {
+        const answerChoices = {};
+        for (let i = 1; i <= 5; i++) {
+            const value = document.getElementById(`answer-choice-${i}`).value;
+            if (value) {
+                answerChoices[i] = value;
+            }
+        }
+        
+        // Only add if at least one custom choice is defined
+        if (Object.keys(answerChoices).length > 0) {
+            payload.answer_choices = answerChoices;
+        }
+    }
+    
     fetch(`/api/survey-templates/${currentTemplateId}/questions/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
@@ -199,6 +485,33 @@ window.deleteQuestion = function(questionId) {
         }
     })
     .catch(() => showMessage('Error deleting question.', 'error'));
+};
+
+// Add this new function for deleting templates
+window.deleteTemplate = function(templateId) {
+    if (!confirm('Are you sure you want to delete this template? This will also delete all questions in this template.')) return;
+    
+    fetch('/api/survey-templates/', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+        body: JSON.stringify({ template_id: templateId })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showMessage('Template deleted!');
+            fetchTemplates();
+            
+            // If the deleted template was the current one, hide the questions section
+            if (currentTemplateId === templateId) {
+                currentTemplateId = null;
+                questionsSection.style.display = 'none';
+            }
+        } else {
+            showMessage(data.error || 'Failed to delete template.', 'error');
+        }
+    })
+    .catch(() => showMessage('Error deleting template.', 'error'));
 };
 
 fetchTemplates();

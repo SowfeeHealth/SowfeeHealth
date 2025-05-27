@@ -238,6 +238,8 @@ def get_user_survey_questions(request):
         'id': q.id,
         'text': q.question_text,
         'type': q.question_type,
+        'category': q.category,
+        'answer_choices': q.answer_choices,
         'order': q.order
     } for q in questions]
     
@@ -270,18 +272,30 @@ def dashboard_view(request):
     # Number of students registered in the university
     num_students = len(User.objects.filter(is_student=True, institution_details=institution_details))
 
-    # List of students registered in the university and marked as flagged
-    all_flagged_responses = SurveyResponse.objects.filter(flagged=True, student__institution_details=institution_details)
+    responded_students = 0
+    # Get all students in the institution
+    institution_students = User.objects.filter(is_student=True, institution_details=institution_details)
+    
+    # Initialize list for flagged students
     school_flagged_responses = []
-    for response in all_flagged_responses:
-            school_flagged_responses.append((response.student.name, response.student.email))
-
-    # Number of students registered in the university and marked as flagged
-    num_flagged_students = len(school_flagged_responses)
+    
+    # For each student, check if their latest response is flagged
+    for student in institution_students:
+        # Get the latest response for this student
+        latest_response = SurveyResponse.objects.filter(student=student).order_by('-created').first()
+        if latest_response:
+            responded_students += 1
+        # If the student has a response and it's flagged, add them to the list
+        if latest_response and latest_response.flagged:
+            school_flagged_responses.append((student.name, student.email))
 
     # Number of responses for students registered in the university
     all_responses = SurveyResponse.objects.filter(student__institution_details=institution_details)
     num_responses = len(all_responses)
+
+    
+    # Number of students registered in the university and marked as flagged
+    num_flagged_students = all_responses.values('student').distinct().count()
     
     # Get all survey templates for this institution
     survey_templates = SurveyTemplate.objects.filter(institution=institution_details)
@@ -374,13 +388,21 @@ def dashboard_view(request):
         
         # Compute monthly trends
         for month in months_idx:
+            # Get all responses for this month
             month_responses = all_responses.filter(created__year=timezone.now().year, created__month=month)
-            month_num_responses = len(month_responses)
-            monthly_response_rates.append(int(month_num_responses/num_students * 100) if num_students > 0 else 0)
-            monthly_num_responses.append(month_num_responses)
+            
+            # Count unique students who responded in this month
+            unique_students_responded = month_responses.values('student').distinct().count()
+            
+            # Calculate response rate based on unique students
+            monthly_response_rates.append(int(unique_students_responded/num_students * 100) if num_students > 0 else 0)
+            
+            # Store the count of unique student responses
+            monthly_num_responses.append(unique_students_responded)
             
             # Only calculate support perception if support questions exist
             if has_support_questions:
+                # Rest of the support perception calculation remains the same
                 support_count = 0
                 support_questions = SurveyQuestion.objects.filter(
                     survey_template__in=survey_templates,
@@ -406,8 +428,8 @@ def dashboard_view(request):
         "flagged_students": school_flagged_responses, 
         "num_flagged_students": num_flagged_students, 
         "num_responses": num_responses,
-        "response_rate": int(num_responses/num_students * 100) if num_students > 0 else 0,
-        "num_stable_students": num_responses - num_flagged_students, 
+        "response_rate": int(responded_students/num_students * 100) if num_students > 0 else 0,
+        "num_stable_students": num_students - num_flagged_students, 
         "num_good_sleep_quality": num_good_sleep_quality,
         "num_bad_sleep_quality": num_bad_sleep_quality, 
         "num_low_stress": num_low_stress,
@@ -599,10 +621,10 @@ def survey_templates_admin_view(request):
     else:
         return HttpResponseBadRequest("Request method not allowed")
 
-@api_view(["GET", "POST"])
+@api_view(["GET", "POST", "DELETE"])
 def survey_templates_view(request):
     """
-    API to list and create survey templates
+    API to list, create and delete survey templates
     """
     if not request.user.is_authenticated or not request.user.is_institution_admin:
         return JsonResponse({"success": False, "error": "Permission denied"})
@@ -624,6 +646,31 @@ def survey_templates_view(request):
                 "message": "Survey template created",
                 "id": new_template.id,
                 "hash_link": new_template.hash_link
+            })
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)})
+    
+    elif request.method == "DELETE":
+        # Delete a survey template
+        try:
+            data = request.data
+            template_id = data.get('template_id')
+            
+            if not template_id:
+                return JsonResponse({"success": False, "error": "Template ID is required"})
+            
+            template = get_object_or_404(SurveyTemplate, id=template_id)
+            
+            # Check if the template belongs to the admin's institution
+            if template.institution != request.user.institution_details:
+                return JsonResponse({"success": False, "error": "You can only delete your institution's templates"})
+            
+            # Delete the template (this will cascade delete all associated questions)
+            template.delete()
+            
+            return JsonResponse({
+                "success": True,
+                "message": "Template deleted"
             })
         except Exception as e:
             return JsonResponse({"success": False, "error": str(e)})
@@ -658,13 +705,21 @@ def survey_questions_view(request, template_id):
             highest_order = SurveyQuestion.objects.filter(survey_template=template).order_by('-order').first()
             new_order = 1 if not highest_order else highest_order.order + 1
             
-            new_question = SurveyQuestion.objects.create(
+            # Create question with basic fields
+            new_question = SurveyQuestion(
                 survey_template=template,
                 question_text=data.get('question_text', 'New Question'),
                 question_type=data.get('question_type', QuestionType.LIKERT),
                 category=data.get('question_category', QuestionCategory.GENERAL),
-                order=new_order
+                order=new_order,
+                answer_choices=data.get('answer_choices')
             )
+            
+            # Add answer choices if provided
+            if data.get('answer_choices') and data.get('question_type') == QuestionType.LIKERT:
+                new_question.answer_choices = data.get('answer_choices')
+            
+            new_question.save()
             
             serializer = SurveyQuestionSerializer(new_question)
             return JsonResponse({

@@ -183,6 +183,7 @@ class SurveyQuestion(models.Model):
         default=QuestionCategory.GENERAL
     )
     order = models.IntegerField(default=0)
+    answer_choices = models.JSONField(blank=True, null=True, help_text='Custom answer choices for Likert scale questions')
     
     class Meta:
         ordering = ['order']

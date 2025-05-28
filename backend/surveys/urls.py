@@ -14,6 +14,7 @@ urlpatterns = [
     path('admin/survey-templates/', views.survey_templates_admin_view, name='survey-templates-admin'),
     # Add this to your urlpatterns
     path('api/get-user-survey-questions/', views.get_user_survey_questions, name='get-user-survey-questions'),
+    path('api/survey-templates/<int:template_id>/use/', views.use_template, name='use_template'),
     
     # University-specific and hash link survey URLs
     path('survey/link/<uuid:hash_link>/', views.survey_view, name='hashed-survey'),

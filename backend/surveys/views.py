@@ -34,10 +34,7 @@ def demo_survey_view(request):
 
 @api_view(["GET", "POST"])
 def survey_view(request, hash_link=None):
-    """
-    survey_view allows students to access the survey page
-    and save survey responses
-    """
+    """survey_view allows students to access the survey page and save survey responses"""
     if request.method == 'GET':
         context = {}
         survey_template = None
@@ -67,7 +64,23 @@ def survey_view(request, hash_link=None):
             
             # If no template was found by hash_link, try to get one by institution
             if not survey_template and request.user.institution_details:
-                survey_template = SurveyTemplate.objects.filter(institution=request.user.institution_details).first()
+                # First try to get the used template
+                survey_template = SurveyTemplate.objects.filter(
+                    institution=request.user.institution_details,
+                    used=True
+                ).first()
+                
+                # If no used template exists, fall back to the one with minimal ID
+                if not survey_template:
+                    survey_template = SurveyTemplate.objects.filter(
+                        institution=request.user.institution_details
+                    ).order_by('id').first()
+                    
+                    # If we found a template, mark it as used
+                    if survey_template:
+                        survey_template.used = True
+                        survey_template.save()
+                
                 if survey_template:
                     context["survey_template_id"] = survey_template.id
         
@@ -84,15 +97,30 @@ def survey_view(request, hash_link=None):
     elif request.method == 'POST':
         # Check if a valid user is submitting the response
         if not request.user.is_authenticated:
-            return JsonResponse({"success": False, "error": f"Please login to the application to submit a survey response"})
+            return JsonResponse({"success": False, "error": "Please login to the application to submit a survey response"})
         
         # Get the survey template - either from request or use a default
         survey_template_id = request.data.get('survey_template_id')
         if not survey_template_id:
-            # You might want to get a default template based on the user's institution
+            # Try to get the used template first
             if request.user.institution_details:
                 try:
-                    survey_template = SurveyTemplate.objects.filter(institution=request.user.institution_details).first()
+                    survey_template = SurveyTemplate.objects.filter(
+                        institution=request.user.institution_details,
+                        used=True
+                    ).first()
+                    
+                    # If no used template exists, fall back to the one with minimal ID
+                    if not survey_template:
+                        survey_template = SurveyTemplate.objects.filter(
+                            institution=request.user.institution_details
+                        ).order_by('id').first()
+                        
+                        # If we found a template, mark it as used
+                        if survey_template:
+                            survey_template.used = True
+                            survey_template.save()
+                    
                     if not survey_template:
                         return JsonResponse({"success": False, "error": "No survey template found for your institution"})
                 except Exception as e:
@@ -217,8 +245,14 @@ def get_user_survey_questions(request):
     if not request.user.is_institution_admin and not request.user.is_superuser:
         if request.user.institution_details:
             survey_template = SurveyTemplate.objects.filter(
-                institution=request.user.institution_details
+                institution=request.user.institution_details,
+                used=True
             ).first()
+        
+        if not survey_template:
+            survey_template = SurveyTemplate.objects.filter(
+                institution=request.user.institution_details,
+            ).order_by('id').first()
     
     # If user is a superuser, get any template (for testing)
     elif request.user.is_superuser:
@@ -754,3 +788,41 @@ def survey_questions_view(request, template_id):
             })
         except Exception as e:
             return JsonResponse({"success": False, "error": str(e)})
+
+
+@api_view(["POST"])
+def use_template(request, template_id):
+    """Activate a specific template for use"""
+    if not request.user.is_authenticated or not request.user.is_institution_admin:
+        return JsonResponse({"success": False, "error": "Unauthorized"})
+
+    try:
+        # Get the template to activate
+        template = get_object_or_404(SurveyTemplate, id=template_id, institution=request.user.institution_details)
+        
+        # Deactivate all other templates for this institution
+        SurveyTemplate.objects.filter(institution=request.user.institution_details).update(used=False)
+        
+        # Activate the selected template
+        template.used = True
+        template.save()
+        
+        return JsonResponse({"success": True})
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)})
+
+# Modify the existing survey_view to use the 'used' field
+def get_active_template(institution):
+    """Helper function to get the active template or fallback to the one with minimal ID"""
+    # Try to get the used template first
+    template = SurveyTemplate.objects.filter(institution=institution, used=True).first()
+    
+    # If no template is marked as used, get the one with minimal ID
+    if not template:
+        template = SurveyTemplate.objects.filter(institution=institution).order_by('id').first()
+        if template:
+            # Automatically mark this template as used
+            template.used = True
+            template.save()
+    
+    return template

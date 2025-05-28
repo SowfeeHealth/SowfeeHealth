@@ -147,7 +147,7 @@ class SurveyTemplate(models.Model):
     id = models.AutoField(primary_key=True)
     institution = models.ForeignKey(Institution, on_delete=models.CASCADE)
     hash_link = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
-    # created field removed
+    used = models.BooleanField(default=False)
     
     def __str__(self):
         return f"Survey for {self.institution.institution_name}"

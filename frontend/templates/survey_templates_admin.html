@@ -239,6 +239,7 @@
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        
     </style>
 </head>
 <body>
@@ -277,11 +278,11 @@
                 <h4>Custom Answer Choices</h4>
                 <p class="info-text">Define custom text for each answer choice. Emojis will remain fixed.</p>
                 <div class="answer-choice-inputs">
-                    <label>1 (😞)<input type="text" id="answer-choice-1" placeholder="Very Poor"></label>
-                    <label>2 (😕)<input type="text" id="answer-choice-2" placeholder="Poor"></label>
+                    <label>1 (😊)<input type="text" id="answer-choice-1" placeholder="Excellent"></label>
+                    <label>2 (🙂)<input type="text" id="answer-choice-2" placeholder="Good"></label>
                     <label>3 (😐)<input type="text" id="answer-choice-3" placeholder="Neutral"></label>
-                    <label>4 (🙂)<input type="text" id="answer-choice-4" placeholder="Good"></label>
-                    <label>5 (😊)<input type="text" id="answer-choice-5" placeholder="Excellent"></label>
+                    <label>4 (😕)<input type="text" id="answer-choice-4" placeholder="Poor"></label>
+                    <label>5 (😞)<input type="text" id="answer-choice-5" placeholder="Very Poor"></label>
                 </div>
             </div>
             
@@ -320,9 +321,11 @@ function fetchTemplates() {
                         `<div class="template-item">
                             <div class="template-info">
                                 <strong>Template ID:</strong> ${t.id}
+                                ${t.used ? '<span class="badge-success">Currently Used</span>' : ''}
                             </div>
                             <div class="template-actions">
                                 <button class="btn" onclick="selectTemplate(${t.id})">Edit Questions</button>
+                                ${!t.used ? `<button class="btn btn-primary" onclick="useTemplate(${t.id})">Use Template</button>` : ''}
                                 <button class="btn btn-delete" onclick="deleteTemplate(${t.id})">Delete</button>
                             </div>
                         </div>`
@@ -336,6 +339,30 @@ function fetchTemplates() {
             templatesDiv.innerHTML = '<div class="error-message">Error loading templates.</div>';
         });
 }
+
+window.useTemplate = function(templateId) {
+    if (!confirm('Are you sure you want to use this template? This will deactivate any currently active template.')) {
+        return;
+    }
+    
+    fetch(`/api/survey-templates/${templateId}/use/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showMessage('Template activated successfully!');
+            fetchTemplates();
+        } else {
+            showMessage(data.error || 'Failed to activate template.', 'error');
+        }
+    })
+    .catch(() => showMessage('Error activating template.', 'error'));
+};
 
 createBtn.onclick = function() {
     createBtn.disabled = true;

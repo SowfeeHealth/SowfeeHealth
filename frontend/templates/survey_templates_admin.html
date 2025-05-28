@@ -230,6 +230,42 @@
             margin-bottom: 1rem;
         }
 
+        .home-button-wrapper {
+            text-align: right;
+            margin-bottom: 1.5rem;
+        }
+
+        #home-button {
+            display: inline-block;
+        }
+
+        .show-more-btn {
+            transition: all 0.3s ease;
+            border: 2px solid transparent !important;
+            padding: 0.8rem 2rem;
+            background: #6936f5;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 1.5rem;
+            display: block;
+            width: fit-content;
+            margin: 1.5rem auto 0;
+        }
+
+        .button-row {
+            display: flex;
+            justify-content: space-between; /* Buttons at opposite ends */
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        #home-button {
+        display: inline-block;
+        }
+
+
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
@@ -250,7 +286,12 @@
     <div class="template-list">
         <h2>Your Survey Templates</h2>
         <div id="templates"></div>
-        <button class="btn" id="create-template-btn">Create New Template</button>
+        <div class="button-row"> 
+            <button class="btn" id="create-template-btn">Create New Template</button> 
+            <div class="home-button-wrapper">
+                <a href="/" class="show-more-btn" id="home-button">Back to Homepage</a>
+            </div>
+        </div>
     </div>
     <div id="questions-section" style="display:none;">
         <h2>Questions for Template <span id="current-template-id"></span></h2>
@@ -278,15 +319,16 @@
                 <h4>Custom Answer Choices</h4>
                 <p class="info-text">Define custom text for each answer choice. Emojis will remain fixed.</p>
                 <div class="answer-choice-inputs">
-                    <label>1 (😞)<input type="text" id="answer-choice-1" placeholder="Excellent"></label>
-                    <label>2 (😕)<input type="text" id="answer-choice-2" placeholder="Good"></label>
+                    <label>1 (😊)<input type="text" id="answer-choice-1" placeholder="Excellent"></label>
+                    <label>2 (🙂)<input type="text" id="answer-choice-2" placeholder="Good"></label>
                     <label>3 (😐)<input type="text" id="answer-choice-3" placeholder="Neutral"></label>
-                    <label>4 (🙂)<input type="text" id="answer-choice-4" placeholder="Poor"></label>
-                    <label>5 (😊)<input type="text" id="answer-choice-5" placeholder="Very Poor"></label>
+                    <label>4 (😕)<input type="text" id="answer-choice-4" placeholder="Poor"></label>
+                    <label>5 (😞)<input type="text" id="answer-choice-5" placeholder="Very Poor"></label>
                 </div>
             </div>
             
             <button class="btn" type="submit">Add Question</button>
+            
         </form>
     </div>
 </div>

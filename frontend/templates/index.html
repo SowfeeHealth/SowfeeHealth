@@ -307,11 +307,15 @@
                 <a href="#" class="cta-button" id="user-button" style="display: none;">
                     <span id="user-email"></span> ▼
                 </a>
+                {% if request.user.is_superuser %}
+                    <button class="cta-button outline" id="admin-button"> Logged in as Superuser </button>
+                {% endif %}
                 <div id="dropdown-menu" style="display: none; position: absolute; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 0.5rem 0; margin-top: 0.5rem; right: 5%;">
                     <a href="#" id="logout-button" style="display: block; padding: 0.5rem 1rem; color: var(--text); text-decoration: none;">Logout</a>
                     <!-- Display dashboard to admins and superusers -->
                     {% if request.user.is_authenticated and request.user.is_institution_admin or request.user.is_authenticated and request.user.is_superuser %}
-                        <a href="#" id="dashboard-button" style="display: block; padding: 0.5rem 1rem; color: var(--text); text-decoration: none">Dashboard</a>
+                        <a href="/dashboard/" id="dashboard-button" style="display: block; padding: 0.5rem 1rem; color: var(--text); text-decoration: none">Dashboard</a>
+                        <a href="/admin/survey-templates/" id="edit-templates-button" style="display: block; padding: 0.5rem 1rem; color: var(--text); text-decoration: none">Edit Templates</a>
                     {% elif request.user.is_authenticated %}
                         <a href="/survey/" id="survey-button" style="display: block; padding: 0.5rem 1rem; color: var(--text); text-decoration: none">New Survey</a>
                     {% endif %}
@@ -437,12 +441,15 @@
             // Get authentication token from cookies or localStorage
             const token = getCookie('auth_token') || localStorage.getItem('auth_token');
             const userEmail = getCookie('user_email') || localStorage.getItem('user_email');
-            
+            const isSuperUser = getCookie('is_superuser') || localStorage.getItem('is_superuser');
             if (token && userEmail) {
                 // User is logged in
                 document.getElementById('login-button').style.display = 'none';
                 document.getElementById('user-button').style.display = 'inline-block';
                 document.getElementById('user-email').textContent = userEmail;
+            } else if (isSuperUser === 'true') {
+                document.getElementById('login-button').style.display = 'none';
+                document.getElementById('user-button').style.display = 'none';
             } else {
                 // User is not logged in
                 document.getElementById('login-button').style.display = 'inline-block';

@@ -3,6 +3,8 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.utils import timezone
 from django.core.exceptions import ValidationError
+import uuid
+from django.core.validators import validate_email
 
 class Institution(models.Model):
     """
@@ -88,18 +90,29 @@ class UserManager(BaseUserManager):
         return admin
 
 
+
+def validate_edu_email(value):
+    """
+    validate_edu_email is a helper function that checks if the email
+    address of a user ends with .edu
+
+    value: input email address
+    """
+    if not value.endswith('.edu'):
+        raise ValidationError('Only .edu email addresses are accepted.')
+        
 class User(AbstractBaseUser, PermissionsMixin):
     """
     User model is used to register and authenticate users
     """
-    email = models.EmailField(unique=True)
+    email = models.EmailField(unique=True, validators=[validate_email, validate_edu_email])
     is_admin = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
     is_student = models.BooleanField(default=False)
     is_institution_admin = models.BooleanField(default=False)
      # name required only when user is student 
-    name = models.CharField(unique=True, null=True, blank=True, max_length=250)
+    name = models.CharField(null=True, blank=True, max_length=250)
     # institution_details required only when user is student or admin                            
     institution_details = models.ForeignKey(Institution, null=True, blank=True, on_delete=models.CASCADE)
     date_joined = models.DateTimeField(default=timezone.now)
@@ -126,33 +139,103 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.is_admin
 
 
-def validate_edu_email(value):
+# In SurveyTemplate class
+class SurveyTemplate(models.Model):
     """
-    validate_edu_email is a helper function that checks if the email
-    address of a user ends with .edu
-
-    value: input email address
+    SurveyTemplate represents a survey configuration for a specific institution
     """
-    if not value.endswith('.edu'):
-        raise ValidationError('Only .edu email addresses are accepted.')
+    id = models.AutoField(primary_key=True)
+    institution = models.ForeignKey(Institution, on_delete=models.CASCADE)
+    hash_link = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    used = models.BooleanField(default=False)
     
+    def __str__(self):
+        return f"Survey for {self.institution.institution_name}"
+
+
+class QuestionType(models.TextChoices):
+    LIKERT = 'likert', 'Likert Scale (1-5)'
+    TEXT = 'text', 'Text Response'
+
+
+class QuestionCategory(models.TextChoices):
+    GENERAL = 'general', 'General Question'
+    SLEEP = 'sleep', 'Sleep Quality'
+    STRESS = 'stress', 'Stress Level'
+    SUPPORT = 'support', 'Support Perception'
+
+
+class SurveyQuestion(models.Model):
+    """
+    SurveyQuestion represents an individual question in a survey
+    """
+    id = models.AutoField(primary_key=True)
+    survey_template = models.ForeignKey(SurveyTemplate, on_delete=models.CASCADE, related_name='questions')
+    question_text = models.TextField()
+    question_type = models.CharField(
+        max_length=20,
+        choices=QuestionType.choices,
+        default=QuestionType.LIKERT
+    )
+    category = models.CharField(
+        max_length=20,
+        choices=QuestionCategory.choices,
+        default=QuestionCategory.GENERAL
+    )
+    order = models.IntegerField(default=0)
+    answer_choices = models.JSONField(blank=True, null=True, help_text='Custom answer choices for Likert scale questions')
+    
+    class Meta:
+        ordering = ['order']
+    
+    def __str__(self):
+        return f"{self.question_text[:30]}..."
+    
+    def clean(self):
+        super().clean()
+        if self.question_type == QuestionType.TEXT and self.category != QuestionCategory.GENERAL:
+            raise ValidationError({
+                'category': 'Category can only be set for Likert scale questions. Text questions must use General category.'
+            })
+        
+    def save(self, *args, **kwargs):
+        if self.question_type == QuestionType.TEXT:
+            self.category = QuestionCategory.GENERAL
+        self.full_clean()
+        super().save(*args, **kwargs)
+
 
 class SurveyResponse(models.Model):
     """
-    SurveyResponse model represents a survey response submitted by a student
+    SurveyResponse represents a complete survey submission by a student
     """
     id = models.AutoField(primary_key=True)
     student = models.ForeignKey(User, on_delete=models.CASCADE)
+    # Option 1: Allow null temporarily during migration
+    survey_template = models.ForeignKey(SurveyTemplate, on_delete=models.CASCADE, null=True)
+    # OR Option 2: Provide a default value
+    # survey_template = models.ForeignKey(SurveyTemplate, on_delete=models.CASCADE, default=1)
     created = models.DateTimeField(auto_now_add=True)
-    q1 = models.IntegerField(validators=[MaxValueValidator(5), MinValueValidator(1)])
-    q2 = models.IntegerField(validators=[MaxValueValidator(5), MinValueValidator(1)])
-    q3 = models.IntegerField(validators=[MaxValueValidator(5), MinValueValidator(1)])
-    q4 = models.IntegerField(validators=[MaxValueValidator(5), MinValueValidator(1)])
-    q5 = models.IntegerField(validators=[MaxValueValidator(5), MinValueValidator(1)])
     flagged = models.BooleanField(default=False)
-
-    class Meta:
-        unique_together = ('student', 'created')
-
+    
     def __str__(self):
         return f"{self.student.name} - {str(self.created)}"
+
+
+class QuestionResponse(models.Model):
+    """
+    QuestionResponse represents an individual response to a specific question
+    """
+    id = models.AutoField(primary_key=True)
+    survey_response = models.ForeignKey(SurveyResponse, on_delete=models.CASCADE, related_name='question_responses')
+    question = models.ForeignKey(SurveyQuestion, on_delete=models.CASCADE)
+    likert_value = models.IntegerField(null=True, blank=True, validators=[MaxValueValidator(5), MinValueValidator(1)])
+    text_response = models.TextField(null=True, blank=True)
+    
+    class Meta:
+        unique_together = ('survey_response', 'question')
+    
+    def __str__(self):
+        if self.question.question_type == QuestionType.LIKERT:
+            return f"Likert response: {self.likert_value}"
+        return f"Text response: {self.text_response[:30]}..."

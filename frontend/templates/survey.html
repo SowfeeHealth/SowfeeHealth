@@ -1,478 +1,474 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/x-icon" href="/images/sowfeefavicon.png">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sowfee Health - Student Wellness Survey</title>
     <style>
-      :root {
-        --primary: #6936f5;
-        --secondary: #f8f9fe;
-        --accent: #ff6b6b;
-        --text: #2d2d35;
-        --radius: 12px;
-      }
-
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-        font-family: "Inter", sans-serif;
-      }
-
-      body {
-        background: var(--secondary);
-        color: var(--text);
-        min-height: 100vh;
-      }
-
-      .survey-container {
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 4rem 1.5rem;
-      }
-
-      .survey-header {
-        text-align: center;
-        margin-bottom: 3rem;
-        animation: fadeIn 0.6s ease;
-      }
-
-      .survey-header h1 {
-        color: var(--primary);
-        margin-bottom: 1rem;
-        font-size: 2.5rem;
-      }
-
-      .survey-progress {
-        height: 6px;
-        background: rgba(105, 54, 245, 0.1);
-        margin: 2rem 0;
-        border-radius: 3px;
-        overflow: hidden;
-      }
-
-      .survey-progress-bar {
-        height: 100%;
-        width: 0;
-        background: linear-gradient(90deg, var(--primary), #8a63f2);
-        transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-      }
-
-      .student-info {
-        background: white;
-        padding: 2rem;
-        border-radius: var(--radius);
-        margin-bottom: 2rem;
-        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
-        animation: slideUp 0.6s ease;
-      }
-
-      .info-field {
-        margin-bottom: 1.5rem;
-      }
-
-      .info-field label {
-        display: block;
-        margin-bottom: 0.8rem;
-        font-weight: 500;
-        color: var(--text);
-      }
-
-      .info-field input {
-        width: 100%;
-        padding: 1rem;
-        border: 2px solid rgba(105, 54, 245, 0.15);
-        border-radius: 8px;
-        font-size: 1rem;
-        transition: all 0.3s ease;
-      }
-
-      .info-field input:focus {
-        border-color: var(--primary);
-        box-shadow: 0 0 0 4px rgba(105, 54, 245, 0.1);
-        outline: none;
-      }
-
-      .question-group {
-        background: white;
-        padding: 2rem;
-        border-radius: var(--radius);
-        margin-bottom: 1.5rem;
-        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
-        animation: slideUp 0.6s ease;
-      }
-
-      .question-text {
-        font-size: 1.1rem;
-        margin-bottom: 1.5rem;
-        font-weight: 500;
-        color: var(--text);
-      }
-
-      .likert-scale {
-        display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        gap: 0.8rem;
-      }
-
-      .likert-option {
-        text-align: center;
-        padding: 1.2rem;
-        border: 2px solid rgba(105, 54, 245, 0.1);
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        background: white;
-        position: relative;
-      }
-
-      .likert-option:hover {
-        transform: translateY(-2px);
-        border-color: var(--primary);
-      }
-
-      input[type="radio"]:checked + .likert-option {
-        border-color: var(--primary);
-        background: rgba(105, 54, 245, 0.05);
-        box-shadow: 0 4px 12px rgba(105, 54, 245, 0.1);
-      }
-
-      input[type="radio"] {
-        display: none;
-      }
-
-      .submit-btn {
-        background: var(--primary);
-        color: white;
-        padding: 1.2rem 3rem;
-        border: none;
-        border-radius: 2rem;
-        font-size: 1rem;
-        font-weight: 600;
-        cursor: pointer;
-        display: block;
-        margin: 3rem auto 0;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 16px rgba(105, 54, 245, 0.2);
-      }
-
-      .submit-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(105, 54, 245, 0.3);
-      }
-
-      .privacy-note {
-        font-size: 0.9rem;
-        color: #666;
-        margin-top: 1.5rem;
-        text-align: center;
-        line-height: 1.6;
-      }
-
-      @keyframes fadeIn {
-        from {
-          opacity: 0;
+        :root {
+            --primary: #6936f5;
+            --secondary: #f8f9fe;
+            --accent: #ff6b6b;
+            --text: #2d2d35;
+            --radius: 12px;
         }
-        to {
-          opacity: 1;
-        }
-      }
 
-      @keyframes slideUp {
-        from {
-          opacity: 0;
-          transform: translateY(20px);
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
         }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
 
-      @media (max-width: 768px) {
+        body {
+            background: var(--secondary);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
         .survey-container {
-          padding: 2rem 1rem;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 4rem 1.5rem;
         }
 
-        .likert-scale {
-          grid-template-columns: 1fr;
-        }
-
-        .likert-option {
-          padding: 1rem;
+        .survey-header {
+            text-align: center;
+            margin-bottom: 3rem;
+            animation: fadeIn 0.6s ease;
         }
 
         .survey-header h1 {
-          font-size: 2rem;
+            color: var(--primary);
+            margin-bottom: 1rem;
+            font-size: 2.5rem;
         }
-      }
+
+        .survey-progress {
+            height: 6px;
+            background: rgba(105, 54, 245, 0.1);
+            margin: 2rem 0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .survey-progress-bar {
+            height: 100%;
+            width: 0;
+            background: linear-gradient(90deg, var(--primary), #8a63f2);
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .student-info {
+            background: white;
+            padding: 2rem;
+            border-radius: var(--radius);
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.05);
+            animation: slideUp 0.6s ease;
+        }
+
+        .info-field {
+            margin-bottom: 1.5rem;
+        }
+
+        .info-field label {
+            display: block;
+            margin-bottom: 0.8rem;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .info-field input {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid rgba(105, 54, 245, 0.15);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .info-field input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(105, 54, 245, 0.1);
+            outline: none;
+        }
+
+        .question-group {
+            background: white;
+            padding: 2rem;
+            border-radius: var(--radius);
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.05);
+            animation: slideUp 0.6s ease;
+        }
+
+        .question-text {
+            font-size: 1.1rem;
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .likert-scale {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0.8rem;
+        }
+
+        .likert-option {
+            text-align: center;
+            padding: 1.2rem;
+            border: 2px solid rgba(105, 54, 245, 0.1);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: white;
+            position: relative;
+        }
+
+        .likert-option:hover {
+            transform: translateY(-2px);
+            border-color: var(--primary);
+        }
+
+        input[type="radio"]:checked + .likert-option {
+            border-color: var(--primary);
+            background: rgba(105, 54, 245, 0.05);
+            box-shadow: 0 4px 12px rgba(105, 54, 245, 0.1);
+        }
+
+        input[type="radio"] {
+            display: none;
+        }
+
+        .submit-btn {
+            background: var(--primary);
+            color: white;
+            padding: 1.2rem 3rem;
+            border: none;
+            border-radius: 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: block;
+            margin: 3rem auto 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 16px rgba(105, 54, 245, 0.2);
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(105, 54, 245, 0.3);
+        }
+
+        .privacy-note {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 1.5rem;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        .text-response {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid rgba(105, 54, 245, 0.15);
+            border-radius: 8px;
+            font-size: 1rem;
+            min-height: 100px;
+            resize: vertical;
+            transition: all 0.3s ease;
+        }
+
+        .text-response:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(105, 54, 245, 0.1);
+            outline: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            font-size: 1.2rem;
+            color: var(--primary);
+        }
+
+        .error-message {
+            background: #fff0f0;
+            color: #e74c3c;
+            padding: 1rem;
+            border-radius: var(--radius);
+            margin-bottom: 1.5rem;
+            border-left: 4px solid #e74c3c;
+        }
+
+        .success-message {
+            background: #f0fff0;
+            color: #2ecc71;
+            padding: 2rem;
+            border-radius: var(--radius);
+            margin-bottom: 1.5rem;
+            border-left: 4px solid #2ecc71;
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: 500;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .survey-container {
+                padding: 2rem 1rem;
+            }
+            
+            .likert-scale {
+                grid-template-columns: 1fr;
+            }
+            
+            .likert-option {
+                padding: 1rem;
+            }
+            
+            .survey-header h1 {
+                font-size: 2rem;
+            }
+        }
     </style>
-  </head>
-  <body>
+</head>
+<body>
     <div class="survey-container">
-      <div class="survey-header">
-        <h1>Student Wellness Check</h1>
-        <p>Your anonymous feedback helps us improve student support services</p>
-        <div class="survey-progress">
-          <div class="survey-progress-bar"></div>
-        </div>
-      </div>
-
-      <form id="wellnessSurvey" method="POST" action="{% url 'survey' %}">
-        {% csrf_token %}
-        <!-- Student Information -->
-        <div class="student-info">
-          <div class="info-field">
-            <label>Full Name</label>
-            <input
-              type="text"
-              name="student_name"
-              required
-              pattern="[A-Za-z ]+"
-              title="Please enter your full name"
-              value="{{ student_name }}"
-              
-            />
-          </div>
-
-          <div class="info-field">
-            <label>School Email</label>
-            <input
-              type="email"
-              name="school_email"
-              required
-              pattern="(?i)^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.edu$"
-              title="Please enter a valid .edu email address"
-              value="{{ student_email }}"
-              
-            />
-          </div>
+        <div class="survey-header">
+            <h1>Student Wellness Check</h1>
+            <p>Your feedback helps us improve student support services</p>
+            <div class="survey-progress">
+                <div class="survey-progress-bar"></div>
+            </div>
         </div>
 
-        <!-- Survey Questions -->
-        <div class="question-group">
-          <div class="question-text">
-            1. How would you rate your overall well-being this week?
-          </div>
-          <div class="likert-scale">
-            <label>
-              <input type="radio" name="q1" value="1" required />
-              <div class="likert-option">😊 Excellent</div>
-            </label>
-            <label>
-              <input type="radio" name="q1" value="2" />
-              <div class="likert-option">🙂 Good</div>
-            </label>
-            <label>
-              <input type="radio" name="q1" value="3" />
-              <div class="likert-option">😐 Neutral</div>
-            </label>
-            <label>
-              <input type="radio" name="q1" value="4" />
-              <div class="likert-option">😕 Struggling</div>
-            </label>
-            <label>
-              <input type="radio" name="q1" value="5" />
-              <div class="likert-option">😞 Difficult</div>
-            </label>
-          </div>
-        </div>
+        <form id="wellnessSurvey">
+            {% csrf_token %}
+            <!-- Student Information -->
+            <div class="student-info">
+                <div class="info-field">
+                    <label>Full Name</label>
+                    <input type="text" name="student_name" value="{{ student_name }}" readonly 
+                           title="Your full name (pre-filled)">
+                </div>
+                
+                <div class="info-field">
+                    <label>School Email</label>
+                    <input type="email" name="school_email" value="{{ student_email }}" readonly
+                           title="Your .edu email address (pre-filled)">
+                </div>
+                
+                <!-- Hidden field for survey template ID -->
+                <input type="hidden" name="survey_template_id" id="survey_template_id">
+            </div>
 
-        <!-- Repeat similar structure for questions 2-5 -->
-        <!-- Question 2 -->
-        <div class="question-group">
-          <div class="question-text">
-            2. How often have you thought of self-harm?
-          </div>
-          <div class="likert-scale">
-            <label>
-              <input type="radio" name="q2" value="1" required />
-              <div class="likert-option">Never</div>
-            </label>
-            <label>
-              <input type="radio" name="q2" value="2" />
-              <div class="likert-option">Rarely</div>
-            </label>
-            <label>
-              <input type="radio" name="q2" value="3" />
-              <div class="likert-option">Sometimes</div>
-            </label>
-            <label>
-              <input type="radio" name="q2" value="4" />
-              <div class="likert-option">Often</div>
-            </label>
-            <label>
-              <input type="radio" name="q2" value="5" />
-              <div class="likert-option">Always</div>
-            </label>
-          </div>
-        </div>
-
-        <!-- Question 3 -->
-        <div class="question-group">
-          <div class="question-text">
-            3. How supported do you feel by campus resources?
-          </div>
-          <div class="likert-scale">
-            <label>
-              <input type="radio" name="q3" value="1" required />
-              <div class="likert-option">Very Supported</div>
-            </label>
-            <label>
-              <input type="radio" name="q3" value="2" />
-              <div class="likert-option">Supported</div>
-            </label>
-            <label>
-              <input type="radio" name="q3" value="3" />
-              <div class="likert-option">Neutral</div>
-            </label>
-            <label>
-              <input type="radio" name="q3" value="4" />
-              <div class="likert-option">Unsupported</div>
-            </label>
-            <label>
-              <input type="radio" name="q3" value="5" />
-              <div class="likert-option">Very Unsupported</div>
-            </label>
-          </div>
-        </div>
-
-        <!-- Question 4 -->
-        <div class="question-group">
-          <div class="question-text">
-            4. How would you rate your sleep quality?
-          </div>
-          <div class="likert-scale">
-            <label>
-              <input type="radio" name="q4" value="1" required />
-              <div class="likert-option">💤 Excellent</div>
-            </label>
-            <label>
-              <input type="radio" name="q4" value="2" />
-              <div class="likert-option">😌 Good</div>
-            </label>
-            <label>
-              <input type="radio" name="q4" value="3" />
-              <div class="likert-option">🛌 Average</div>
-            </label>
-            <label>
-              <input type="radio" name="q4" value="4" />
-              <div class="likert-option">😣 Poor</div>
-            </label>
-            <label>
-              <input type="radio" name="q4" value="5" />
-              <div class="likert-option">😫 Very Poor</div>
-            </label>
-          </div>
-        </div>
-
-        <!-- Question 5 -->
-        <div class="question-group">
-          <div class="question-text">
-            5. How comfortable are you seeking mental health support?
-          </div>
-          <div class="likert-scale">
-            <label>
-              <input type="radio" name="q5" value="1" required />
-              <div class="likert-option">🌟 Very Comfortable</div>
-            </label>
-            <label>
-              <input type="radio" name="q5" value="2" />
-              <div class="likert-option">👍 Comfortable</div>
-            </label>
-            <label>
-              <input type="radio" name="q5" value="3" />
-              <div class="likert-option">🤔 Neutral</div>
-            </label>
-            <label>
-              <input type="radio" name="q5" value="4" />
-              <div class="likert-option">😟 Uncomfortable</div>
-            </label>
-            <label>
-              <input type="radio" name="q5" value="5" />
-              <div class="likert-option">😰 Very Uncomfortable</div>
-            </label>
-          </div>
-        </div>
-
-        <button type="submit" class="submit-btn">Submit Wellness Check</button>
-        <p class="privacy-note">
-          Your responses are confidential and protected by FERPA regulations.<br />
-          Data will only be used to improve student support services.
-        </p>
-      </form>
+            <!-- Dynamic Survey Questions will be loaded here -->
+            <div id="dynamic-questions">
+                <div class="loading">Loading survey questions...</div>
+            </div>
+            
+            <button type="submit" class="submit-btn">Submit Wellness Check</button>
+            <p class="privacy-note">
+                Your responses are confidential and protected by FERPA regulations.<br>
+                Data will only be used to improve student support services.
+            </p>
+        </form>
     </div>
 
     <script>
-      const form = document.getElementById("wellnessSurvey");
-      const progressBar = document.querySelector(".survey-progress-bar");
-      const totalRequired = document.querySelectorAll("[required]").length;
-
-      function updateProgress() {
-        const answered = Array.from(form.elements).filter((el) => {
-          if (el.required) {
-            if (el.type === "radio") {
-              return document.querySelector(`input[name="${el.name}"]:checked`);
+        document.addEventListener('DOMContentLoaded', function() {
+            const questionsContainer = document.getElementById('dynamic-questions');
+            const surveyForm = document.getElementById('wellnessSurvey');
+            
+            // Function to load questions directly from the user-specific endpoint
+            function loadUserSurveyQuestions() {
+                // Show loading state
+                questionsContainer.innerHTML = '<div class="loading">Loading survey questions...</div>';
+                
+                // Fetch the questions for the current user's institution
+                fetch('/api/get-user-survey-questions/')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.questions && data.questions.length > 0) {
+                            // Clear the loading message
+                            questionsContainer.innerHTML = '';
+                            
+                            // Store the template ID for form submission
+                            document.getElementById('survey_template_id').value = data.template_id;
+                            
+                            // Add each question to the form
+                            data.questions.forEach((question, index) => {
+                                const questionNumber = index + 1;
+                                const questionId = question.id;
+                                
+                                // Create question container
+                                const questionGroup = document.createElement('div');
+                                questionGroup.className = 'question-group';
+                                questionGroup.setAttribute('data-question-id', questionId);
+                                
+                                // Add question text
+                                const questionText = document.createElement('div');
+                                questionText.className = 'question-text';
+                                questionText.textContent = `${questionNumber}. ${question.text}`;
+                                questionGroup.appendChild(questionText);
+                                
+                                // Add appropriate input based on question type
+                                if (question.type === 'likert') {
+                                    // Create Likert scale
+                                    const likertScale = document.createElement('div');
+                                    likertScale.className = 'likert-scale';
+                                    
+                                    // Define default Likert options
+                                    const defaultOptions = [
+                                        { value: 5, emoji: '😞', text: 'Very Poor' },
+                                        { value: 4, emoji: '😕', text: 'Poor' },
+                                        { value: 3, emoji: '😐', text: 'Neutral' },
+                                        { value: 2, emoji: '🙂', text: 'Good' },
+                                        { value: 1, emoji: '😊', text: 'Excellent' }
+                                    ];
+                                    
+                                    // Use custom answer choices if available
+                                    const options = defaultOptions.map(option => {
+                                        if (question.answer_choices && question.answer_choices[option.value]) {
+                                            return {
+                                                ...option,
+                                                text: question.answer_choices[option.value]
+                                            };
+                                        }
+                                        return option;
+                                    });
+                                    
+                                    // Add each option
+                                    options.forEach(option => {
+                                        const label = document.createElement('label');
+                                        
+                                        const input = document.createElement('input');
+                                        input.type = 'radio';
+                                        input.name = questionId;
+                                        input.value = option.value;
+                                        input.required = option.value === 1; // Make first option required
+                                        
+                                        const optionDiv = document.createElement('div');
+                                        optionDiv.className = 'likert-option';
+                                        
+                                        const emoji = document.createElement('span');
+                                        emoji.className = 'emoji';
+                                        emoji.textContent = option.emoji;
+                                        
+                                        optionDiv.appendChild(emoji);
+                                        optionDiv.appendChild(document.createTextNode(option.text));
+                                        
+                                        label.appendChild(input);
+                                        label.appendChild(optionDiv);
+                                        
+                                        likertScale.appendChild(label);
+                                    });
+                                    
+                                    questionGroup.appendChild(likertScale);
+                                } else if (question.type === 'text') {
+                                    // Create text input
+                                    const textArea = document.createElement('textarea');
+                                    textArea.className = 'text-response';
+                                    textArea.name = questionId; // Remove the question_ prefix
+                                    textArea.required = true;
+                                    textArea.placeholder = 'Your answer...';
+                                    textArea.rows = 3;
+                                    
+                                    questionGroup.appendChild(textArea);
+                                }
+                                
+                                // Add the question to the form
+                                questionsContainer.appendChild(questionGroup);
+                            });
+                        } else {
+                            // Show error message if no questions were found
+                            questionsContainer.innerHTML = `
+                                <div class="error-message">
+                                    ${data.error || 'No survey questions found for your institution. Please contact support.'}
+                                </div>
+                            `;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching questions:', error);
+                        questionsContainer.innerHTML = `
+                            <div class="error-message">
+                                Unable to load survey questions. Please try again later or contact support.
+                            </div>
+                        `;
+                    });
             }
-            return el.value.trim() !== "";
-          }
-          return false;
-        }).length;
-
-        progressBar.style.width = `${(answered / totalRequired) * 100}%`;
-      }
-
-      form.addEventListener("input", updateProgress);
-      form.addEventListener("change", updateProgress);
-
-      form.addEventListener("submit", (e) => {
-        e.preventDefault(); // Prevent default form submission
-
-        if (!form.checkValidity()) {
-          alert("Please complete all required fields");
-          return;
-        }
-
-        // Collect form data using FormData API
-        const formData = new FormData(form);
-        console.log(Object.fromEntries(formData)); // Log form data to console for debugging
-
-        // Send form data to the server (using Fetch API)
-        fetch("{% url 'survey' %}", {
-          method: "POST",
-          body: formData,
-        })
-          .then((response) => response.json()) // Parse JSON response
-          .then((data) => {
-            if (data.success) {
-              // Show confirmation message if submission is successful
-              alert(data.message); // Display the success message from the response
-
-              // Reset form and progress bar
-              form.reset();
-              progressBar.style.width = "0%";
-            } else {
-              alert(
-                data.error ||
-                  "There was an error processing your survey. Please try again."
-              );
-            }
-          })
-          .catch((error) => {
-            console.error("Error:", error);
-            alert("An error occurred. Please try again later.");
-          });
-      });
-
-      // Add input validation for school email
-      const emailInput = document.querySelector('input[name="school_email"]');
-      emailInput.addEventListener("input", () => {
-        const isValid = emailInput.checkValidity();
-        emailInput.style.borderColor = isValid
-          ? "rgba(105, 54, 245, 0.15)"
-          : "var(--accent)";
-      });
+            
+            // Load questions when the page loads
+            loadUserSurveyQuestions();
+            
+            // Handle form submission
+            surveyForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                
+                // Get all form data
+                const formData = new FormData(surveyForm);
+                
+                // Convert to JSON
+                const jsonData = {};
+                for (const [key, value] of formData.entries()) {
+                    jsonData[key] = value;
+                }
+                
+                // Add CSRF token if available
+                const csrfTokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
+                const csrfToken = csrfTokenElement ? csrfTokenElement.value : '';
+                
+                // Submit the form
+                fetch('/survey/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(jsonData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (data.redirect_url) {
+                            surveyForm.innerHTML = '<div class="success-message">Thank you for completing the wellness check!</div>';
+                            setTimeout(function() {
+                                window.location.href = data.redirect_url;
+                            }, 500); // 0.5 seconds
+                        } else {
+                            surveyForm.innerHTML = '<div class="success-message">Thank you for completing the wellness check!</div>';
+                        }
+                    } else {
+                        alert(`Error: ${data.error || 'An unknown error occurred'}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error submitting form:', error);
+                    alert('Error submitting form. Please try again later.');
+                });
+            });
+        });
     </script>
-  </body>
+</body>
 </html>

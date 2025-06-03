@@ -514,7 +514,7 @@
           });
 
           nav_left.addEventListener("click", () => {
-            if ((current_step > 0) && validate_step(current_step)) {
+            if ((current_step > 0)) {
               current_step -= 1;
               update_step_visibility();
             }

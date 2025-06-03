@@ -306,11 +306,8 @@
                 </select>
             </label>
             <label>Category
-                <select id="question-category">
-                    <option value="general">General Question</option>
-                    <option value="sleep">Sleep Quality</option>
-                    <option value="stress">Stress Level</option>
-                    <option value="support">Support Perception</option>
+                <select id="question-category" onChange="toggleAnswerChoicesSection(); setCategoryOptions()">
+                    
                 </select>
             </label>
             <label>Order<input type="number" id="question-order" min="1" required></label>
@@ -474,15 +471,40 @@ function fetchQuestions(templateId) {
         });
 }
 
+function setCategoryOptions(categorySelect, options){
+    //clear the inner html
+    categorySelect.innerHTML = '';
+    //modify answer choices based on select options
+    options.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        option.textContent = opt.label;
+        categorySelect.appendChild(option);
+    });
+}
+
 function toggleAnswerChoicesSection() {
     const questionType = document.getElementById('question-type').value;
     const answerChoicesSection = document.getElementById('answer-choices-section');
-    
+    const categorySelect = document.getElementById("question-category");
+
     if (questionType === 'likert') {
-        answerChoicesSection.style.display = 'block';
-    } else {
-        answerChoicesSection.style.display = 'none';
-    }
+    answerChoicesSection.style.display = 'block';
+
+    setCategoryOptions(categorySelect, [
+        { value: 'general', label: 'General Question' },
+        { value: 'sleep', label: 'Sleep Quality' },
+        { value: 'stress', label: 'Stress Level' },
+        { value: 'support', label: 'Support Perception' },
+    ]);
+} else {
+    answerChoicesSection.style.display = 'none';
+
+    setCategoryOptions(categorySelect, [
+        { value: 'general', label: 'General Question' }
+    ]);
+}
+
 }
 
 // Call this on page load to set initial state
@@ -529,6 +551,7 @@ addQuestionForm.onsubmit = function(e) {
             showMessage('Question added!');
             fetchQuestions(currentTemplateId);
             addQuestionForm.reset();
+            toggleAnswerChoicesSection();
         } else {
             showMessage(data.error || 'Failed to add question.', 'error');
         }

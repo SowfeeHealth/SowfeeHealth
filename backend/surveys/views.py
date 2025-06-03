@@ -29,7 +29,7 @@ def demo_survey_view(request):
     demo_survey_view renders a sample survey response to visitors
     """
     if request.method == "GET":
-        return render(request, "survey.html")
+        return render(request, "demo_survey.html")
 
 
 @api_view(["GET", "POST"])
@@ -329,7 +329,7 @@ def dashboard_view(request):
 
     
     # Number of students registered in the university and marked as flagged
-    num_flagged_students = all_responses.values('student').distinct().count()
+    num_flagged_students = len(school_flagged_responses)
     
     # Get all survey templates for this institution
     survey_templates = SurveyTemplate.objects.filter(institution=institution_details)
@@ -508,6 +508,7 @@ def login_view(request):
                 response = redirect('survey')
             
             # Keep authentication token and email alive for 7 days
+            # After setting other cookies
             response.set_cookie('auth_token', request.session.session_key, max_age=3600*24*7)
             response.set_cookie('user_email', email, max_age=3600*24*7)
             

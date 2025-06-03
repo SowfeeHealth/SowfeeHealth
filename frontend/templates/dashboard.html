@@ -169,8 +169,27 @@
         box-shadow: 0 4px 12px rgba(105, 54, 245, 0.2);
       }
 
+      .link-btn {
+        transition: all 0.3s ease;
+        border: 2px solid transparent !important;
+        padding: 0.6rem 1.2rem;
+        background: #6936f5;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        display: inline-block;            /*align two buttons to the right with inline-block, not block*/
+        width: fit-content;               
+        margin-top: 1.5rem;
+        margin-left: 0;                  /* align right with auto margin */
+        margin-right: 0;
+      }
+
+
       .home-button-wrapper {
-        text-align: right;
+        display: flex;
+        justify-content: flex-end;
+        gap: 15px;
         margin-bottom: 1.5rem;
       }
 
@@ -193,7 +212,8 @@
       </div>
 
       <div class="home-button-wrapper">
-        <a href="/" class="show-more-btn" id="home-button">Back to Homepage</a>
+        <a href="/" class="link-btn" id="home-button">Back to Homepage</a>
+        <a href="/admin/survey-templates/" class="link-btn" id="home-button-2">Edit Templates</a>
       </div>
 
       <!-- Summary Metrics -->

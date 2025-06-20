@@ -19,4 +19,4 @@ RUN apt-get update && apt-get install -y \
 EXPOSE 8000
 
 # Set the default command to run Django
-CMD ["bash", "-c", "python manage.py makemigrations surveys && python manage.py migrate && python manage.py runserver 0.0.0.0:8000"]
+CMD ["bash", "-c", "python manage.py makemigrations surveys && python manage.py migrate && python manage.py collectstatic --noinput && python manage.py runserver 0.0.0.0:8000"]

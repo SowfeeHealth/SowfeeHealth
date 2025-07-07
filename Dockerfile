@@ -18,7 +18,8 @@ COPY . /app/
 
 # Build React
 RUN cd frontend_react && npm install && npm run build && \
-    mkdir -p /app/staticfiles && cp -r build/* /app/staticfiles/
+    mkdir -p /app/backend/staticfiles/react && \
+    cp -r build/* /app/backend/staticfiles/react/
 
 EXPOSE 8000
 

@@ -12,10 +12,16 @@ from django.contrib import messages
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from django.shortcuts import get_object_or_404
+from django.views.decorators.csrf import ensure_csrf_cookie
+from rest_framework import status
 import json
 
 # Use a single logger configuration
 logger = logging.getLogger("surveys")
+
+@ensure_csrf_cookie
+def set_csrf_token(request):
+    return JsonResponse({'detail': 'CSRF cookie set'})
 
 def index_view(request):
     """
@@ -31,6 +37,13 @@ def demo_survey_view(request):
     if request.method == "GET":
         return render(request, "demo_survey.html")
 
+@api_view(["GET"])
+def user_view(request):
+    """user_view returns the current user status"""
+    if request.user.is_authenticated:
+        return Response(UserSerializer(request.user).data)
+    else:
+        return Response({"error": "User not authenticated"}, status=401)
 
 @api_view(["GET", "POST"])
 def survey_view(request, hash_link=None):
@@ -239,49 +252,75 @@ def get_user_survey_questions(request):
     if not request.user.is_authenticated:
         return JsonResponse({"success": False, "error": "Authentication required"})
     
-    survey_template = None
-    
-    # If user is a student, get template by institution
-    if not request.user.is_institution_admin and not request.user.is_superuser:
-        if request.user.institution_details:
-            survey_template = SurveyTemplate.objects.filter(
-                institution=request.user.institution_details,
-                used=True
-            ).first()
+    try:
+        survey_template = None
+        
+        # If user is a student, get template by institution
+        if not request.user.is_superuser:
+            if request.user.institution_details:
+                survey_template = SurveyTemplate.objects.filter(
+                    institution=request.user.institution_details,
+                    used=True
+                ).first()
+                
+            if not survey_template:
+                survey_template = SurveyTemplate.objects.filter(
+                    institution=request.user.institution_details,
+                ).order_by('id').first()
+        
+        # If user is a superuser, get any template (for testing)
+        elif request.user.is_superuser:
+            survey_template = SurveyTemplate.objects.first()
         
         if not survey_template:
-            survey_template = SurveyTemplate.objects.filter(
-                institution=request.user.institution_details,
-            ).order_by('id').first()
-    
-    # If user is a superuser, get any template (for testing)
-    elif request.user.is_superuser:
-        survey_template = SurveyTemplate.objects.first()
-    
-    if not survey_template:
+            return JsonResponse({
+                "success": False, 
+                "error": "No survey template found for your institution"
+            }, status=404)
+        
+        # Get all questions for this template
+        questions = SurveyQuestion.objects.filter(survey_template=survey_template).order_by('order')
+        
+        # Check if questions exist
+        if not questions.exists():
+            return JsonResponse({
+                "success": False, 
+                "error": "No survey questions found for this template"
+            }, status=404)
+        
+        # Serialize the questions
+        questions_data = [{
+            'id': q.id,
+            'text': q.question_text,
+            'type': q.question_type,
+            'category': q.category,
+            'answer_choices': q.answer_choices,
+            'order': q.order
+        } for q in questions]
+        
+        # Final check - make sure we have questions data
+        if not questions_data:
+            return JsonResponse({
+                "success": False, 
+                "error": "Survey questions could not be loaded"
+            }, status=500)
+        
+        return JsonResponse({
+            "success": True, 
+            "template_id": survey_template.id,
+            "questions": questions_data
+        })
+        
+    except Exception as e:
+        # Log the error for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error fetching survey questions: {str(e)}")
+        
         return JsonResponse({
             "success": False, 
-            "error": "No survey template found for your institution"
-        })
-    
-    # Get all questions for this template
-    questions = SurveyQuestion.objects.filter(survey_template=survey_template).order_by('order')
-    
-    # Serialize the questions
-    questions_data = [{
-        'id': q.id,
-        'text': q.question_text,
-        'type': q.question_type,
-        'category': q.category,
-        'answer_choices': q.answer_choices,
-        'order': q.order
-    } for q in questions]
-    
-    return JsonResponse({
-        "success": True, 
-        "template_id": survey_template.id,
-        "questions": questions_data
-    })
+            "error": "An error occurred while loading survey questions"
+        }, status=500)
 
 
 def dashboard_view(request):
@@ -480,7 +519,7 @@ def dashboard_view(request):
 
     return render(request, 'dashboard.html', context=context)
 
-
+'''
 def login_view(request):
     """
     login_view allows users to login to the system
@@ -502,15 +541,18 @@ def login_view(request):
             response = None
             
             # Redirect to university dashboard if admin is registered with the system
-            if User.objects.filter(email=email).first().is_institution_admin:
+            if user.is_institution_admin:
                 response = redirect('dashboard')
+                response.set_cookie('is_institution_admin', 'true', max_age=3600*24*7)
             else:
                 response = redirect('survey')
+                response.set_cookie('is_institution_admin', 'false', max_age=3600*24*7)
             
             # Keep authentication token and email alive for 7 days
             # After setting other cookies
             response.set_cookie('auth_token', request.session.session_key, max_age=3600*24*7)
             response.set_cookie('user_email', email, max_age=3600*24*7)
+            response.set_cookie('is_superuser', 'true' if user.is_superuser else 'false', max_age=3600*24*7)
             
             return response
         
@@ -534,8 +576,54 @@ def login_view(request):
 
     else:
         return HttpResponseBadRequest("Request method not allowed")
+'''
+@api_view(["POST"])
+def login_view(request):
+    if request.method == "POST":
+        try:
+            # Check if body exists
+            if not request.body:
+                return JsonResponse({'error': 'No data provided'}, status=400)
+            
+            # Parse JSON
+            data = json.loads(request.body)
+            email = data.get('email')
+            password = data.get('password')
+            
+            # Check if email/password provided
+            if not email or not password:
+                return JsonResponse({'error': 'Email and password required'}, status=400)
+            
+            user = authenticate(request, email=email, password=password)
+            
+            if user is not None:
+                login(request, user)
+                
+                response = JsonResponse({
+                    'success': True,
+                    'message': 'Login successful!',
+                    'is_admin': user.is_institution_admin,
+                    'redirect_path': '/dashboard/' if user.is_institution_admin else '/survey/'
+                })
+                
+                # Set cookies (you had this commented out!)
+                response.set_cookie('auth_token', request.session.session_key, max_age=3600*24*7)
+                response.set_cookie('user_email', email, max_age=3600*24*7)
+                response.set_cookie('is_superuser', 'true' if user.is_superuser else 'false', max_age=3600*24*7)
+                response.set_cookie('is_institution_admin', 'true' if user.is_institution_admin else 'false', max_age=3600*24*7)
+                
+                return response
+            else:
+                return JsonResponse({'success': False, 'message': 'Invalid credentials'}, status=400)
+                
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON format'}, status=400)
+        except Exception as e:
+            print(f"Login error: {e}")  # This will show in Django console
+            return JsonResponse({'error': 'Server error occurred'}, status=500)
+    return JsonResponse({'error': 'Use POST method'}, status=405)
 
-
+'''
 def register_view(request):
     """
     register_view allows users to register into the system
@@ -591,7 +679,72 @@ def register_view(request):
 
     else:
         return HttpResponseBadRequest("Request method not allowed")
+'''
+@api_view(["POST"])
+def register_view(request):
+    """
+    register_view allows users to register into the system via API
+    """
+    if request.method == "POST":
+        # Extract form data from request.data (for JSON) or request.POST (for form data)
+        data = request.data if request.data else request.POST
+        
+        institution_name = data.get("institution_name")
+        name = data.get("name")
+        email = data.get("email")
+        password = data.get("password")
+        confirm_password = data.get("confirm_password")
 
+        # Validation checks
+        if password != confirm_password:
+            return Response({
+                'success': False,
+                'message': "Passwords do not match."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if User.objects.filter(email=email).exists():
+            return Response({
+                'success': False,
+                'message': "Email already registered."
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if the institution exists
+        institution_details = Institution.objects.filter(institution_name=institution_name)
+        if not institution_details.exists():
+            return Response({
+                'success': False,
+                'message': "Institution does not exist"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if the email address matches the institution's pattern
+        institution_details = institution_details.first()
+        match_object = re.fullmatch(institution_details.institution_regex_pattern, email, re.IGNORECASE)
+        if not match_object:
+            return Response({
+                'success': False,
+                'message': "Email does not match institution's format"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Create a new student
+        try:
+            student = User.objects.create_student(
+                email=email, 
+                password=password, 
+                institution_details=institution_details, 
+                name=name
+            )
+            student.save()
+            
+            return Response({
+                'success': True,
+                'message': "Registration successful! Please log in."
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': "Registration failed. Please try again."
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 def logout_view(request):
     """
@@ -601,8 +754,16 @@ def logout_view(request):
 
     # Clear auth cookies
     response = redirect('index')
-    response.delete_cookie('auth_token')
-    response.delete_cookie('user_email')
+    
+    cookies_to_clear = [
+        'auth_token', 
+        'user_email', 
+        'is_institution_admin', 
+        'is_superuser'
+    ]
+    
+    for cookie_name in cookies_to_clear:
+        response.delete_cookie(cookie_name)
     
     messages.success(request, "You have been logged out successfully.")
     
@@ -616,7 +777,7 @@ def student_response_view(request):
     student_response_view is an API view that returns all survey responses
     saved in the database
     """
-    if request.method == "GET" and request.user.is_authenticated and request.user.is_superuser:
+    if request.method == "GET" and request.user.is_authenticated and (request.user.is_superuser or request.user.is_institution_admin):
         survey_responses = SurveyResponse.objects.all()
         survey_response_serializer = SurveyResponseSerializer(survey_responses, many=True)
         return Response(survey_response_serializer.data)
@@ -631,7 +792,7 @@ def flagged_students_view(request):
     flagged_students_view is an API view that returns all flagged students
     in the database
     """
-    if request.method == "GET" and request.user.is_authenticated and request.user.is_superuser:
+    if request.method == "GET" and request.user.is_authenticated and (request.user.is_superuser or request.user.is_institution_admin):
         flagged_students = SurveyResponse.objects.filter(flagged=True)
         flagged_students_serializer = SurveyResponseSerializer(flagged_students, many=True)
         return Response(flagged_students_serializer.data)
@@ -650,6 +811,20 @@ def students_view(request):
         all_students = User.objects.filter(is_student=True)
         user_serializer = UserSerializer(all_students, many=True)
         return Response(user_serializer.data)
+    
+    else:
+        return HttpResponseBadRequest("Request method not allowed")
+
+@api_view(["GET"])
+def institutions_view(request):
+    """
+    institution_view is an API view that returns all students
+    in the database
+    """
+    if request.method == "GET":
+        all_institutions = Institution.objects.all()
+        institution_serializer = InstitutionSerializer(all_institutions, many=True)
+        return Response(institution_serializer.data)
     
     else:
         return HttpResponseBadRequest("Request method not allowed")

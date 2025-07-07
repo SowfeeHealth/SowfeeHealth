@@ -77,7 +77,17 @@ MIDDLEWARE = [
 #     os.path.join(BASE_DIR.parent, 'frontend', 'static'),
 # ]
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000', 
+    'http://localhost:8000',
+    'http://127.0.0.1:8000', 
+    'https://sowfeehealth.com',
+    'https://www.sowfeehealth.com',
+    f'http://{os.getenv("EC2_HOST")}',
+    f'https://{os.getenv("EC2_HOST")}',
+]
+CORS_ALLOW_CREDENTIALS = True
 
 # 添加 CSRF 配置
 CSRF_TRUSTED_ORIGINS = [
@@ -89,6 +99,8 @@ CSRF_TRUSTED_ORIGINS = [
     f'https://{os.getenv("EC2_HOST")}',
     'http://localhost:8000',
     'http://127.0.0.1:8000',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
     'http://sowfeehealth.com',        
     'http://www.sowfeehealth.com', 
     'https://sowfeehealth.com',

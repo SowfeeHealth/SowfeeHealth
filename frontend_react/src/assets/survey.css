@@ -5,12 +5,6 @@ body {
     min-height: 100vh;
 }
 
-.survey-container {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 4rem 1.5rem;
-}
-
 .survey-header {
     text-align: center;
     margin-bottom: 3rem;
@@ -73,6 +67,12 @@ body {
     outline: none;
 }
 
+.survey-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+}
+
 .question-group {
     background: white;
     padding: 2rem;
@@ -112,6 +112,12 @@ body {
 }
 
 input[type="radio"]:checked + .likert-option {
+    border-color: var(--primary);
+    background: rgba(105, 54, 245, 0.05);
+    box-shadow: 0 4px 12px rgba(105, 54, 245, 0.1);
+}
+/* Add this class dynamically */
+.likert-option.selected {
     border-color: var(--primary);
     background: rgba(105, 54, 245, 0.05);
     box-shadow: 0 4px 12px rgba(105, 54, 245, 0.1);
@@ -210,9 +216,26 @@ input[type="radio"] {
     }
 }
 
+.back-button {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    padding: 5px 10px;
+    font-size: 12px;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #6c757d;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    line-height: 1;
+}
+
 @media (max-width: 768px) {
     .survey-container {
-        padding: 2rem 1rem;
+        padding: 1.5rem 1rem;
     }
     
     .likert-scale {
@@ -225,5 +248,25 @@ input[type="radio"] {
     
     .survey-header h1 {
         font-size: 2rem;
+    }
+
+    .back-button {
+        top: 5px;
+        left: 5px;
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+    
+    .submit-btn {
+        padding: 1rem 2rem;
+        font-size: 0.9rem;
+    }
+    
+    .question-group {
+        padding: 1.5rem;
+    }
+    
+    .student-info {
+        padding: 1.5rem;
     }
 }

@@ -9,7 +9,6 @@ export const getUserStatus = async () => {
       const response = await api.get('/api/user/');
       return response.data;  // this will contain all User fields since fields = "__all__"
   } catch (error) {
-      console.log('p');
       if (error.response?.status === 401) {
           return { isAuthenticated: false };
       }
@@ -140,7 +139,7 @@ function Header() {
                     {isAuthenticated && (!isSuperUser && isInstitutionAdmin) && (
                       <div>
                         <a href="/dashboard/" id="dashboard-button">Dashboard</a>
-                        <a href="/admin/survey-templates/" id="edit-templates-button">Edit Templates</a>
+                        <a href="/api/admin/survey-templates/" id="edit-templates-button">Edit Templates</a>
                         <a href="/survey/" id="survey-button">Preview Survey</a>
                       </div>
                      )}

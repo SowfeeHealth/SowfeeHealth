@@ -15,6 +15,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/survey" element={<Survey />} />
+          <Route path="/survey/link/:hashLink" element={<Survey />} />
         </Routes>
       </Router>
   );

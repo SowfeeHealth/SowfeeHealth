@@ -45,39 +45,46 @@ def user_view(request):
     else:
         return Response({"error": "User not authenticated"}, status=401)
 
-@api_view(["GET", "POST"])
+@api_view(["POST"])
 def survey_view(request, hash_link=None):
     """survey_view allows students to access the survey page and save survey responses"""
-    if request.method == 'GET':
-        context = {}
-        survey_template = None
-        
-        # If hash_link is provided, try to get the template by hash_link
-        if hash_link:
-            try:
-                survey_template = SurveyTemplate.objects.get(hash_link=hash_link)
-                context["survey_template_id"] = survey_template.id
-            except SurveyTemplate.DoesNotExist:
-                pass
-        
-        # Check if user is a developer/wants to just look at the form
-        if request.user.is_authenticated and request.user.is_superuser:
-            context.update({
-                "student_email": "",
-                "student_name": ""
-            })
-        
-        # Check if the user is a student
-        elif request.user.is_authenticated and not request.user.is_institution_admin:
-            # Extract data for the logged in student
-            context.update({
-                "student_email": request.user.email,
-                "student_name": request.user.name
-            })
+    
+    # Handle hash link survey submission
+    if hash_link:
+        try:
+            survey_template = SurveyTemplate.objects.get(hash_link=hash_link)
             
-            # If no template was found by hash_link, try to get one by institution
-            if not survey_template and request.user.institution_details:
-                # First try to get the used template
+            # Get all questions for this template
+            questions = SurveyQuestion.objects.filter(survey_template=survey_template)
+            if not questions.exists():
+                return JsonResponse({"success": False, "error": "No questions found in the survey template"})
+            
+            # Check if all questions have responses
+            missing_responses = []
+            for question in questions:
+                question_id = str(question.id)
+                if question_id not in request.data:
+                    missing_responses.append(question.question_text[:30] + "...")
+            
+            if missing_responses:
+                return JsonResponse({"success": False, "error": f"Missing responses for questions: {', '.join(missing_responses)}"})
+
+            # Handle the survey submission
+            return _handle_student_responses(request, survey_template, questions)
+            
+        except SurveyTemplate.DoesNotExist:
+            return JsonResponse({"success": False, "error": "Survey template not found"}, status=404)
+
+    # Check if a valid user is submitting the response
+    if not request.user.is_authenticated:
+        return JsonResponse({"success": False, "error": "Please login to the application to submit a survey response"})
+    
+    # Get the survey template - either from request or use a default
+    survey_template_id = request.data.get('survey_template_id')
+    if not survey_template_id:
+        # Try to get the used template first
+        if request.user.institution_details:
+            try:
                 survey_template = SurveyTemplate.objects.filter(
                     institution=request.user.institution_details,
                     used=True
@@ -94,75 +101,35 @@ def survey_view(request, hash_link=None):
                         survey_template.used = True
                         survey_template.save()
                 
-                if survey_template:
-                    context["survey_template_id"] = survey_template.id
-        
-        # Check if the user is an admin
-        elif request.user.is_authenticated and request.user.is_institution_admin:
-            # Redirect to the dashboard page if the user is an admin
-            return redirect("dashboard")
-        else:
-            # Redirect to the login page if the user has not logged in
-            return redirect("login")
-
-        return render(request, 'survey.html', context=context)
-    
-    elif request.method == 'POST':
-        # Check if a valid user is submitting the response
-        if not request.user.is_authenticated:
-            return JsonResponse({"success": False, "error": "Please login to the application to submit a survey response"})
-        
-        # Get the survey template - either from request or use a default
-        survey_template_id = request.data.get('survey_template_id')
-        if not survey_template_id:
-            # Try to get the used template first
-            if request.user.institution_details:
-                try:
-                    survey_template = SurveyTemplate.objects.filter(
-                        institution=request.user.institution_details,
-                        used=True
-                    ).first()
-                    
-                    # If no used template exists, fall back to the one with minimal ID
-                    if not survey_template:
-                        survey_template = SurveyTemplate.objects.filter(
-                            institution=request.user.institution_details
-                        ).order_by('id').first()
-                        
-                        # If we found a template, mark it as used
-                        if survey_template:
-                            survey_template.used = True
-                            survey_template.save()
-                    
-                    if not survey_template:
-                        return JsonResponse({"success": False, "error": "No survey template found for your institution"})
-                except Exception as e:
-                    return JsonResponse({"success": False, "error": f"Error finding survey template: {str(e)}"})
-            else:
-                return JsonResponse({"success": False, "error": "No institution associated with user and no survey template specified"})
-        else:
-            try:
-                survey_template = SurveyTemplate.objects.get(id=survey_template_id)
+                if not survey_template:
+                    return JsonResponse({"success": False, "error": "No survey template found for your institution"})
             except Exception as e:
-                return JsonResponse({"success": False, "error": f"Invalid survey template: {str(e)}"})
+                return JsonResponse({"success": False, "error": f"Error finding survey template: {str(e)}"})
+        else:
+            return JsonResponse({"success": False, "error": "No institution associated with user and no survey template specified"})
+    else:
+        try:
+            survey_template = SurveyTemplate.objects.get(id=survey_template_id)
+        except Exception as e:
+            return JsonResponse({"success": False, "error": f"Invalid survey template: {str(e)}"})
 
-        # Get all questions for this template
-        questions = SurveyQuestion.objects.filter(survey_template=survey_template)
-        if not questions.exists():
-            return JsonResponse({"success": False, "error": "No questions found in the survey template"})
-        
-        # Check if all questions have responses
-        missing_responses = []
-        for question in questions:
-            question_id = str(question.id)
-            if question_id not in request.data:
-                missing_responses.append(question.question_text[:30] + "...")
-        
-        if missing_responses:
-            return JsonResponse({"success": False, "error": f"Missing responses for questions: {', '.join(missing_responses)}"})
+    # Get all questions for this template
+    questions = SurveyQuestion.objects.filter(survey_template=survey_template)
+    if not questions.exists():
+        return JsonResponse({"success": False, "error": "No questions found in the survey template"})
+    
+    # Check if all questions have responses
+    missing_responses = []
+    for question in questions:
+        question_id = str(question.id)
+        if question_id not in request.data:
+            missing_responses.append(question.question_text[:30] + "...")
+    
+    if missing_responses:
+        return JsonResponse({"success": False, "error": f"Missing responses for questions: {', '.join(missing_responses)}"})
 
-        # Important: You can't return a @api_view within another @api_view
-        return _handle_student_responses(request, survey_template, questions)
+    # Important: You can't return a @api_view within another @api_view
+    return _handle_student_responses(request, survey_template, questions)
 
 
 def _handle_student_responses(request, survey_template, questions):
@@ -245,10 +212,46 @@ def _handle_student_responses(request, survey_template, questions):
         })
 
 @api_view(["GET"])
-def get_user_survey_questions(request):
+def get_user_survey_questions(request, hash_link=None):
     """
     API endpoint to get survey questions for the current user based on their institution
     """
+    # Handle hash link requests (no authentication required)
+    if hash_link:
+        try:
+            survey_template = SurveyTemplate.objects.get(hash_link=hash_link)
+            
+            # Get all questions for this template
+            questions = SurveyQuestion.objects.filter(survey_template=survey_template).order_by('order')
+            
+            if not questions.exists():
+                return JsonResponse({
+                    "success": False, 
+                    "error": "No survey questions found for this template"
+                }, status=404)
+            
+            # Serialize the questions
+            questions_data = [{
+                'id': q.id,
+                'text': q.question_text,
+                'type': q.question_type,
+                'category': q.category,
+                'answer_choices': q.answer_choices,
+                'order': q.order
+            } for q in questions]
+            
+            return JsonResponse({
+                "success": True, 
+                "template_id": survey_template.id,
+                "questions": questions_data
+            })
+            
+        except SurveyTemplate.DoesNotExist:
+            return JsonResponse({
+                "success": False, 
+                "error": "Survey template not found"
+            }, status=404)
+
     if not request.user.is_authenticated:
         return JsonResponse({"success": False, "error": "Authentication required"})
     
@@ -519,6 +522,209 @@ def dashboard_view(request):
 
     return render(request, 'dashboard.html', context=context)
 
+@api_view(["GET"])
+def dashboard_api(request):
+    """
+    dashboard_view returns the dashboard page for a particular university.
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+    
+    if request.user.is_superuser:
+        return JsonResponse({"error": "Superuser access not allowed"}, status=403)
+    
+    if not request.user.is_institution_admin:
+        return JsonResponse({"error": "Admin access required"}, status=403)
+    
+    if not request.user.is_authenticated:
+        return redirect("login")
+    
+    if request.user.is_superuser:
+        return redirect(reverse("admin:index"))
+    
+    if not request.user.is_institution_admin:
+        return HttpResponseBadRequest("Bad request: resource not found/bad request")
+    
+    # Get the institution details of the admin
+    institution_details = request.user.institution_details
+
+    # Number of students registered in the university
+    num_students = len(User.objects.filter(is_student=True, institution_details=institution_details))
+
+    responded_students = 0
+    # Get all students in the institution
+    institution_students = User.objects.filter(is_student=True, institution_details=institution_details)
+    
+    # Initialize list for flagged students
+    school_flagged_responses = []
+    
+    # For each student, check if their latest response is flagged
+    for student in institution_students:
+        # Get the latest response for this student
+        latest_response = SurveyResponse.objects.filter(student=student).order_by('-created').first()
+        if latest_response:
+            responded_students += 1
+        # If the student has a response and it's flagged, add them to the list
+        if latest_response and latest_response.flagged:
+            school_flagged_responses.append((student.name, student.email))
+
+    # Number of responses for students registered in the university
+    all_responses = SurveyResponse.objects.filter(student__institution_details=institution_details)
+    num_responses = len(all_responses)
+
+    
+    # Number of students registered in the university and marked as flagged
+    num_flagged_students = len(school_flagged_responses)
+    
+    # Get all survey templates for this institution
+    survey_templates = SurveyTemplate.objects.filter(institution=institution_details)
+    
+    # Check if there are sleep quality questions
+    has_sleep_questions = SurveyQuestion.objects.filter(
+        survey_template__in=survey_templates,
+        category=QuestionCategory.SLEEP
+    ).exists()
+    
+    # Check if there are stress level questions
+    has_stress_questions = SurveyQuestion.objects.filter(
+        survey_template__in=survey_templates,
+        category=QuestionCategory.STRESS
+    ).exists()
+    
+    # Check if there are support perception questions
+    has_support_questions = SurveyQuestion.objects.filter(
+        survey_template__in=survey_templates,
+        category=QuestionCategory.SUPPORT
+    ).exists()
+    
+    # Initialize metrics with default values
+    num_good_sleep_quality = 0
+    num_bad_sleep_quality = 0
+    num_low_stress = 0
+    num_moderate_stress = 0
+    num_high_stress = 0
+    monthly_support_perception = []
+    
+    # Only calculate sleep metrics if sleep questions exist
+    if has_sleep_questions:
+        # Find sleep quality questions
+        sleep_questions = SurveyQuestion.objects.filter(
+            survey_template__in=survey_templates,
+            category=QuestionCategory.SLEEP
+        )
+        
+        # Get responses for sleep questions
+        for response in all_responses:
+            for sleep_question in sleep_questions:
+                try:
+                    question_response = QuestionResponse.objects.get(
+                        survey_response=response,
+                        question=sleep_question
+                    )
+                    if question_response.likert_value is not None:
+                        if question_response.likert_value <= 2:
+                            num_good_sleep_quality += 1
+                        elif question_response.likert_value >= 4:
+                            num_bad_sleep_quality += 1
+                except QuestionResponse.DoesNotExist:
+                    continue
+    
+    # Only calculate stress metrics if stress questions exist
+    if has_stress_questions:
+        # Find stress level questions
+        stress_questions = SurveyQuestion.objects.filter(
+            survey_template__in=survey_templates,
+            category=QuestionCategory.STRESS
+        )
+        
+        # Get responses for stress questions
+        for response in all_responses:
+            for stress_question in stress_questions:
+                try:
+                    question_response = QuestionResponse.objects.get(
+                        survey_response=response,
+                        question=stress_question
+                    )
+                    if question_response.likert_value is not None:
+                        if question_response.likert_value <= 2:
+                            num_low_stress += 1
+                        elif question_response.likert_value == 3:
+                            num_moderate_stress += 1
+                        elif question_response.likert_value >= 4:
+                            num_high_stress += 1
+                except QuestionResponse.DoesNotExist:
+                    continue
+
+    months = []
+    months_idx = []
+    monthly_response_rates = []
+    monthly_num_responses = []
+    
+    # Only process if there are responses
+    if all_responses.exists():
+        months = list(calendar.month_abbr[1:all_responses.order_by("-created")[0].created.month + 1])
+        months_idx = range(1, all_responses.order_by("-created")[0].created.month + 1)
+        
+        # Compute monthly trends
+        for month in months_idx:
+            # Get all responses for this month
+            month_responses = all_responses.filter(created__year=timezone.now().year, created__month=month)
+            
+            # Count unique students who responded in this month
+            unique_students_responded = month_responses.values('student').distinct().count()
+            
+            # Calculate response rate based on unique students
+            monthly_response_rates.append(int(unique_students_responded/num_students * 100) if num_students > 0 else 0)
+            
+            # Store the count of unique student responses
+            monthly_num_responses.append(unique_students_responded)
+            
+            # Only calculate support perception if support questions exist
+            if has_support_questions:
+                # Rest of the support perception calculation remains the same
+                support_count = 0
+                support_questions = SurveyQuestion.objects.filter(
+                    survey_template__in=survey_templates,
+                    category=QuestionCategory.SUPPORT
+                )
+                
+                for response in month_responses:
+                    for support_question in support_questions:
+                        try:
+                            question_response = QuestionResponse.objects.get(
+                                survey_response=response,
+                                question=support_question
+                            )
+                            if question_response.likert_value is not None and question_response.likert_value <= 2:
+                                support_count += 1
+                        except QuestionResponse.DoesNotExist:
+                            continue
+                
+                monthly_support_perception.append(support_count)
+
+    context = {
+        "num_students": num_students, 
+        "flagged_students": school_flagged_responses, 
+        "num_flagged_students": num_flagged_students, 
+        "num_responses": num_responses,
+        "response_rate": int(responded_students/num_students * 100) if num_students > 0 else 0,
+        "num_stable_students": num_students - num_flagged_students, 
+        "num_good_sleep_quality": num_good_sleep_quality,
+        "num_bad_sleep_quality": num_bad_sleep_quality, 
+        "num_low_stress": num_low_stress,
+        "num_moderate_stress": num_moderate_stress, 
+        "num_high_stress": num_high_stress,
+        "months": months, 
+        "monthly_response_rates": monthly_response_rates, 
+        "monthly_num_responses": monthly_num_responses,
+        "monthly_support_perception": monthly_support_perception,
+        "has_sleep_questions": has_sleep_questions,
+        "has_stress_questions": has_stress_questions,
+        "has_support_questions": has_support_questions
+    }
+
+    return JsonResponse(context)
+
 '''
 def login_view(request):
     """
@@ -787,9 +993,9 @@ def student_response_view(request):
 
 
 @api_view(["GET"])
-def flagged_students_view(request):
+def flagged_responses_view(request):
     """
-    flagged_students_view is an API view that returns all flagged students
+    flagged_responses_view is an API view that returns all flagged survey responses
     in the database
     """
     if request.method == "GET" and request.user.is_authenticated and (request.user.is_superuser or request.user.is_institution_admin):
@@ -800,20 +1006,75 @@ def flagged_students_view(request):
     else:
         return HttpResponseBadRequest("Request method not allowed")
     
-
 @api_view(["GET"])
 def students_view(request):
     """
     students_view is an API view that returns all students
     in the database
     """
-    if request.method == "GET" and request.user.is_authenticated and request.user.is_superuser:
+    if request.method == "GET" and request.user.is_authenticated and (request.user.is_superuser or request.user.is_institution_admin):
         all_students = User.objects.filter(is_student=True)
         user_serializer = UserSerializer(all_students, many=True)
         return Response(user_serializer.data)
     
     else:
         return HttpResponseBadRequest("Request method not allowed")
+
+@api_view(["GET"])
+def flagged_students_view(request):
+    """
+    flagged_students_view returns all students whose latest survey response is flagged.
+    Only returns unique students, not all their responses.
+    
+    Access: Institution admins see their institution's students, superusers see all.
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+    
+    if not (request.user.is_superuser or request.user.is_institution_admin):
+        return JsonResponse({"error": "Admin access required"}, status=403)
+    
+    try:
+        flagged_students_data = []
+        
+        # Superuser sees all students, institution admin sees only their students
+        if request.user.is_superuser:
+            students = User.objects.filter(is_student=True)
+        else:
+            students = User.objects.filter(
+                is_student=True, 
+                institution_details=request.user.institution_details
+            )
+        
+        # Check each student's latest response
+        for student in students:
+            latest_response = SurveyResponse.objects.filter(
+                student=student
+            ).order_by('-created').first()
+            
+            # If latest response exists and is flagged, include this student
+            if latest_response and latest_response.flagged:
+                flagged_students_data.append({
+                    "id": student.id,
+                    "name": student.name,
+                    "email": student.email,
+                    "institution_id": student.institution_details.id if student.institution_details else None,
+                    "institution_name": student.institution_details.institution_name if student.institution_details else None,
+                    "latest_response_date": latest_response.created,
+                    "latest_response_id": latest_response.id
+                })
+        
+        return JsonResponse({
+            "success": True,
+            "count": len(flagged_students_data),
+            "flagged_students": flagged_students_data
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            "success": False,
+            "error": f"Error retrieving flagged students: {str(e)}"
+        }, status=500)
 
 @api_view(["GET"])
 def institutions_view(request):

@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import '../assets/login.css';
 import { Helmet } from 'react-helmet';
 import api from '../api';
+import {getUserStatus} from './Index';
 /*
 {% if messages %}
       <div id="messageModal" class="modal">
@@ -36,18 +37,6 @@ export function LoginMessage({message, onClose}) {
         </div>
     );
 }
-
-export const getUserStatus = async () => {
-  try {
-      const response = await api.get('/api/user/');
-      return response.data;  // this will contain all User fields since fields = "__all__"
-  } catch (error) {
-      if (error.response?.status === 401) {
-          return { isAuthenticated: false };
-      }
-      throw error;
-  }
-};
 
 function Head() {
     return (

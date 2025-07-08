@@ -40,18 +40,28 @@ services:
         max-size: "10m"
         max-file: "3"
     command: >
-        bash -c "python manage.py makemigrations surveys && 
-                 python manage.py migrate && 
-                 python manage.py shell -c \"from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.filter(email='${ADMIN_EMAIL}').exists() or User.objects.create_superuser(email='${ADMIN_EMAIL}', password='${ADMIN_PASSWORD}')\" && 
-                 gunicorn core.wsgi:application --bind 0.0.0.0:8000"
+        bash -c "
+        echo '=== Checking built static files ===' &&
+        ls -la /app/backend/staticfiles/ &&
+        echo '=== Copying to shared volume ===' &&
+        cp -r /app/backend/staticfiles/* /shared_static/ &&
+        echo '=== Files copied to shared volume ===' &&
+        ls -la /shared_static/ &&
+        echo '=== Starting Django ===' &&
+        python manage.py makemigrations surveys && 
+        python manage.py migrate && 
+        python manage.py shell -c \"from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.filter(email='${ADMIN_EMAIL}').exists() or User.objects.create_superuser(email='${ADMIN_EMAIL}', password='${ADMIN_PASSWORD}')\" && 
+        gunicorn core.wsgi:application --bind 0.0.0.0:8000
+        "
+    volumes:
+      - static_volume:/shared_static
 
   nginx:
     image: nginx:1.24
     container_name: nginx
     restart: on-failure:5
-    volumes_from:
-      - web:ro
     volumes:
+      - static_volume:/usr/share/nginx/html:ro
       - /home/ec2-user/app/default.conf:/etc/nginx/conf.d/default.conf
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - /var/www/certbot:/var/www/certbot:ro
@@ -63,3 +73,4 @@ services:
 
 volumes:
   mysql_data:
+  static_volume:

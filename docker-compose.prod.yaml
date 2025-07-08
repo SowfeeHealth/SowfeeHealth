@@ -14,7 +14,6 @@ services:
       timeout: 8s
       retries: 8
       start_period: 30s
-    # 限制资源使用
     deploy:
       resources:
         limits:
@@ -31,30 +30,28 @@ services:
     env_file: .env
     environment:
       - DJANGO_SETTINGS_MODULE=core.settings
-      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}  # Add this line
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
     ports:
       - "8000:8000"
-    working_dir: /app/backend  # Add this line
+    working_dir: /app/backend
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-    # 注释或删除下面的 command 部分，使用 Dockerfile 中的 CMD
     command: >
-        bash -c "python manage.py makemigrations surveys && python manage.py migrate && 
-                 python manage.py collectstatic --noinput &&
+        bash -c "python manage.py makemigrations surveys && 
+                 python manage.py migrate && 
                  python manage.py shell -c \"from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.filter(email='${ADMIN_EMAIL}').exists() or User.objects.create_superuser(email='${ADMIN_EMAIL}', password='${ADMIN_PASSWORD}')\" && 
                  gunicorn core.wsgi:application --bind 0.0.0.0:8000"
-    volumes:
-      - static_volume:/app/backend/staticfiles
 
   nginx:
     image: nginx:1.24
     container_name: nginx
     restart: on-failure:5
+    volumes_from:
+      - web:ro
     volumes:
-      - static_volume:/usr/share/nginx/html
       - /home/ec2-user/app/default.conf:/etc/nginx/conf.d/default.conf
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - /var/www/certbot:/var/www/certbot:ro
@@ -66,4 +63,3 @@ services:
 
 volumes:
   mysql_data:
-  static_volume:

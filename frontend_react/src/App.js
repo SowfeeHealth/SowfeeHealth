@@ -7,6 +7,13 @@ import Index from './pages/Index';
 import Survey from './pages/Survey';
 import DemoSurvey from './pages/Demo_survey';
 
+import './assets/index.css';
+import './assets/login.css';
+import './assets/register.css';
+import './assets/survey.css';
+import './assets/dashboard.css';
+import './assets/demo_survey.css';
+
 function App() {
   return (
       <Router>

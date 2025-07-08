@@ -38,10 +38,10 @@ RUN echo "=== Running Django collectstatic ===" && \
 # Second: Copy React files AFTER collectstatic
 RUN echo "=== Copying React build files AFTER collectstatic ===" && \
     mkdir -p /app/backend/staticfiles/react && \
-    cp -r /app/frontend_react/build/* /app/backend/staticfiles/react/
+    cp -r /app/frontend_react/build/* /app/backend/staticfiles/react/   
 
 # Third: Copy Django static files if they exist
-RUN echo "=== Copying Django static files ===" && \
+RUN echo "=== Copying Django static files ===" && \ 
     if [ -d "/app/frontend/static" ]; then \
         cp -r /app/frontend/static/* /app/backend/staticfiles/ 2>/dev/null || echo "No files to copy from frontend/static"; \
     fi

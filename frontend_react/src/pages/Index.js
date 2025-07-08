@@ -20,7 +20,8 @@ function Head() {
     return (
         <Helmet>
         <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        {/* Remove this line - viewport is already in public/index.html */}
+        {/* <meta name="viewport" content="width=device-width, initial-scale=1.0" /> */}
         <script async src="https://www.googletagmanager.com/gtag/js?id=G-QGYF622KGW"></script>
         <script>
             {`

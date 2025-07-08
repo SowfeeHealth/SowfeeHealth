@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import '../assets/dashboard.css';
 
 const DemoSurvey = () => {
   const [formData, setFormData] = useState({

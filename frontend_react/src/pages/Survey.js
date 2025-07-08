@@ -26,7 +26,6 @@ export const fetchSurveyQuestions = async (hashLink = null) => {
 function Head() {
     return (
     <Helmet>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0"></meta>
         <title>Sowfee Health - Student Wellness Survey</title>
         <link
         rel="stylesheet"

@@ -42,7 +42,6 @@ function Head() {
     return (
         <Helmet>
         <meta charSet="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <script async src="https://www.googletagmanager.com/gtag/js?id=G-QGYF622KGW"></script>
         <script>
             {`

@@ -24,6 +24,6 @@ urlpatterns = [
     path('saodwmfiene*/', admin.site.urls, name="admin"),
     path("", include("surveys.urls")),
     re_path(r'^react-static/(?P<path>.*)$', serve, {
-        'document_root': '/app/backend/staticfiles/react/static',
+        'document_root': '/app/backend/staticfiles/react',
     }),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

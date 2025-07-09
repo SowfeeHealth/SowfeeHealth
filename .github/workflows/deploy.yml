@@ -149,6 +149,8 @@ jobs:
           # start container
           docker-compose -f docker-compose.prod.yaml up -d
 
+          sleep 10
+
           rm -f .env
 
           

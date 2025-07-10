@@ -1,6 +1,5 @@
 import React, {useState, useEffect} from 'react';
 import ReactDOM from 'react-dom/client';
-import '../assets/register.css';
 import { Helmet } from 'react-helmet';
 import api from '../api';
 import { LoginMessage } from './Login';
@@ -217,7 +216,7 @@ function Body() {
                     )}
                     
                     {isSecondPage && (
-                        <button type="submit" className="login-btn submit-button" id="submit_btn">
+                        <button type="submit" className="login-btn" id="submit_btn">
                             Submit
                         </button>
                     )}

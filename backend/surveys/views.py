@@ -809,11 +809,47 @@ def login_view(request):
                     'redirect_path': '/dashboard/' if user.is_institution_admin else '/survey/'
                 })
                 
-                # Set cookies (you had this commented out!)
-                response.set_cookie('auth_token', request.session.session_key, max_age=3600*24*7)
-                response.set_cookie('user_email', email, max_age=3600*24*7)
-                response.set_cookie('is_superuser', 'true' if user.is_superuser else 'false', max_age=3600*24*7)
-                response.set_cookie('is_institution_admin', 'true' if user.is_institution_admin else 'false', max_age=3600*24*7)
+                # Production-ready cookie settings
+                response.set_cookie(
+                    'auth_token', 
+                    request.session.session_key, 
+                    max_age=3600*24*7,
+                    path='/',  # Available on all React routes
+                    domain=None,  # Uses current domain (sowfeehealth.com)
+                    secure=True,  # HTTPS only (you have SSL)
+                    httponly=False,  # Allow React to read cookies
+                    samesite='Lax'  # CSRF protection
+                )
+                response.set_cookie(
+                    'user_email', 
+                    email, 
+                    max_age=3600*24*7,
+                    path='/',
+                    domain=None,
+                    secure=True,  # Important for HTTPS
+                    httponly=False,
+                    samesite='Lax'
+                )
+                response.set_cookie(
+                    'is_superuser', 
+                    'true' if user.is_superuser else 'false', 
+                    max_age=3600*24*7,
+                    path='/',
+                    domain=None,
+                    secure=True,
+                    httponly=False,
+                    samesite='Lax'
+                )
+                response.set_cookie(
+                    'is_institution_admin', 
+                    'true' if user.is_institution_admin else 'false', 
+                    max_age=3600*24*7,
+                    path='/',
+                    domain=None,
+                    secure=True,
+                    httponly=False,
+                    samesite='Lax'
+                )
                 
                 return response
             else:

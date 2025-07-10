@@ -48,7 +48,9 @@ def user_view(request):
 @api_view(["POST"])
 def survey_view(request, hash_link=None):
     """survey_view allows students to access the survey page and save survey responses"""
-    
+    # Check if a valid user is submitting the response
+    if not request.user.is_authenticated:
+        return JsonResponse({"success": False, "error": "Please login to the application to submit a survey response"})
     # Handle hash link survey submission
     if hash_link:
         try:
@@ -74,10 +76,6 @@ def survey_view(request, hash_link=None):
             
         except SurveyTemplate.DoesNotExist:
             return JsonResponse({"success": False, "error": "Survey template not found"}, status=404)
-
-    # Check if a valid user is submitting the response
-    if not request.user.is_authenticated:
-        return JsonResponse({"success": False, "error": "Please login to the application to submit a survey response"})
     
     # Get the survey template - either from request or use a default
     survey_template_id = request.data.get('survey_template_id')
@@ -216,7 +214,9 @@ def get_user_survey_questions(request, hash_link=None):
     """
     API endpoint to get survey questions for the current user based on their institution
     """
-    # Handle hash link requests (no authentication required)
+    if not request.user.is_authenticated:
+        return JsonResponse({"success": False, "error": "Authentication required"})
+    # Handle hash link requests (authentication required)
     if hash_link:
         try:
             survey_template = SurveyTemplate.objects.get(hash_link=hash_link)
@@ -251,9 +251,6 @@ def get_user_survey_questions(request, hash_link=None):
                 "success": False, 
                 "error": "Survey template not found"
             }, status=404)
-
-    if not request.user.is_authenticated:
-        return JsonResponse({"success": False, "error": "Authentication required"})
     
     try:
         survey_template = None

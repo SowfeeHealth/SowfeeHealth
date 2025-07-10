@@ -1,5 +1,4 @@
 import {Helmet} from 'react-helmet';
-import '../assets/survey.css';
 import react, {useState, useEffect} from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../api';

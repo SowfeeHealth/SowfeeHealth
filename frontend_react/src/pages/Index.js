@@ -1,6 +1,5 @@
 import React, {useState, useEffect} from 'react';
 import ReactDOM from 'react-dom/client';
-import '../assets/index.css';
 import { Helmet } from 'react-helmet';
 import api from '../api'
 
@@ -140,7 +139,7 @@ function Header() {
                     {isAuthenticated && (!isSuperUser && isInstitutionAdmin) && (
                       <div>
                         <a href="/dashboard/" id="dashboard-button">Dashboard</a>
-                        <a href="/api/admin/survey-templates/" id="edit-templates-button">Edit Templates</a>
+                        <a href="/admin/survey-templates/" id="edit-templates-button">Edit Templates</a>
                         <a href="/survey/" id="survey-button">Preview Survey</a>
                       </div>
                      )}

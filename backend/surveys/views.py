@@ -949,15 +949,22 @@ def register_view(request):
                 'message': "Registration failed. Please try again."
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+@api_view(["POST"])
 def logout_view(request):
     """
     logout_view allows users to logout of the system
     """
     logout(request)
 
-    # Clear auth cookies
-    response = redirect('index')
+    # Create response with success message
+    response_data = {
+        "success": True,
+        "message": "You have been logged out successfully."
+    }
     
+    response = JsonResponse(response_data)
+    
+    # Clear auth cookies
     cookies_to_clear = [
         'auth_token', 
         'user_email', 
@@ -967,8 +974,6 @@ def logout_view(request):
     
     for cookie_name in cookies_to_clear:
         response.delete_cookie(cookie_name)
-    
-    messages.success(request, "You have been logged out successfully.")
     
     return response
 

@@ -109,10 +109,31 @@ function Header() {
       setIsSuperUser(false);
       setIsInstitutionAdmin(false);
       
+      // Clear all stored authentication data
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_email');
+      localStorage.removeItem('is_superuser');
+      localStorage.removeItem('is_institution_admin');
+      
+      // Clear session storage as well
+      sessionStorage.clear();
+      
       // Redirect to home
       window.location.href = '/';
     } catch (error) {
       console.error('Logout failed:', error);
+      
+      // Even if logout fails, clear local data and redirect
+      // This ensures user is logged out locally even if server fails
+      setIsAuthenticated(false);
+      setUserEmail('');
+      setIsSuperUser(false);
+      setIsInstitutionAdmin(false);
+      
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      window.location.href = '/';
     }
   };
 

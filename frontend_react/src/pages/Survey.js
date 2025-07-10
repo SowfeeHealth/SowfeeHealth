@@ -30,6 +30,14 @@ function Head() {
     );
 }
 
+// Add this helper function at the top after imports
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
+
 function SurveyQuestions() {
     const { hashLink } = useParams(); // Get hash link from URL parameters
     const [studentName, setStudentName] = useState('');
@@ -47,6 +55,7 @@ function SurveyQuestions() {
         setMessage(null);
     };
     
+    // Replace the current fetchData function with this enhanced version:
     const fetchData = async () => {
         try {
             // Determine if this is a hash link survey
@@ -62,17 +71,34 @@ function SurveyQuestions() {
                     setTemplateId(responseData.template_id);
                     setHasQuestions(true);
                     
-                    // Try to get user data if authenticated, but don't require it
-                    try {
-                        const userData = await getUserStatus();
-                        if (userData && userData.email) {
-                            setStudentEmail(userData.email);
-                            setStudentName(userData.name);
-                            setIsAdmin(userData.is_institution_admin || false);
+                    // Enhanced authentication check with cookie/localStorage fallback
+                    const checkAuthStatus = async () => {
+                        const token = getCookie('auth_token') || localStorage.getItem('auth_token');
+                        const emailFromCookie = getCookie('user_email') || localStorage.getItem('user_email');
+                        const isInstitutionAdminCookie = getCookie('is_institution_admin') || localStorage.getItem('is_institution_admin');
+                        
+                        if (token && emailFromCookie) {
+                            setStudentEmail(emailFromCookie);
+                            setStudentName(emailFromCookie.split('@')[0]); // Extract name from email
+                            setIsAdmin(isInstitutionAdminCookie === 'true');
+                            return;
                         }
-                    } catch (error) {
-                        // User not authenticated - that's okay for hash link surveys
-                    }
+                        
+                        // Fallback to API call
+                        try {
+                            const userData = await getUserStatus();
+                            if (userData && userData.email) {
+                                setStudentEmail(userData.email);
+                                setStudentName(userData.name);
+                                setIsAdmin(userData.is_institution_admin || false);
+                            }
+                        } catch (error) {
+                            // User not authenticated - that's okay for hash link surveys
+                            console.log('User not authenticated for hash link survey');
+                        }
+                    };
+                    
+                    await checkAuthStatus();
                 } else {
                     setHasQuestions(false);
                     setSurveyQuestions([]);

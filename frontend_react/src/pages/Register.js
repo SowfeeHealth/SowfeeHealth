@@ -135,6 +135,7 @@ function Body() {
                         ))}
                     </select>
                     <span id="institution-error" className="error_message"></span>
+                    <p style={{fontSize: '14px', color: '#666', marginTop: '8px', marginBottom: '0'}}>Don't see your institution? Contact sales to add it.</p>
             </div>
             
             <div className="form-group">

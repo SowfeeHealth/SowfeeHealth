@@ -12,6 +12,7 @@ function SurveyTemplates() {
     const [questions, setQuestions] = useState([]);
     const [showQuestionsSection, setShowQuestionsSection] = useState(false);
     const [createButtonDisabled, setCreateButtonDisabled] = useState(false);
+    const [showHashLinks, setShowHashLinks] = useState(false); // Add this state
     const navigate = useNavigate();
 
     // Form state for adding questions
@@ -212,6 +213,22 @@ function SurveyTemplates() {
         }
     };
 
+    
+    // Add this function to toggle hash links visibility
+    const toggleHashLinks = () => {
+        setShowHashLinks(!showHashLinks);
+    };
+
+    // Add this function to copy hash link
+    const copyHashLink = (hashLink) => {
+        const fullUrl = `https://sowfeehealth.com/survey/link/${hashLink}`;
+        navigator.clipboard.writeText(fullUrl).then(() => {
+            showMessage('Hash link copied to clipboard!', 'success');
+        }).catch(() => {
+            showMessage('Failed to copy link to clipboard', 'error');
+        });
+    };
+
     const getCategoryOptions = () => {
         if (questionForm.question_type === 'likert') {
             return [
@@ -263,6 +280,24 @@ function SurveyTemplates() {
                                     <div className="template-info">
                                         <strong>Template ID:</strong> {template.id}
                                         {template.used && <span className="badge-success">Currently Used</span>}
+                                        
+                                        {/* Add hash link display with copy button */}
+                                        {showHashLinks && (
+                                            <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#f8f9fa', borderRadius: '4px', fontSize: '12px' }}>
+                                                <strong>Survey Link:</strong> 
+                                                <br />
+                                                <code style={{ wordBreak: 'break-all', backgroundColor: '#e9ecef', padding: '2px 4px', borderRadius: '2px' }}>
+                                                    https://sowfeehealth.com/survey/link/{template.hash_link}
+                                                </code>
+                                                <button 
+                                                    className="btn"
+                                                    style={{ marginLeft: '8px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer' }}
+                                                    onClick={() => copyHashLink(template.hash_link)}
+                                                >
+                                                    Copy Link
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="template-actions">
                                         <button className="btn" onClick={() => selectTemplate(template.id)}>
@@ -281,7 +316,21 @@ function SurveyTemplates() {
                             ))
                         )}
                     </div>
+                    
                     <div className="button-row">
+                        {/* Add the toggle button */}
+                        <button 
+                            className="btn" 
+                            onClick={toggleHashLinks}
+                            style={{ 
+                                backgroundColor: showHashLinks ? '#28a745' : '#6c757d',
+                                color: 'white',
+                                marginRight: '10px'
+                            }}
+                        >
+                            {showHashLinks ? 'Hide Survey Links' : 'Show Survey Links'}
+                        </button>
+                        
                         <button 
                             className="btn" 
                             id="create-template-btn" 

@@ -26,10 +26,6 @@ function Head() {
     return (
     <Helmet>
         <title>Sowfee Health - Student Wellness Survey</title>
-        <link
-        rel="stylesheet"
-        href= "{% static 'survey.css' %}"
-        />
     </Helmet>
     );
 }

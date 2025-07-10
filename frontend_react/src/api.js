@@ -21,7 +21,7 @@ function getCSRFToken() {
 async function ensureCSRFToken() {
     if (!getCSRFToken()) {
         console.log('No CSRF token found, fetching...');
-        await axios.get('http://localhost:8000/api/csrf/', { withCredentials: true });
+        await axios.get('/api/csrf/', { withCredentials: true });
     }
 }
 

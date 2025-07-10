@@ -185,7 +185,7 @@ function Dashboard() {
                     Edit Templates
                 </button>
                 <button 
-                    onClick={() => window.location.href = '/admin/schedule-survey/'}
+                    onClick={() => window.location.href = '/schedule-survey/'}
                     className="link-btn"
                 >
                     Schedule Survey

@@ -1,32 +1,3 @@
-:root {
-  --primary: #7c3aed;
-  --primary-light: #a855f7;
-  --primary-lighter: #c4b5fd;
-  --primary-lightest: #ede9fe;
-  --secondary: #f9fafb;
-  --text: #1f2937;
-  --text-light: #6b7280;
-  --text-lighter: #9ca3af;
-  --white: #ffffff;
-  --border: #e5e7eb;
-  --border-focus: #7c3aed;
-  --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  --radius: 0.75rem;
-  --radius-xl: 0.75rem;
-}
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-  line-height: 1.6;
-}
-
 /* Main container */
 .min-h-screen {
   min-height: 100vh;

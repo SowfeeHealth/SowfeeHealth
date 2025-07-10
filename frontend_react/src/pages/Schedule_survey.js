@@ -95,10 +95,10 @@ function ScheduleSurvey() {
                             </li>
                             <li>
                                 <button 
-                                    onClick={() => navigate('/schedule-survey')} 
+                                    onClick={() => navigate('/')} 
                                     className="nav-link active"
                                 >
-                                    Schedule Survey (For demo)
+                                    Back to Homepage
                                 </button>
                             </li>
                         </ul>
@@ -231,16 +231,12 @@ function ScheduleSurvey() {
                                 )}
 
                                 <button type="submit" className="submit-btn">
-                                    Schedule Survey
+                                    Schedule Survey - For Demo Purposes Only
                                 </button>
                             </form>
                         </div>
                     </main>
                 </div>
-
-                <footer className="footer">
-                    <p>&copy; 2024 Sowfee Health. All rights reserved.</p>
-                </footer>
             </div>
         </>
     );

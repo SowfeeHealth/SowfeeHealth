@@ -108,7 +108,14 @@ function Body() {
     }, []);
 
     return(
-    <div className="login-wrapper">  
+    <div className="login-wrapper">
+        <button 
+                type="button"
+                className="back-button"
+                onClick={() => window.location.href = '/'}
+            >
+            ← Back
+        </button>  
         <div className="login-container">
         <div className="login-logo">Sowfee Health</div>
 

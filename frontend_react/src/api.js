@@ -21,14 +21,14 @@ function getCSRFToken() {
 async function ensureCSRFToken() {
     if (!getCSRFToken()) {
         console.log('No CSRF token found, fetching...');
-        await axios.get('http://localhost:8000/api/csrf/', { withCredentials: true });
+        await axios.get('/api/csrf/', { withCredentials: true });
         //await axios.get('http://localhost:8000/api/csrf/', { withCredentials: true }), for development;
     }
 }
 
 // Configure axios with CSRF token
 const api = axios.create({
-    baseURL: 'http://localhost:8000',
+    baseURL: '',
     // baseURL: 'http://localhost:8000', for development
     withCredentials: true,
 });

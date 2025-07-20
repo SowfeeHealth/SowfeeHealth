@@ -788,7 +788,6 @@ def logout_view(request):
             cookie_name, 
             path="/", 
             domain=settings.COOKIE_DOMAIN,
-            secure=settings.COOKIE_SECURE  # Add this line!
         )
     
     return response

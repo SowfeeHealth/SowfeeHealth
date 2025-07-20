@@ -29,11 +29,9 @@ urlpatterns = [
 
     
     # Keep your other existing URLs
-    path('api/dashboard-view/', views.dashboard_view, name='dashboard'),
     path('api/survey/', views.survey_view, name='survey'),
     path('api/login/', views.login_view, name='login'),
     path("api/register/", views.register_view, name="register"),
     path("api/logout/", views.logout_view, name="logout"),
     path("api/demo-survey/", views.demo_survey_view, name="demo-survey"),
-    path('api/index/', views.index_view, name='index'),
 ]

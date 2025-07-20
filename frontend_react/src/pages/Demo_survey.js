@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import '../assets/demo_survey.css'
 
 const DemoSurvey = () => {
   const [formData, setFormData] = useState({

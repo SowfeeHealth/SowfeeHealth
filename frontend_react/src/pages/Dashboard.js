@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import '../assets/dashboard.css'; // Copy your existing CSS
 import api from '../api';
 import { getUserStatus } from './Index';
+import { copyHashLink, showMessage } from '../utils/surveyUtils';
 import {Chart as ChartJS,
   CategoryScale,
   LinearScale,
@@ -33,6 +34,11 @@ function Dashboard() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [showMore, setShowMore] = useState(false);
+    const [currentTemplate, setCurrentTemplate] = useState(null);
+    const [message, setMessage] = useState({ text: '', type: '' });
+
+    // Create the showMessage function using the utility
+    const displayMessage = showMessage(setMessage);
 
     const fetchDashboardData = async () => {
         try {
@@ -55,6 +61,14 @@ function Dashboard() {
             const response = await api.get('/api/dashboard/');
             setDashboardData(response.data);
             
+            // Fetch current survey template
+            const templatesResponse = await api.get('/api/survey-templates/');
+            if (templatesResponse.data.success && templatesResponse.data.templates.length > 0) {
+                // Find the template marked as 'used' or get the first one
+                const activeTemplate = templatesResponse.data.templates.find(t => t.used) || templatesResponse.data.templates[0];
+                setCurrentTemplate(activeTemplate);
+            }
+            
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
             setError('Failed to load dashboard data');
@@ -74,10 +88,19 @@ function Dashboard() {
     const toggleMoreStudents = () => {
               setShowMore(!showMore);
             }
+
+    const copyCurrentTemplateLink = () => {
+        if (currentTemplate && currentTemplate.hash_link) {
+            copyHashLink(currentTemplate.hash_link, displayMessage);
+        } else {
+            displayMessage('No active survey template found', 'error');
+        }
+    };
     
     const responseChartData = {
         labels: dashboardData.months || [],
         datasets: [{
+            label: 'Number of students responded each month',
             data: dashboardData.monthly_num_responses || [],
             backgroundColor: '#6936f5',
             borderRadius: 8,
@@ -157,7 +180,7 @@ function Dashboard() {
             },
             title: {
                 display: true,
-                text: 'Monthly Survey Responses',
+                text: 'Unique Students Surveyed by Month',
             },
         },
     };
@@ -170,6 +193,13 @@ function Dashboard() {
                     Comprehensive overview of student mental health data
                 </p>
             </div>
+
+            {/* Message display */}
+            {message.text && (
+                <div id="messages">
+                    <div className={`${message.type}-message`}>{message.text}</div>
+                </div>
+            )}
 
             <div className="home-button-wrapper">
                 <button 
@@ -189,6 +219,13 @@ function Dashboard() {
                     className="link-btn"
                 >
                     Schedule Survey
+                </button>
+                <button 
+                    onClick={copyCurrentTemplateLink}
+                    className="link-btn"
+                    disabled={!currentTemplate}
+                >
+                    Copy Survey Link
                 </button>
             </div>
 

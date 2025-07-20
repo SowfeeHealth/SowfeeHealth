@@ -1,6 +1,5 @@
 import React, {useState, useEffect} from 'react';
 import ReactDOM from 'react-dom/client';
-import '../assets/login.css';
 import { Helmet } from 'react-helmet';
 import api from '../api';
 import {getUserStatus} from './Index';
@@ -113,6 +112,9 @@ function Body() {
                 // Get user data to determine redirect
                 const userData = await getUserStatus();
                 
+                const urlParams = new URLSearchParams(window.location.search);
+                const nextUrl = urlParams.get('next');
+
                 let redirectPath = '/survey/'; // Default for regular users
                 
                 if (userData.is_superuser) {
@@ -123,6 +125,11 @@ function Body() {
                     return;
                 } else if (userData.is_institution_admin) {
                     redirectPath = '/dashboard/';
+                }
+
+                // Override with next URL if it's a hash link survey
+                if (nextUrl && nextUrl.startsWith('/survey/link/')) {
+                    redirectPath = nextUrl;
                 }
                 
                 // Redirect after showing success message
@@ -161,6 +168,13 @@ function Body() {
     }
     return (
         <div className="login-wrapper"> 
+            <button 
+                type="button"
+                className="back-button"
+                onClick={() => window.location.href = '/'}
+            >
+                ← Back
+            </button>
             <div className="login-container">
                 <div className="login-logo">Sowfee Health</div>
 

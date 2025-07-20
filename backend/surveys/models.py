@@ -138,7 +138,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     def is_staff(self):
         return self.is_admin
 
-
 # In SurveyTemplate class
 class SurveyTemplate(models.Model):
     """
@@ -152,7 +151,15 @@ class SurveyTemplate(models.Model):
     def __str__(self):
         return f"Survey for {self.institution.institution_name}"
 
-
+class AnonymousStudent(models.Model):
+    email = models.EmailField(primary_key=True)
+    name = models.CharField(null=True, max_length=250)
+    survey_template = models.ForeignKey(SurveyTemplate, on_delete=models.CASCADE, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return self.email
+        
 class QuestionType(models.TextChoices):
     LIKERT = 'likert', 'Likert Scale (1-5)'
     TEXT = 'text', 'Text Response'
@@ -210,9 +217,10 @@ class SurveyResponse(models.Model):
     SurveyResponse represents a complete survey submission by a student
     """
     id = models.AutoField(primary_key=True)
-    student = models.ForeignKey(User, on_delete=models.CASCADE)
+    student = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    anonymous_student = models.ForeignKey(AnonymousStudent, on_delete=models.CASCADE, null=True, blank=True)
     # Option 1: Allow null temporarily during migration
-    survey_template = models.ForeignKey(SurveyTemplate, on_delete=models.CASCADE, null=True)
+    survey_template = models.ForeignKey(SurveyTemplate, on_delete=models.CASCADE, null=True, blank=True)
     # OR Option 2: Provide a default value
     # survey_template = models.ForeignKey(SurveyTemplate, on_delete=models.CASCADE, default=1)
     created = models.DateTimeField(auto_now_add=True)

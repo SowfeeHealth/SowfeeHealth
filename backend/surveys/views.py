@@ -1,8 +1,8 @@
 import logging
 import calendar
 import re
-from .models import SurveyResponse, User, Institution, SurveyTemplate, SurveyQuestion, QuestionResponse, QuestionType, QuestionCategory
-from .serializers import SurveyResponseSerializer, UserSerializer, InstitutionSerializer, SurveyTemplateSerializer, SurveyQuestionSerializer
+from .models import SurveyResponse, User, Institution, AnonymousStudent, SurveyTemplate, SurveyQuestion, QuestionResponse, QuestionType, QuestionCategory
+from .serializers import SurveyResponseSerializer, UserSerializer, InstitutionSerializer, SurveyTemplateSerializer, SurveyQuestionSerializer, AnonymousStudentSerializer
 from django.shortcuts import render, redirect
 from django.utils import timezone
 from django.http import JsonResponse, HttpResponseBadRequest, QueryDict
@@ -15,6 +15,8 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework import status
 import json
+from django.db.models import Q
+
 
 # Use a single logger configuration
 logger = logging.getLogger("surveys")
@@ -23,13 +25,6 @@ logger = logging.getLogger("surveys")
 def set_csrf_token(request):
     return JsonResponse({'detail': 'CSRF cookie set'})
 
-def index_view(request):
-    """
-    index_view returns the home page
-    """
-    if request.method == "GET":
-        return render(request, 'index.html')
-   
 def demo_survey_view(request):
     """
     demo_survey_view renders a sample survey response to visitors
@@ -41,25 +36,37 @@ def demo_survey_view(request):
 def user_view(request):
     """user_view returns the current user status"""
     if request.user.is_authenticated:
-        return Response(UserSerializer(request.user).data)
+        # Create the response first
+        response = Response(UserSerializer(request.user).data)
+        
+        # Check and set missing cookies
+        if not request.COOKIES.get('auth_token'):
+            response.set_cookie('auth_token', request.session.session_key, max_age=3600*24*7)
+        
+        if not request.COOKIES.get('user_email'):
+            response.set_cookie('user_email', request.user.email, max_age=3600*24*7)
+            
+        if not request.COOKIES.get('is_superuser'):
+            response.set_cookie('is_superuser', 'true' if request.user.is_superuser else 'false', max_age=3600*24*7)
+            
+        if not request.COOKIES.get('is_institution_admin'):
+            response.set_cookie('is_institution_admin', 'true' if request.user.is_institution_admin else 'false', max_age=3600*24*7)
+        
+        return response
     else:
         return Response({"error": "User not authenticated"}, status=401)
 
 @api_view(["POST"])
 def survey_view(request, hash_link=None):
     """survey_view allows students to access the survey page and save survey responses"""
-    # Check if a valid user is submitting the response
-    if not request.user.is_authenticated:
-        return JsonResponse({"success": False, "error": "Please login to the application to submit a survey response"})
     # Handle hash link survey submission
     if hash_link:
         try:
             survey_template = SurveyTemplate.objects.get(hash_link=hash_link)
-            
             # Get all questions for this template
             questions = SurveyQuestion.objects.filter(survey_template=survey_template)
             if not questions.exists():
-                return JsonResponse({"success": False, "error": "No questions found in the survey template"})
+                return JsonResponse({"success": False, "message": "No questions found in the survey template"})
             
             # Check if all questions have responses
             missing_responses = []
@@ -69,14 +76,16 @@ def survey_view(request, hash_link=None):
                     missing_responses.append(question.question_text[:30] + "...")
             
             if missing_responses:
-                return JsonResponse({"success": False, "error": f"Missing responses for questions: {', '.join(missing_responses)}"})
+                return JsonResponse({"success": False, "message": f"Missing responses for questions: {', '.join(missing_responses)}"})
 
             # Handle the survey submission
-            return _handle_student_responses(request, survey_template, questions)
+            return _handle_student_responses(request, survey_template, questions, True)
             
         except SurveyTemplate.DoesNotExist:
-            return JsonResponse({"success": False, "error": "Survey template not found"}, status=404)
-    
+            return JsonResponse({"success": False, "message": "Survey template not found"}, status=404)
+    # Check if a valid user is submitting the response
+    if not request.user.is_authenticated:
+        return JsonResponse({"success": False, "message": "Please login to the application to submit a survey response"})
     # Get the survey template - either from request or use a default
     survey_template_id = request.data.get('survey_template_id')
     if not survey_template_id:
@@ -100,21 +109,21 @@ def survey_view(request, hash_link=None):
                         survey_template.save()
                 
                 if not survey_template:
-                    return JsonResponse({"success": False, "error": "No survey template found for your institution"})
+                    return JsonResponse({"success": False, "message": "No survey template found for your institution"})
             except Exception as e:
-                return JsonResponse({"success": False, "error": f"Error finding survey template: {str(e)}"})
+                return JsonResponse({"success": False, "message": f"Error finding survey template: {str(e)}"})
         else:
-            return JsonResponse({"success": False, "error": "No institution associated with user and no survey template specified"})
+            return JsonResponse({"success": False, "message": "No institution associated with user and no survey template specified"})
     else:
         try:
             survey_template = SurveyTemplate.objects.get(id=survey_template_id)
         except Exception as e:
-            return JsonResponse({"success": False, "error": f"Invalid survey template: {str(e)}"})
+            return JsonResponse({"success": False, "message": f"Invalid survey template: {str(e)}"})
 
     # Get all questions for this template
     questions = SurveyQuestion.objects.filter(survey_template=survey_template)
     if not questions.exists():
-        return JsonResponse({"success": False, "error": "No questions found in the survey template"})
+        return JsonResponse({"success": False, "message": "No questions found in the survey template"})
     
     # Check if all questions have responses
     missing_responses = []
@@ -124,44 +133,73 @@ def survey_view(request, hash_link=None):
             missing_responses.append(question.question_text[:30] + "...")
     
     if missing_responses:
-        return JsonResponse({"success": False, "error": f"Missing responses for questions: {', '.join(missing_responses)}"})
+        return JsonResponse({"success": False, "message": f"Missing responses for questions: {', '.join(missing_responses)}"})
 
     # Important: You can't return a @api_view within another @api_view
-    return _handle_student_responses(request, survey_template, questions)
+    return _handle_student_responses(request, survey_template, questions, False)
 
 
-def _handle_student_responses(request, survey_template, questions):
+def _handle_student_responses(request, survey_template, questions, hashed=False):
     """
     A function that serializes student responses, returns proper Json responses and saves them to the database.
     """
-    # Get the email and validate it ends with .edu
-    school_email = request.user.email
-    if 'school_email' in request.data:
+    no_student_user = False
+    if hashed:
+        student_name = request.data.get('student_name')
         school_email = request.data.get('school_email')
+        institution_email_regex = survey_template.institution.institution_regex_pattern
+        if not re.fullmatch(institution_email_regex, school_email, re.IGNORECASE):
+            return JsonResponse({
+                "success": False,
+                "message": "Please use your institution email. Normally should end with .edu"
+            })
+        student = User.objects.filter(is_student=True, email=school_email).first()
+        if not student:
+            no_student_user=True
+            ano_student, created = AnonymousStudent.objects.get_or_create(
+                email=school_email,
+                defaults={'name': student_name, 'survey_template': survey_template}
+            )
+        else:
+            # Registered user exists with this email
+            if not request.user.is_authenticated:
+                # They need to log in first
+                return JsonResponse({
+                    "success": False,
+                    "requires_auth": True,
+                    "message": "This email is already registered. Please log in to submit your survey.",
+                })
+            else:
+                # They're already logged in - use their account
+                student = request.user
+                no_student_user = False
+            
+    else:
+        # Get the email and validate it ends with .edu
+        school_email = request.user.email
+
+        # Save the student response
+        student = request.user
     
-    # Check if email ends with .edu
-    if not school_email.lower().endswith('.edu'):
-        return JsonResponse({
-            "success": False,
-            "message": "Please use a valid .edu email address.",
-            "error": "Invalid email domain. Only .edu email addresses are accepted."
-        })
-    
-    # Save the student response
-    student = request.user
-    
-    # Update student name if provided
-    if 'student_name' in request.data and not student.name:
-        student.name = request.data['student_name']
-        student.save()
+        # Update student name if provided
+        if 'student_name' in request.data and not student.name:
+            student.name = request.data['student_name']
+            student.save()
     
     # Create the survey response
     try:
-        survey_response = SurveyResponse.objects.create(
-            student=student,
-            survey_template=survey_template,
-            flagged=False  # Will update this after checking responses
-        )
+        if not no_student_user:
+            survey_response = SurveyResponse.objects.create(
+                student=student,
+                survey_template=survey_template,
+                flagged=False  # Will update this after checking responses
+            )
+        else:
+            survey_response = SurveyResponse.objects.create(
+                anonymous_student=ano_student,
+                survey_template = survey_template,
+                flagged=False
+            )
         
         # Create individual question responses
         should_flag = False
@@ -195,7 +233,7 @@ def _handle_student_responses(request, survey_template, questions):
         response_data = {
             "success": True,
             "message": "Thank you for your honest response! Your input makes a difference.",
-            "redirect_url": reverse('index'),
+            "redirect_url": "/",
             "data": SurveyResponseSerializer(survey_response).data,
         }
         return JsonResponse(response_data)
@@ -206,7 +244,6 @@ def _handle_student_responses(request, survey_template, questions):
         return JsonResponse({
             "success": False,
             "message": "There was an error with your submission.",
-            "error": str(e)
         })
 
 @api_view(["GET"])
@@ -214,8 +251,6 @@ def get_user_survey_questions(request, hash_link=None):
     """
     API endpoint to get survey questions for the current user based on their institution
     """
-    if not request.user.is_authenticated:
-        return JsonResponse({"success": False, "error": "Authentication required"})
     # Handle hash link requests (authentication required)
     if hash_link:
         try:
@@ -251,7 +286,9 @@ def get_user_survey_questions(request, hash_link=None):
                 "success": False, 
                 "error": "Survey template not found"
             }, status=404)
-    
+
+    if not request.user.is_authenticated:
+        return JsonResponse({"success": False, "error": "Authentication required"})
     try:
         survey_template = None
         
@@ -322,203 +359,6 @@ def get_user_survey_questions(request, hash_link=None):
             "error": "An error occurred while loading survey questions"
         }, status=500)
 
-
-def dashboard_view(request):
-    """
-    dashboard_view returns the dashboard page for a particular university.
-    """
-    if request.method != "GET":
-        return HttpResponseBadRequest("Bad request: resource not found/bad request")
-    
-    if not request.user.is_authenticated:
-        return redirect("login")
-    
-    if request.user.is_superuser:
-        return redirect(reverse("admin:index"))
-    
-    if not request.user.is_institution_admin:
-        return HttpResponseBadRequest("Bad request: resource not found/bad request")
-    
-    # Get the institution details of the admin
-    institution_details = request.user.institution_details
-
-    # Number of students registered in the university
-    num_students = len(User.objects.filter(is_student=True, institution_details=institution_details))
-
-    responded_students = 0
-    # Get all students in the institution
-    institution_students = User.objects.filter(is_student=True, institution_details=institution_details)
-    
-    # Initialize list for flagged students
-    school_flagged_responses = []
-    
-    # For each student, check if their latest response is flagged
-    for student in institution_students:
-        # Get the latest response for this student
-        latest_response = SurveyResponse.objects.filter(student=student).order_by('-created').first()
-        if latest_response:
-            responded_students += 1
-        # If the student has a response and it's flagged, add them to the list
-        if latest_response and latest_response.flagged:
-            school_flagged_responses.append((student.name, student.email))
-
-    # Number of responses for students registered in the university
-    all_responses = SurveyResponse.objects.filter(student__institution_details=institution_details)
-    num_responses = len(all_responses)
-
-    
-    # Number of students registered in the university and marked as flagged
-    num_flagged_students = len(school_flagged_responses)
-    
-    # Get all survey templates for this institution
-    survey_templates = SurveyTemplate.objects.filter(institution=institution_details)
-    
-    # Check if there are sleep quality questions
-    has_sleep_questions = SurveyQuestion.objects.filter(
-        survey_template__in=survey_templates,
-        category=QuestionCategory.SLEEP
-    ).exists()
-    
-    # Check if there are stress level questions
-    has_stress_questions = SurveyQuestion.objects.filter(
-        survey_template__in=survey_templates,
-        category=QuestionCategory.STRESS
-    ).exists()
-    
-    # Check if there are support perception questions
-    has_support_questions = SurveyQuestion.objects.filter(
-        survey_template__in=survey_templates,
-        category=QuestionCategory.SUPPORT
-    ).exists()
-    
-    # Initialize metrics with default values
-    num_good_sleep_quality = 0
-    num_bad_sleep_quality = 0
-    num_low_stress = 0
-    num_moderate_stress = 0
-    num_high_stress = 0
-    monthly_support_perception = []
-    
-    # Only calculate sleep metrics if sleep questions exist
-    if has_sleep_questions:
-        # Find sleep quality questions
-        sleep_questions = SurveyQuestion.objects.filter(
-            survey_template__in=survey_templates,
-            category=QuestionCategory.SLEEP
-        )
-        
-        # Get responses for sleep questions
-        for response in all_responses:
-            for sleep_question in sleep_questions:
-                try:
-                    question_response = QuestionResponse.objects.get(
-                        survey_response=response,
-                        question=sleep_question
-                    )
-                    if question_response.likert_value is not None:
-                        if question_response.likert_value <= 2:
-                            num_good_sleep_quality += 1
-                        elif question_response.likert_value >= 4:
-                            num_bad_sleep_quality += 1
-                except QuestionResponse.DoesNotExist:
-                    continue
-    
-    # Only calculate stress metrics if stress questions exist
-    if has_stress_questions:
-        # Find stress level questions
-        stress_questions = SurveyQuestion.objects.filter(
-            survey_template__in=survey_templates,
-            category=QuestionCategory.STRESS
-        )
-        
-        # Get responses for stress questions
-        for response in all_responses:
-            for stress_question in stress_questions:
-                try:
-                    question_response = QuestionResponse.objects.get(
-                        survey_response=response,
-                        question=stress_question
-                    )
-                    if question_response.likert_value is not None:
-                        if question_response.likert_value <= 2:
-                            num_low_stress += 1
-                        elif question_response.likert_value == 3:
-                            num_moderate_stress += 1
-                        elif question_response.likert_value >= 4:
-                            num_high_stress += 1
-                except QuestionResponse.DoesNotExist:
-                    continue
-
-    months = []
-    months_idx = []
-    monthly_response_rates = []
-    monthly_num_responses = []
-    
-    # Only process if there are responses
-    if all_responses.exists():
-        months = list(calendar.month_abbr[1:all_responses.order_by("-created")[0].created.month + 1])
-        months_idx = range(1, all_responses.order_by("-created")[0].created.month + 1)
-        
-        # Compute monthly trends
-        for month in months_idx:
-            # Get all responses for this month
-            month_responses = all_responses.filter(created__year=timezone.now().year, created__month=month)
-            
-            # Count unique students who responded in this month
-            unique_students_responded = month_responses.values('student').distinct().count()
-            
-            # Calculate response rate based on unique students
-            monthly_response_rates.append(int(unique_students_responded/num_students * 100) if num_students > 0 else 0)
-            
-            # Store the count of unique student responses
-            monthly_num_responses.append(unique_students_responded)
-            
-            # Only calculate support perception if support questions exist
-            if has_support_questions:
-                # Rest of the support perception calculation remains the same
-                support_count = 0
-                support_questions = SurveyQuestion.objects.filter(
-                    survey_template__in=survey_templates,
-                    category=QuestionCategory.SUPPORT
-                )
-                
-                for response in month_responses:
-                    for support_question in support_questions:
-                        try:
-                            question_response = QuestionResponse.objects.get(
-                                survey_response=response,
-                                question=support_question
-                            )
-                            if question_response.likert_value is not None and question_response.likert_value <= 2:
-                                support_count += 1
-                        except QuestionResponse.DoesNotExist:
-                            continue
-                
-                monthly_support_perception.append(support_count)
-
-    context = {
-        "num_students": num_students, 
-        "flagged_students": school_flagged_responses, 
-        "num_flagged_students": num_flagged_students, 
-        "num_responses": num_responses,
-        "response_rate": int(responded_students/num_students * 100) if num_students > 0 else 0,
-        "num_stable_students": num_students - num_flagged_students, 
-        "num_good_sleep_quality": num_good_sleep_quality,
-        "num_bad_sleep_quality": num_bad_sleep_quality, 
-        "num_low_stress": num_low_stress,
-        "num_moderate_stress": num_moderate_stress, 
-        "num_high_stress": num_high_stress,
-        "months": months, 
-        "monthly_response_rates": monthly_response_rates, 
-        "monthly_num_responses": monthly_num_responses,
-        "monthly_support_perception": monthly_support_perception,
-        "has_sleep_questions": has_sleep_questions,
-        "has_stress_questions": has_stress_questions,
-        "has_support_questions": has_support_questions
-    }
-
-    return render(request, 'dashboard.html', context=context)
-
 @api_view(["GET"])
 def dashboard_api(request):
     """
@@ -533,25 +373,22 @@ def dashboard_api(request):
     if not request.user.is_institution_admin:
         return JsonResponse({"error": "Admin access required"}, status=403)
     
-    if not request.user.is_authenticated:
-        return redirect("login")
-    
-    if request.user.is_superuser:
-        return redirect(reverse("admin:index"))
-    
-    if not request.user.is_institution_admin:
-        return HttpResponseBadRequest("Bad request: resource not found/bad request")
-    
     # Get the institution details of the admin
     institution_details = request.user.institution_details
 
     # Number of students registered in the university
-    num_students = len(User.objects.filter(is_student=True, institution_details=institution_details))
+    num_registered_students = len(User.objects.filter(is_student=True, institution_details=institution_details))
+
+    num_anonymous_students = len(AnonymousStudent.objects.filter(survey_template__institution=institution_details))
+
+    num_students = num_registered_students+num_anonymous_students
 
     responded_students = 0
     # Get all students in the institution
     institution_students = User.objects.filter(is_student=True, institution_details=institution_details)
     
+    anonymous_students = AnonymousStudent.objects.filter(survey_template__institution=institution_details)
+
     # Initialize list for flagged students
     school_flagged_responses = []
     
@@ -565,10 +402,24 @@ def dashboard_api(request):
         if latest_response and latest_response.flagged:
             school_flagged_responses.append((student.name, student.email))
 
-    # Number of responses for students registered in the university
-    all_responses = SurveyResponse.objects.filter(student__institution_details=institution_details)
-    num_responses = len(all_responses)
+    # For each anonymous student, check if their latest response is flagged
+    for anon_student in anonymous_students:
+        # Get the latest response for this student
+        latest_response = SurveyResponse.objects.filter(anonymous_student=anon_student).order_by('-created').first()
+        if latest_response:
+            responded_students += 1
+        # If the student has a response and it's flagged, add them to the list
+        if latest_response and latest_response.flagged:
+            school_flagged_responses.append((anon_student.name or "Anonymous", anon_student.email))
 
+    # Number of responses for students registered in the university
+    all_registered_responses = SurveyResponse.objects.filter(student__institution_details=institution_details)
+    all_anonymous_responses = SurveyResponse.objects.filter(anonymous_student__survey_template__institution=institution_details)
+    num_responses = len(all_registered_responses)+len(all_anonymous_responses)
+    all_responses = SurveyResponse.objects.filter(
+    Q(student__institution_details=institution_details) | 
+    Q(anonymous_student__survey_template__institution=institution_details)
+)
     
     # Number of students registered in the university and marked as flagged
     num_flagged_students = len(school_flagged_responses)
@@ -668,8 +519,9 @@ def dashboard_api(request):
             month_responses = all_responses.filter(created__year=timezone.now().year, created__month=month)
             
             # Count unique students who responded in this month
-            unique_students_responded = month_responses.values('student').distinct().count()
-            
+            registered_responded = month_responses.filter(student__isnull=False).values('student').distinct().count()
+            anonymous_responded = month_responses.filter(anonymous_student__isnull=False).values('anonymous_student').distinct().count()  
+            unique_students_responded = registered_responded + anonymous_responded
             # Calculate response rate based on unique students
             monthly_response_rates.append(int(unique_students_responded/num_students * 100) if num_students > 0 else 0)
             
@@ -722,64 +574,6 @@ def dashboard_api(request):
 
     return JsonResponse(context)
 
-'''
-def login_view(request):
-    """
-    login_view allows users to login to the system
-    """
-    if request.method == "POST":
-
-        # Extract form data
-        email = request.POST['email']
-        password = request.POST['password']
-        university_id = email.split('@')[1].split('.')[0] if '@' in email else 'Unknown'
-
-        # Authenticate user
-        user = authenticate(request, email=email, password=password)
-        if user is not None:
-            login(request, user)
-            messages.success(request, "Login Successful!")
-            
-            # Set cookies for frontend authentication
-            response = None
-            
-            # Redirect to university dashboard if admin is registered with the system
-            if user.is_institution_admin:
-                response = redirect('dashboard')
-                response.set_cookie('is_institution_admin', 'true', max_age=3600*24*7)
-            else:
-                response = redirect('survey')
-                response.set_cookie('is_institution_admin', 'false', max_age=3600*24*7)
-            
-            # Keep authentication token and email alive for 7 days
-            # After setting other cookies
-            response.set_cookie('auth_token', request.session.session_key, max_age=3600*24*7)
-            response.set_cookie('user_email', email, max_age=3600*24*7)
-            response.set_cookie('is_superuser', 'true' if user.is_superuser else 'false', max_age=3600*24*7)
-            
-            return response
-        
-        else:
-            messages.error(request, "Invalid username or password")
-            return render(request, 'login.html')
-        
-    elif request.method == "GET":
-
-        # Check if the user has been already authenticated
-        if request.user.is_authenticated:
-            
-            # Check if the user is an admin
-            user = User.objects.filter(email = request.user.email).first()
-            if user.is_institution_admin:
-                return redirect("dashboard")
-            else:
-                return redirect("survey")
-
-        return render(request, 'login.html')
-
-    else:
-        return HttpResponseBadRequest("Request method not allowed")
-'''
 @api_view(["POST"])
 def login_view(request):
     if request.method == "POST":
@@ -862,63 +656,6 @@ def login_view(request):
             return JsonResponse({'error': 'Server error occurred'}, status=500)
     return JsonResponse({'error': 'Use POST method'}, status=405)
 
-'''
-def register_view(request):
-    """
-    register_view allows users to register into the system
-    """
-    if request.method == "POST":
-
-        # Extract form data
-        institution_name = request.POST.get("institution_name")
-        name=request.POST.get("name")
-        email = request.POST.get("email")
-        password = request.POST.get("password")
-        confirm_password = request.POST.get("confirm_password")
-
-        # Check if password and confirm_password match
-        if password != confirm_password:
-            messages.error(request, "Passwords do not match.")
-            return redirect("register")
-
-        # Check if user already exists
-        if User.objects.filter(email=email).exists():
-            messages.error(request, "Email already registered.")
-            return redirect("register")
-        
-        # Check if the institution exists
-        institution_details = Institution.objects.filter(institution_name=institution_name)
-        if (len(institution_details) == 0):
-            messages.error(request, "Institution does not exist")
-            return redirect("register")
-        
-        # Check if the email address matches the institution's pattern
-        institution_details = institution_details.first()
-        match_object = re.fullmatch(institution_details.institution_regex_pattern, email, re.IGNORECASE)
-        if not match_object:
-            messages.error(request, "Email does not match institution's format")
-            return redirect("register")
-        
-        # Create a new student
-        institution_details = Institution.objects.filter(institution_name=institution_name)
-        student = User.objects.create_student(email=email, password=password, institution_details=institution_details.first(), name=name)
-        student.save()
-        messages.success(request, "Registration successful! Please log in.")
-        return redirect("login")
-    
-    elif request.method == "GET":
-
-        # Get all institutions
-        institutions = Institution.objects.all()
-        institution_names = [institution.institution_name for institution in institutions]
-        context = {
-            "institution_names": institution_names
-        }
-        return render(request, "register.html", context=context)
-
-    else:
-        return HttpResponseBadRequest("Request method not allowed")
-'''
 @api_view(["POST"])
 def register_view(request):
     """
@@ -1018,11 +755,22 @@ def logout_view(request):
 @api_view(['GET'])
 def student_response_view(request):
     """
-    student_response_view is an API view that returns all survey responses
-    saved in the database
+    student_response_view is an API view that returns survey responses
+    - Superusers see all responses
+    - Institution admins see only responses from their institution
     """
     if request.method == "GET" and request.user.is_authenticated and (request.user.is_superuser or request.user.is_institution_admin):
-        survey_responses = SurveyResponse.objects.all()
+        if request.user.is_superuser:
+            # Superuser sees all responses
+            survey_responses = SurveyResponse.objects.all()
+        else:
+            # Institution admin sees only responses from their institution
+            # This includes both registered students and anonymous students from their institution
+            survey_responses = SurveyResponse.objects.filter(
+                Q(student__institution_details=request.user.institution_details) |
+                Q(anonymous_student__survey_template__institution=request.user.institution_details)
+            )
+        
         survey_response_serializer = SurveyResponseSerializer(survey_responses, many=True)
         return Response(survey_response_serializer.data)
     
@@ -1033,11 +781,23 @@ def student_response_view(request):
 @api_view(["GET"])
 def flagged_responses_view(request):
     """
-    flagged_responses_view is an API view that returns all flagged survey responses
-    in the database
+    flagged_responses_view is an API view that returns flagged survey responses
+    - Superusers see all flagged responses
+    - Institution admins see only flagged responses from their institution
     """
     if request.method == "GET" and request.user.is_authenticated and (request.user.is_superuser or request.user.is_institution_admin):
-        flagged_students = SurveyResponse.objects.filter(flagged=True)
+        if request.user.is_superuser:
+            # Superuser sees all flagged responses
+            flagged_students = SurveyResponse.objects.filter(flagged=True)
+        else:
+            # Institution admin sees only flagged responses from their institution
+            flagged_students = SurveyResponse.objects.filter(
+                flagged=True
+            ).filter(
+                Q(student__institution_details=request.user.institution_details) |
+                Q(anonymous_student__survey_template__institution=request.user.institution_details)
+            )
+        
         flagged_students_serializer = SurveyResponseSerializer(flagged_students, many=True)
         return Response(flagged_students_serializer.data)
     
@@ -1047,13 +807,35 @@ def flagged_responses_view(request):
 @api_view(["GET"])
 def students_view(request):
     """
-    students_view is an API view that returns all students
-    in the database
+    students_view is an API view that returns students (both registered and anonymous)
+    - Superusers see all students
+    - Institution admins see only students from their institution
     """
     if request.method == "GET" and request.user.is_authenticated and (request.user.is_superuser or request.user.is_institution_admin):
-        all_students = User.objects.filter(is_student=True)
+        if request.user.is_superuser:
+            # Superuser sees all students
+            all_students = User.objects.filter(is_student=True)
+            all_anonymous_students = AnonymousStudent.objects.all()
+        else:
+            # Institution admin sees only students from their institution
+            all_students = User.objects.filter(
+                is_student=True,
+                institution_details=request.user.institution_details
+            )
+            all_anonymous_students = AnonymousStudent.objects.filter(
+                survey_template__institution=request.user.institution_details
+            )
+        
         user_serializer = UserSerializer(all_students, many=True)
-        return Response(user_serializer.data)
+        anonymous_serializer = AnonymousStudentSerializer(all_anonymous_students, many=True)
+        
+        # Combine the data with type indicators
+        response_data = {
+            "registered_students": user_serializer.data,
+            "anonymous_students": anonymous_serializer.data
+        }
+        
+        return Response(response_data)
     
     else:
         return HttpResponseBadRequest("Request method not allowed")
@@ -1061,7 +843,7 @@ def students_view(request):
 @api_view(["GET"])
 def flagged_students_view(request):
     """
-    flagged_students_view returns all students whose latest survey response is flagged.
+    flagged_students_view returns all students (registered and anonymous) whose latest survey response is flagged.
     Only returns unique students, not all their responses.
     
     Access: Institution admins see their institution's students, superusers see all.
@@ -1073,9 +855,10 @@ def flagged_students_view(request):
         return JsonResponse({"error": "Admin access required"}, status=403)
     
     try:
-        flagged_students_data = []
+        flagged_registered_students = []
+        flagged_anonymous_students = []
         
-        # Superuser sees all students, institution admin sees only their students
+        # Handle registered students
         if request.user.is_superuser:
             students = User.objects.filter(is_student=True)
         else:
@@ -1084,7 +867,7 @@ def flagged_students_view(request):
                 institution_details=request.user.institution_details
             )
         
-        # Check each student's latest response
+        # Check each registered student's latest response
         for student in students:
             latest_response = SurveyResponse.objects.filter(
                 student=student
@@ -1092,7 +875,7 @@ def flagged_students_view(request):
             
             # If latest response exists and is flagged, include this student
             if latest_response and latest_response.flagged:
-                flagged_students_data.append({
+                flagged_registered_students.append({
                     "id": student.id,
                     "name": student.name,
                     "email": student.email,
@@ -1102,10 +885,44 @@ def flagged_students_view(request):
                     "latest_response_id": latest_response.id
                 })
         
+        # Handle anonymous students
+        if request.user.is_superuser:
+            anonymous_students = AnonymousStudent.objects.all()
+        else:
+            anonymous_students = AnonymousStudent.objects.filter(
+                survey_template__institution=request.user.institution_details
+            )
+        
+        # Check each anonymous student's latest response
+        for anonymous_student in anonymous_students:
+            latest_response = SurveyResponse.objects.filter(
+                anonymous_student=anonymous_student
+            ).order_by('-created').first()
+            
+            # If latest response exists and is flagged, include this anonymous student
+            if latest_response and latest_response.flagged:
+                flagged_anonymous_students.append({
+                    "email": anonymous_student.email,
+                    "name": anonymous_student.name,
+                    "institution_id": anonymous_student.survey_template.institution.id if anonymous_student.survey_template else None,
+                    "institution_name": anonymous_student.survey_template.institution.institution_name if anonymous_student.survey_template else None,
+                    "survey_template_id": anonymous_student.survey_template.id if anonymous_student.survey_template else None,
+                    "latest_response_date": latest_response.created,
+                    "latest_response_id": latest_response.id,
+                    "created_at": anonymous_student.created_at
+                })
+        
         return JsonResponse({
             "success": True,
-            "count": len(flagged_students_data),
-            "flagged_students": flagged_students_data
+            "registered_students": {
+                "count": len(flagged_registered_students),
+                "students": flagged_registered_students
+            },
+            "anonymous_students": {
+                "count": len(flagged_anonymous_students),
+                "students": flagged_anonymous_students
+            },
+            "total_count": len(flagged_registered_students) + len(flagged_anonymous_students)
         })
         
     except Exception as e:

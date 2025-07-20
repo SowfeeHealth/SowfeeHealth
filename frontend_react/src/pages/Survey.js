@@ -42,6 +42,7 @@ function SurveyQuestions() {
     const [message, setMessage] = useState(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const [isHashLinkSurvey, setIsHashLinkSurvey] = useState(false);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
 
     const closeMessage = () => {
         setMessage(null);
@@ -69,6 +70,7 @@ function SurveyQuestions() {
                             setStudentEmail(userData.email);
                             setStudentName(userData.name);
                             setIsAdmin(userData.is_institution_admin || false);
+                            setIsAuthenticated(true);
                         }
                     } catch (error) {
                         // User not authenticated - that's okay for hash link surveys
@@ -76,6 +78,17 @@ function SurveyQuestions() {
                 } else {
                     setHasQuestions(false);
                     setSurveyQuestions([]);
+                }
+                // In your fetchData function in Survey.js, after setting up the questions:
+                const savedAnswers = sessionStorage.getItem('pendingSurvey');
+                if (savedAnswers && hashLinkProvided) {
+                    try {
+                        const parsed = JSON.parse(savedAnswers);
+                        setQuestionAnswers(parsed);
+                        sessionStorage.removeItem('pendingSurvey'); // Clean up
+                    } catch (e) {
+                        console.error('Error restoring survey answers:', e);
+                    }
                 }
             } else {
                 // Regular survey flow - requires authentication
@@ -140,7 +153,7 @@ function SurveyQuestions() {
                 survey_template_id: templateId,
                 ...questionAnswers
             };
-
+    
             // For hash link surveys, use the hash link endpoint
             if (isHashLinkSurvey) {
                 url = `/api/survey/link/${hashLink}/`;
@@ -152,26 +165,48 @@ function SurveyQuestions() {
                 requestData.student_name = studentName;
                 requestData.school_email = studentEmail;
             }
-
+    
             const response = await api.post(url, requestData);
+            
+            // Check for requires_auth in successful response
+            if (response.data.requires_auth) {
+                // Store the survey data in sessionStorage to preserve it
+                sessionStorage.setItem('pendingSurvey', JSON.stringify(questionAnswers));
+                // Redirect to login with the current page as the 'next' parameter
+                const currentUrl = window.location.pathname;
+                window.location.href = `/login/?next=${encodeURIComponent(currentUrl)}`;
+                return;
+            }
             
             if (response.data.success) {
                 setMessage({
                     text: response.data.message,
                     type: 'success'
                 });
-            }
-            
-            setTimeout(() => {
+                setTimeout(() => {
                 window.location.href = '/';
             }, 2000);
+            } else {
+                setMessage({
+                    text: response.data.message,
+                    type: 'error'
+                });
+            }
             
             return response;
         } catch (error) {
-            setMessage({
-                text: error.response?.data?.message || 'Survey submission failed',
-                type: 'error'
-            });
+            if (error.response?.data?.requires_auth) {
+                // Store the survey data in sessionStorage to preserve it
+                sessionStorage.setItem('pendingSurvey', JSON.stringify(questionAnswers));
+                // Redirect to login with the current page as the 'next' parameter
+                const currentUrl = window.location.pathname;
+                window.location.href = `/login/?next=${encodeURIComponent(currentUrl)}`;
+            } else {
+                setMessage({
+                    text: error.response?.data?.message || 'Survey submission failed',
+                    type: 'error'
+                });
+            }
         }
     };
 
@@ -292,8 +327,8 @@ function SurveyQuestions() {
                             type="text" 
                             name="student_name" 
                             value={studentName} 
-                            readOnly={!isHashLinkSurvey || (isHashLinkSurvey && studentName)}
-                            onChange={isHashLinkSurvey && !studentName ? (e) => setStudentName(e.target.value) : undefined}
+                            readOnly={!isHashLinkSurvey || (isHashLinkSurvey && isAuthenticated)}
+                            onChange={(e) => setStudentName(e.target.value)}
                             placeholder={isHashLinkSurvey && !studentName ? "Enter your full name" : ""}
                             title={isHashLinkSurvey ? "Your full name" : "Your full name (pre-filled)"} 
                         />
@@ -305,9 +340,9 @@ function SurveyQuestions() {
                             type="email" 
                             name="school_email" 
                             value={studentEmail} 
-                            readOnly={!isHashLinkSurvey || (isHashLinkSurvey && studentEmail)}
-                            onChange={isHashLinkSurvey && !studentEmail ? (e) => setStudentEmail(e.target.value) : undefined}
-                            placeholder={isHashLinkSurvey && !studentEmail ? "Enter your school email" : ""}
+                            readOnly={!isHashLinkSurvey || (isHashLinkSurvey && isAuthenticated)}
+                            onChange={(e) => setStudentEmail(e.target.value)}
+                            placeholder={isHashLinkSurvey && !isAuthenticated ? "Enter your school email" : ""}
                             title={isHashLinkSurvey ? "Your school email address" : "Your .edu email address (pre-filled)"} 
                         />
                     </div>

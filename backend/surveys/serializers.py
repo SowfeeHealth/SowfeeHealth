@@ -1,6 +1,6 @@
 
 from rest_framework import serializers
-from .models import SurveyResponse, User, Institution, SurveyTemplate, SurveyQuestion, QuestionResponse, QuestionType
+from .models import SurveyResponse, User, Institution, SurveyTemplate, SurveyQuestion, QuestionResponse, QuestionType, AnonymousStudent
 
 class SurveyQuestionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -17,14 +17,14 @@ class SurveyResponseSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = SurveyResponse
-        fields = ['id', 'student', 'survey_template', 'created', 'flagged', 'question_responses']
+        fields = ['id', 'student', 'anonymous_student', 'survey_template', 'created', 'flagged', 'question_responses']
 
 class SurveyTemplateSerializer(serializers.ModelSerializer):
     questions = SurveyQuestionSerializer(many=True, read_only=True)
     
     class Meta:
         model = SurveyTemplate
-        fields = ['id', 'institution', 'hash_link', 'questions']  # removed 'created'
+        fields = ['id', 'institution', 'hash_link', 'questions', 'used']  # Added 'used' field
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -34,4 +34,9 @@ class UserSerializer(serializers.ModelSerializer):
 class InstitutionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Institution
+        fields = "__all__"
+
+class AnonymousStudentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AnonymousStudent
         fields = "__all__"

@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import '../assets/survey_templates.css';
+import { copyHashLink, showMessage } from '../utils/surveyUtils';
 
 function SurveyTemplates() {
     const [templates, setTemplates] = useState([]);
@@ -275,45 +276,54 @@ function SurveyTemplates() {
                         ) : templates.length === 0 ? (
                             <em>No templates found.</em>
                         ) : (
-                            templates.map(template => (
-                                <div key={template.id} className="template-item">
-                                    <div className="template-info">
-                                        <strong>Template ID:</strong> {template.id}
-                                        {template.used && <span className="badge-success">Currently Used</span>}
-                                        
-                                        {/* Add hash link display with copy button */}
-                                        {showHashLinks && (
-                                            <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#f8f9fa', borderRadius: '4px', fontSize: '12px' }}>
-                                                <strong>Survey Link:</strong> 
-                                                <br />
-                                                <code style={{ wordBreak: 'break-all', backgroundColor: '#e9ecef', padding: '2px 4px', borderRadius: '2px' }}>
-                                                    https://sowfeehealth.com/survey/link/{template.hash_link}
-                                                </code>
-                                                <button 
-                                                    className="btn"
-                                                    style={{ marginLeft: '8px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer' }}
-                                                    onClick={() => copyHashLink(template.hash_link)}
-                                                >
-                                                    Copy Link
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="template-actions">
-                                        <button className="btn" onClick={() => selectTemplate(template.id)}>
-                                            Edit Questions
-                                        </button>
-                                        {!template.used && (
-                                            <button className="btn btn-primary" onClick={() => applyTemplate(template.id)}>
-                                                Use Template
+                            templates.map(template => {
+                                return (
+                                    <div 
+                                        key={template.id} 
+                                        className="template-item"
+                                    >
+                                        <div className="template-info">
+                                            <strong>Template ID:</strong> {template.id}
+                                            {template.used && (
+                                                <span className="currently-used-badge">
+                                                    Currently Used
+                                                </span>
+                                            )}
+                                            
+                                            {/* Add hash link display with copy button */}
+                                            {showHashLinks && (
+                                                <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#f8f9fa', borderRadius: '4px', fontSize: '12px' }}>
+                                                    <strong>Survey Link:</strong> 
+                                                    <br />
+                                                    <code style={{ wordBreak: 'break-all', backgroundColor: '#e9ecef', padding: '2px 4px', borderRadius: '2px' }}>
+                                                        https://sowfeehealth.com/survey/link/{template.hash_link}
+                                                    </code>
+                                                    <button 
+                                                        className="btn"
+                                                        style={{ marginLeft: '8px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer' }}
+                                                        onClick={() => copyHashLink(template.hash_link)}
+                                                    >
+                                                        Copy Link
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="template-actions">
+                                            <button className="btn" onClick={() => selectTemplate(template.id)}>
+                                                Edit Questions
                                             </button>
-                                        )}
-                                        <button className="btn btn-delete" onClick={() => deleteTemplate(template.id)}>
-                                            Delete
-                                        </button>
+                                            {!template.used && (
+                                                <button className="btn btn-primary" onClick={() => applyTemplate(template.id)}>
+                                                    Use Template
+                                                </button>
+                                            )}
+                                            <button className="btn btn-delete" onClick={() => deleteTemplate(template.id)}>
+                                                Delete
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                            ))
+                                );
+                            })
                         )}
                     </div>
                     

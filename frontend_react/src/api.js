@@ -19,13 +19,17 @@ function getCSRFToken() {
 
 // Determine base URL based on environment
 const getBaseURL = () => {
-    // In production build, NODE_ENV will be 'production'
-    if (process.env.NODE_ENV === 'production') {
-        // Use relative URLs in production (served from same domain)
-        return '';
-    } else {
-        // Development mode
+    // Check if we're on localhost (development)
+    const isLocalhost = window.location.hostname === 'localhost' || 
+                       window.location.hostname === '127.0.0.1' ||
+                       window.location.hostname === '0.0.0.0';
+    
+    if (isLocalhost) {
+        // Development mode - point to local backend
         return 'http://localhost:8000';
+    } else {
+        // Production mode - use relative URLs (served from same domain)
+        return '';
     }
 };
 

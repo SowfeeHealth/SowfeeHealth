@@ -15,14 +15,25 @@ load_dotenv()
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
+
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+# Environment detection
+IS_PRODUCTION = os.getenv('IS_PRODUCTION', 'False').lower() == 'true'
+IS_DOCKER_DEV = os.getenv('IS_DOCKER_DEV', 'False').lower() == 'true'
+
+# Set DEBUG based on environment
+if IS_DOCKER_DEV:
+    DEBUG = True  # Always True for local Docker development
+elif IS_PRODUCTION:
+    DEBUG = False  # Always False for production
+else:
+    DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'  # Fallback to env variable
 
 ALLOWED_HOSTS = ["*"]
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',  # admin 应该在最前面
+    'django.contrib.admin',
     'corsheaders',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -241,4 +252,11 @@ LOGGING = {
     }
 }
 
-SESSION_COOKIE_DOMAIN = '.sowfeehealth.com'
+
+# Cookie settings based on environment
+COOKIE_DOMAIN = '.sowfeehealth.com' if IS_PRODUCTION else None
+COOKIE_SECURE = IS_PRODUCTION
+
+# Session cookie settings
+SESSION_COOKIE_DOMAIN = COOKIE_DOMAIN
+SESSION_COOKIE_SECURE = COOKIE_SECURE

@@ -16,6 +16,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework import status
 import json
 from django.db.models import Q
+from django.conf import settings
 
 
 # Use a single logger configuration
@@ -46,8 +47,8 @@ def user_view(request):
                 request.session.session_key, 
                 max_age=3600*24*7, 
                 path='/', 
-                domain='.sowfeehealth.com',
-                secure=True,
+                domain=settings.COOKIE_DOMAIN,
+                secure=settings.COOKIE_SECURE,
                 httponly=False,
                 samesite='Lax'
             )
@@ -58,8 +59,8 @@ def user_view(request):
                 request.user.email, 
                 max_age=3600*24*7, 
                 path='/', 
-                domain='.sowfeehealth.com',
-                secure=True,
+                domain=settings.COOKIE_DOMAIN,
+                secure=settings.COOKIE_SECURE,
                 httponly=False,
                 samesite='Lax'
             )
@@ -70,8 +71,8 @@ def user_view(request):
                 'true' if request.user.is_superuser else 'false', 
                 max_age=3600*24*7, 
                 path='/', 
-                domain='.sowfeehealth.com',
-                secure=True,
+                domain=settings.COOKIE_DOMAIN,
+                secure=settings.COOKIE_SECURE,
                 httponly=False,
                 samesite='Lax'
             )
@@ -82,8 +83,8 @@ def user_view(request):
                 'true' if request.user.is_institution_admin else 'false', 
                 max_age=3600*24*7, 
                 path='/', 
-                domain='.sowfeehealth.com',
-                secure=True,
+                domain=settings.COOKIE_DOMAIN,
+                secure=settings.COOKIE_SECURE,
                 httponly=False,
                 samesite='Lax'
             )
@@ -644,19 +645,19 @@ def login_view(request):
                     'auth_token', 
                     request.session.session_key, 
                     max_age=3600*24*7,
-                    path='/',  # Available on all React routes
-                    domain='.sowfeehealth.com',  # Updated domain
-                    secure=True,  # HTTPS only (you have SSL)
-                    httponly=False,  # Allow React to read cookies
-                    samesite='Lax'  # CSRF protection
+                    path='/',
+                    domain=settings.COOKIE_DOMAIN,
+                    secure=settings.COOKIE_SECURE,
+                    httponly=False,
+                    samesite='Lax'
                 )
                 response.set_cookie(
                     'user_email', 
                     email, 
                     max_age=3600*24*7,
                     path='/',
-                    domain='.sowfeehealth.com',  # Updated domain
-                    secure=True,  # Important for HTTPS
+                    domain=settings.COOKIE_DOMAIN,
+                    secure=settings.COOKIE_SECURE,
                     httponly=False,
                     samesite='Lax'
                 )
@@ -665,8 +666,8 @@ def login_view(request):
                     'true' if user.is_superuser else 'false', 
                     max_age=3600*24*7,
                     path='/',
-                    domain='.sowfeehealth.com',  # Updated domain
-                    secure=True,
+                    domain=settings.COOKIE_DOMAIN,
+                    secure=settings.COOKIE_SECURE,
                     httponly=False,
                     samesite='Lax'
                 )
@@ -675,8 +676,8 @@ def login_view(request):
                     'true' if user.is_institution_admin else 'false', 
                     max_age=3600*24*7,
                     path='/',
-                    domain='.sowfeehealth.com',  # Updated domain
-                    secure=True,
+                    domain=settings.COOKIE_DOMAIN,
+                    secure=settings.COOKIE_SECURE,
                     httponly=False,
                     samesite='Lax'
                 )
@@ -783,7 +784,7 @@ def logout_view(request):
     ]
     
     for cookie_name in cookies_to_clear:
-        response.delete_cookie(cookie_name, path="/", domain='.sowfeehealth.com')
+        response.delete_cookie(cookie_name, path="/", domain=settings.COOKIE_DOMAIN)
     
     return response
 

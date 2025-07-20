@@ -41,16 +41,52 @@ def user_view(request):
         
         # Check and set missing cookies
         if not request.COOKIES.get('auth_token'):
-            response.set_cookie('auth_token', request.session.session_key, max_age=3600*24*7)
+            response.set_cookie(
+                'auth_token', 
+                request.session.session_key, 
+                max_age=3600*24*7, 
+                path='/', 
+                domain='.sowfeehealth.com',
+                secure=True,
+                httponly=False,
+                samesite='Lax'
+            )
         
         if not request.COOKIES.get('user_email'):
-            response.set_cookie('user_email', request.user.email, max_age=3600*24*7)
+            response.set_cookie(
+                'user_email', 
+                request.user.email, 
+                max_age=3600*24*7, 
+                path='/', 
+                domain='.sowfeehealth.com',
+                secure=True,
+                httponly=False,
+                samesite='Lax'
+            )
             
         if not request.COOKIES.get('is_superuser'):
-            response.set_cookie('is_superuser', 'true' if request.user.is_superuser else 'false', max_age=3600*24*7)
+            response.set_cookie(
+                'is_superuser', 
+                'true' if request.user.is_superuser else 'false', 
+                max_age=3600*24*7, 
+                path='/', 
+                domain='.sowfeehealth.com',
+                secure=True,
+                httponly=False,
+                samesite='Lax'
+            )
             
         if not request.COOKIES.get('is_institution_admin'):
-            response.set_cookie('is_institution_admin', 'true' if request.user.is_institution_admin else 'false', max_age=3600*24*7)
+            response.set_cookie(
+                'is_institution_admin', 
+                'true' if request.user.is_institution_admin else 'false', 
+                max_age=3600*24*7, 
+                path='/', 
+                domain='.sowfeehealth.com',
+                secure=True,
+                httponly=False,
+                samesite='Lax'
+            )
         
         return response
     else:
@@ -609,7 +645,7 @@ def login_view(request):
                     request.session.session_key, 
                     max_age=3600*24*7,
                     path='/',  # Available on all React routes
-                    domain=None,  # Uses current domain (sowfeehealth.com)
+                    domain='.sowfeehealth.com',  # Updated domain
                     secure=True,  # HTTPS only (you have SSL)
                     httponly=False,  # Allow React to read cookies
                     samesite='Lax'  # CSRF protection
@@ -619,7 +655,7 @@ def login_view(request):
                     email, 
                     max_age=3600*24*7,
                     path='/',
-                    domain=None,
+                    domain='.sowfeehealth.com',  # Updated domain
                     secure=True,  # Important for HTTPS
                     httponly=False,
                     samesite='Lax'
@@ -629,7 +665,7 @@ def login_view(request):
                     'true' if user.is_superuser else 'false', 
                     max_age=3600*24*7,
                     path='/',
-                    domain=None,
+                    domain='.sowfeehealth.com',  # Updated domain
                     secure=True,
                     httponly=False,
                     samesite='Lax'
@@ -639,7 +675,7 @@ def login_view(request):
                     'true' if user.is_institution_admin else 'false', 
                     max_age=3600*24*7,
                     path='/',
-                    domain=None,
+                    domain='.sowfeehealth.com',  # Updated domain
                     secure=True,
                     httponly=False,
                     samesite='Lax'
@@ -747,7 +783,7 @@ def logout_view(request):
     ]
     
     for cookie_name in cookies_to_clear:
-        response.delete_cookie(cookie_name, path="/")
+        response.delete_cookie(cookie_name, path="/", domain='.sowfeehealth.com')
     
     return response
 

@@ -1,5 +1,5 @@
 
-  .form-group {
+.form-group {
     margin-bottom: 1.5rem;
   }
 
@@ -214,4 +214,23 @@
     text-align: center;
     padding: 2rem;
     color: #666;
+}
+
+.register-btn {
+  width: fit-content;
+  padding: 1rem;
+  background: var(--primary); /* This should be purple */
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+  margin-left: 10px;
+  margin-top: 40px;
+}
+
+.register-btn:hover {
+  transform: translateY(-2px);
 }

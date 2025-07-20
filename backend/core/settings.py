@@ -241,3 +241,4 @@ LOGGING = {
     }
 }
 
+SESSION_COOKIE_DOMAIN = '.sowfeehealth.com'

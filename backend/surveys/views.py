@@ -739,6 +739,7 @@ def logout_view(request):
     
     # Clear auth cookies
     cookies_to_clear = [
+        'sessionid',
         'auth_token', 
         'user_email', 
         'is_institution_admin', 
@@ -746,7 +747,7 @@ def logout_view(request):
     ]
     
     for cookie_name in cookies_to_clear:
-        response.delete_cookie(cookie_name)
+        response.delete_cookie(cookie_name, path="/")
     
     return response
 

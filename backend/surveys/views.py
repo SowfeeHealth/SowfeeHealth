@@ -784,7 +784,12 @@ def logout_view(request):
     ]
     
     for cookie_name in cookies_to_clear:
-        response.delete_cookie(cookie_name, path="/", domain=settings.COOKIE_DOMAIN)
+        response.delete_cookie(
+            cookie_name, 
+            path="/", 
+            domain=settings.COOKIE_DOMAIN,
+            secure=settings.COOKIE_SECURE  # Add this line!
+        )
     
     return response
 

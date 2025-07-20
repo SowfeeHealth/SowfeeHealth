@@ -17,19 +17,31 @@ function getCSRFToken() {
     return cookieValue;
 }
 
+// Determine base URL based on environment
+const getBaseURL = () => {
+    // In production build, NODE_ENV will be 'production'
+    if (process.env.NODE_ENV === 'production') {
+        // Use relative URLs in production (served from same domain)
+        return '';
+    } else {
+        // Development mode
+        return 'http://localhost:8000';
+    }
+};
+
 // Function to ensure CSRF token exists
 async function ensureCSRFToken() {
     if (!getCSRFToken()) {
         console.log('No CSRF token found, fetching...');
-        await axios.get('http://localhost:8000/api/csrf/', { withCredentials: true });
-        //await axios.get('http://localhost:8000/api/csrf/', { withCredentials: true }), for development;
+        const baseURL = getBaseURL();
+        const csrfURL = baseURL ? `${baseURL}/api/csrf/` : '/api/csrf/';
+        await axios.get(csrfURL, { withCredentials: true });
     }
 }
 
-// Configure axios with CSRF token
+// Configure axios with dynamic base URL
 const api = axios.create({
-    baseURL: 'http://localhost:8000',
-    // baseURL: 'http://localhost:8000', for development
+    baseURL: getBaseURL(),
     withCredentials: true,
 });
 

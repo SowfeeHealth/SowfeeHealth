@@ -241,16 +241,3 @@ LOGGING = {
     }
 }
 
-# Session cookie settings
-SESSION_COOKIE_PATH = '/'
-SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SECURE = True  # Only use this if you're on HTTPS (which you are)
-SESSION_COOKIE_SAMESITE = 'Lax'
-SESSION_EXPIRE_AT_BROWSER_CLOSE = False
-SESSION_COOKIE_AGE = 1209600  # 2 weeks in seconds
-
-# CSRF cookie settings (for completeness)
-CSRF_COOKIE_PATH = '/'
-CSRF_COOKIE_HTTPONLY = False  # False so JavaScript can read it
-CSRF_COOKIE_SECURE = True  # Only on HTTPS
-CSRF_COOKIE_SAMESITE = 'Lax'

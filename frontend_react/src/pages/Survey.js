@@ -388,7 +388,12 @@ function SurveyQuestions() {
                             className="start-fresh-btn"
                             onClick={async () => {
                                 if (window.confirm('Are you sure you want to start over? This will clear all your answers.')) {
-                                    await clearAutosave();
+                                    if (isAuthenticated) {
+                                        await clearAutosave();
+                                    } else {
+                                        // Clear sessionStorage for anonymous users
+                                        sessionStorage.removeItem(`survey_autosave_${templateId}`);
+                                    }
                                     setQuestionAnswers({});
                                 }
                             }}

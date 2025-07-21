@@ -19,6 +19,21 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: redis-cache
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   web:
     build: 
       context: .
@@ -29,27 +44,22 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     env_file: .env
     environment:
       - MYSQL_HOST=db
       - MYSQL_PORT=3306
-      - IS_DOCKER_DEV=true  # This ensures DEBUG=True in local containers
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - IS_DOCKER_DEV=true
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app
       - ./frontend:/frontend
     command: bash -c "python manage.py makemigrations surveys && python manage.py migrate && python manage.py collectstatic --noinput && python manage.py runserver 0.0.0.0:8000"
-    # command: >
-    #   bash -c "
-    #   echo '===== Starting commands =====' &&
-    #   ls -la /frontend/static/ &&
-    #   echo '===== Running collectstatic =====' &&
-    #   python manage.py collectstatic --noinput --verbosity 3 &&
-    #   echo '===== Checking staticfiles =====' &&
-    #   ls -la /app/staticfiles/ &&
-    #   echo '===== Starting server =====' &&
-    #   python manage.py runserver 0.0.0.0:8000
-    #   "
+
 volumes:
   mysql_data:
+  redis_data:

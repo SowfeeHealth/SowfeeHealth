@@ -6,3 +6,5 @@ django-cors-headers
 djangorestframework
 whitenoise
 Faker
+redis>=4.5.0
+django-redis>=5.2.0

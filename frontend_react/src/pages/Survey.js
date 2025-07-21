@@ -101,6 +101,7 @@ function SurveyQuestions() {
                 setStudentEmail(userData.email);
                 setStudentName(userData.name);
                 setIsAdmin(userData.is_institution_admin || false);
+                setIsAuthenticated(true);
                 
                 const responseData = await fetchSurveyQuestions();
                 if (responseData.success) {
@@ -137,6 +138,47 @@ function SurveyQuestions() {
         fetchData();
     }, [hashLink]); // Re-fetch when hashLink changes
     
+
+    useEffect(() => {
+    const autoSave = async () => {
+        try {
+        const response = await api.post('/api/autosave/', {
+            template_id: templateId,
+            student_name: studentName,
+            school_email: studentEmail,
+            answers: questionAnswers,
+        })} catch (error) {
+            console.error("Error saving survey")
+        }
+    };
+    const interval = setInterval(() => {
+            console.log('Autosave interval check'); // ADD THIS
+            if (!isAuthenticated) return;  
+            if (Object.keys(questionAnswers).length === 0) return;
+            autoSave();
+    }, 5000);
+    
+    return () => clearInterval(interval);
+}, [questionAnswers, studentEmail, studentName, templateId, isAuthenticated]);
+
+    useEffect(() => {
+        const autoSaveLoad = async () => {
+            console.log('Autoload start:', 'templateId', templateId, 'isAuthenticated:', isAuthenticated);
+            if (!templateId || !isAuthenticated) return;
+            try {
+                const response = await api.get(`/api/autosave/load/${templateId}`)
+                console.log('Autoload response:', response.data);
+                if (response.data.success) {
+                    setQuestionAnswers(response.data.saved_data.answers);
+                }
+            } 
+            catch (error) {
+                console.error("Error loading survey")
+            }
+        }
+        autoSaveLoad();
+    }, [templateId, isAuthenticated])
+    
     if (loading) return <div>Loading...</div>;
 
     const handleAnswerChange = (questionId, value) => {
@@ -146,6 +188,17 @@ function SurveyQuestions() {
         });
     };
     
+    const clearAutosave = async () => {
+        if (!templateId) return;
+        
+        try {
+            await api.delete(`/api/autosave/clear/${templateId}/`);
+            console.log('Autosave cleared');
+        } catch (error) {
+            console.error('Error clearing autosave:', error);
+        }
+    };
+
     const handleSurveyRequest = async () => {
         try {
             let url = '/api/survey/';
@@ -179,6 +232,7 @@ function SurveyQuestions() {
             }
             
             if (response.data.success) {
+                await clearAutosave();  
                 setMessage({
                     text: response.data.message,
                     type: 'success'

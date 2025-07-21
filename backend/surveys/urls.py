@@ -27,6 +27,10 @@ urlpatterns = [
     path('api/survey/link/<uuid:hash_link>/', views.survey_view, name='hashed-survey'),
     path('api/get-user-survey-questions/<uuid:hash_link>/', views.get_user_survey_questions, name='get-user-survey-questions-hash'),
 
+    # Auto saving survey responses
+    path('api/autosave/', views.survey_autosave, name='autosave-survey'),
+    path('api/autosave/load/<int:template_id>/', views.survey_autosave_load, name='autosave-survey-load'),
+    path('api/autosave/clear/<int:template_id>/', views.survey_autosave_clear, name='survey-autosave-clear'),
     
     # Keep your other existing URLs
     path('api/survey/', views.survey_view, name='survey'),

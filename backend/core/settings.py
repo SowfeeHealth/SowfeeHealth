@@ -260,3 +260,27 @@ COOKIE_SECURE = IS_PRODUCTION
 # Session cookie settings
 SESSION_COOKIE_DOMAIN = COOKIE_DOMAIN
 SESSION_COOKIE_SECURE = COOKIE_SECURE
+
+# settings.py
+# Replace the existing CACHES configuration (around line 260)
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': f'redis://{os.getenv("REDIS_HOST", "redis")}:{os.getenv("REDIS_PORT", "6379")}/1',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'CONNECTION_POOL_KWARGS': {
+                'max_connections': 20,
+                'retry_on_timeout': True,
+            },
+            'SERIALIZER': 'django_redis.serializers.json.JSONSerializer',
+            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
+        },
+        'KEY_PREFIX': 'sowfee_cache',
+        'TIMEOUT': 1800,  # 30 minutes default timeout
+    }
+}
+
+# Optional: Use Redis for sessions as well
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'

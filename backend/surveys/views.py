@@ -17,6 +17,8 @@ from rest_framework import status
 import json
 from django.db.models import Q
 from django.conf import settings
+from django.core.cache import cache
+from datetime import datetime
 
 
 # Use a single logger configuration
@@ -1166,3 +1168,70 @@ def get_active_template(institution):
             template.save()
     
     return template
+
+@api_view(["POST"])
+def survey_autosave(request):
+    try:
+        if not request.user.is_authenticated:
+            return JsonResponse({"success": False, "message": "User not authorized"}, status=401)
+        data = request.data
+        template_id = request.data.get("template_id")  
+        if not template_id:
+            return JsonResponse({"success": False, "message": "Error: Wrong template id"}, status=400) 
+        try: 
+            SurveyTemplate.objects.get(id=template_id)
+        except SurveyTemplate.DoesNotExist:
+            return JsonResponse({
+                "success": False, 
+                "message": "Invalid survey template"
+            }, status=404)     
+        answers = request.data.get("answers", {})
+        student_name, school_email = request.user.name, request.user.email
+        cache_data = {
+            "template_id": template_id, 
+            "student_name": student_name if student_name else "", 
+            "school_email": school_email, 
+            "last_saved": datetime.now().isoformat(),
+            "answers": answers, 
+        }
+        cache.set(f"survey_autosave_{school_email}_{template_id}", json.dumps(cache_data), timeout=1800)
+        return JsonResponse({"success": True, "message": "Progress saved"})
+    except Exception as e:
+        logger.error(f"Autosave error: {str(e)}")
+        return JsonResponse({"success": False, "message": "Failed to save progress"}, status=500)
+
+
+@api_view(["GET"])
+def survey_autosave_load(request, template_id):
+    try:
+        # Check authentication
+        if not request.user.is_authenticated:
+            return JsonResponse({"success": False, "message": "User not authorized"}, status=401)
+        school_email = request.user.email
+        cache_key = f"survey_autosave_{school_email}_{template_id}"
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            try:
+                return JsonResponse({"success": True, "saved_data": json.loads(cached_data)}, status=200)
+            except json.JSONDecodeError:
+                # Corrupted data
+                cache.delete(cache_key)
+                return JsonResponse({"success": False, "message": "Corrupted save data"}, status=404)
+        else:
+            return JsonResponse({"success": False, "message": "No autosaved data found"}, status=404)
+    except Exception as e:
+        logger.error(f"Autosave load error: {str(e)}")
+        return JsonResponse({"success": False, "message": "Failed to load autosave"}, status=500)
+
+@api_view(["DELETE"])
+def survey_autosave_clear(request, template_id):
+    try:
+        if not request.user.is_authenticated:
+            return JsonResponse({"success": False, "message": "User not authorized"}, status=401)
+        school_email = request.user.email
+        cache_key = f"survey_autosave_{school_email}_{template_id}"
+        cache.delete(cache_key)
+        return JsonResponse({"success": True, "message": "Autosave data cleared"})
+    except Exception as e:
+        logger.error(f"Clear autosave error: {str(e)}")
+        return JsonResponse({"success": False, "message": "Failed to clear draft"}, status=500)

@@ -141,19 +141,31 @@ function SurveyQuestions() {
 
     useEffect(() => {
     const autoSave = async () => {
-        try {
-        const response = await api.post('/api/autosave/', {
-            template_id: templateId,
-            student_name: studentName,
-            school_email: studentEmail,
-            answers: questionAnswers,
-        })} catch (error) {
-            console.error("Error saving survey")
+        // For authenticated users - save to backend
+        if (isAuthenticated) {
+            try {
+                const response = await api.post('/api/autosave/', {
+                    template_id: templateId,
+                    student_name: studentName,
+                    school_email: studentEmail,
+                    answers: questionAnswers,
+                });
+            } catch (error) {
+                console.error("Error saving survey");
+            }
+        } else {
+            // For anonymous users - save to sessionStorage
+            const autosaveData = {
+                templateId,
+                answers: questionAnswers,
+                studentName,
+                studentEmail,
+                lastSaved: new Date().toISOString()
+            };
+            sessionStorage.setItem(`survey_autosave_${templateId}`, JSON.stringify(autosaveData));
         }
     };
     const interval = setInterval(() => {
-            console.log('Autosave interval check'); // ADD THIS
-            if (!isAuthenticated) return;  
             if (Object.keys(questionAnswers).length === 0) return;
             autoSave();
     }, 5000);
@@ -162,22 +174,33 @@ function SurveyQuestions() {
 }, [questionAnswers, studentEmail, studentName, templateId, isAuthenticated]);
 
     useEffect(() => {
-        const autoSaveLoad = async () => {
-            console.log('Autoload start:', 'templateId', templateId, 'isAuthenticated:', isAuthenticated);
-            if (!templateId || !isAuthenticated) return;
+    const autoSaveLoad = async () => {
+        if (!templateId) return;
+        
+        if (isAuthenticated) {
+            // Load from backend
             try {
-                const response = await api.get(`/api/autosave/load/${templateId}`)
-                console.log('Autoload response:', response.data);
+                const response = await api.get(`/api/autosave/load/${templateId}`);
                 if (response.data.success) {
                     setQuestionAnswers(response.data.saved_data.answers);
                 }
-            } 
-            catch (error) {
-                console.error("Error loading survey")
+            } catch (error) {
+                console.error("Error loading survey");
+            }
+        } else {
+            // Load from sessionStorage for anonymous users
+            const saved = sessionStorage.getItem(`survey_autosave_${templateId}`);
+            if (saved) {
+                const data = JSON.parse(saved);
+                setQuestionAnswers(data.answers);
+                if (data.studentName) setStudentName(data.studentName);
+                if (data.studentEmail) setStudentEmail(data.studentEmail);
             }
         }
-        autoSaveLoad();
-    }, [templateId, isAuthenticated])
+    };
+    
+    autoSaveLoad();
+}, [templateId, isAuthenticated]);
     
     if (loading) return <div>Loading...</div>;
 
@@ -358,7 +381,7 @@ function SurveyQuestions() {
                 >
                     ← Back
                 </button>
-                {isAuthenticated && Object.keys(questionAnswers).length > 0 && (
+                {Object.keys(questionAnswers).length > 0 && (
                     <div className="start-fresh-container">
                         <button 
                             type="button"

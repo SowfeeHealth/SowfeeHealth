@@ -1235,15 +1235,9 @@ def survey_autosave_clear(request, template_id):
             return JsonResponse({"success": False, "message": "User not authorized"}, status=401)
         school_email = request.user.email
         cache_key = f"survey_autosave_{school_email}_{template_id}"
-        # CHECK BEFORE CLEARING
-        before = cache.get(cache_key)
-        print(f"BEFORE CLEAR: Key={cache_key}, Data exists={before is not None}")
         
         cache.delete(cache_key)
-        
-        # CHECK AFTER CLEARING  
-        after = cache.get(cache_key)
-        print(f"AFTER CLEAR: Data exists={after is not None}")
+
         return JsonResponse({"success": True, "message": "Autosave data cleared"})
     except Exception as e:
         logger.error(f"Clear autosave error: {str(e)}")

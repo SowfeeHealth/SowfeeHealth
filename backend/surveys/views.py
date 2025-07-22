@@ -19,6 +19,7 @@ from django.db.models import Q
 from django.conf import settings
 from django.core.cache import cache
 from datetime import datetime
+from surveys.tasks import analyze_survey_responses_async
 
 
 # Use a single logger configuration
@@ -268,6 +269,10 @@ def _handle_student_responses(request, survey_template, questions, hashed=False)
             survey_response.flagged = True
             survey_response.save()
         
+        # Pass question IDs instead of model objects
+        question_ids = [q.id for q in questions]
+        result = analyze_survey_responses_async.delay(survey_response.id, question_ids)
+
         # Return success response
         response_data = {
             "success": True,
@@ -1216,12 +1221,12 @@ def survey_autosave_load(request, template_id):
             except json.JSONDecodeError:
                 # Corrupted data
                 cache.delete(cache_key)
-                return JsonResponse({"success": False, "message": "Corrupted save data"}, status=404)
+                return JsonResponse({"success": False, "message": "Corrupted save data. Please press the clear button"}, status=200)
         else:
-            return JsonResponse({"success": False, "message": "No autosaved data found"}, status=404)
+            return JsonResponse({"success": False, "message": "No autosaved data found"}, status=200)
     except Exception as e:
         logger.error(f"Autosave load error: {str(e)}")
-        return JsonResponse({"success": False, "message": "Failed to load autosave"}, status=500)
+        return JsonResponse({"success": False, "message": "Failed to load autosave"}, status=200)
 
 @api_view(["DELETE"])
 def survey_autosave_clear(request, template_id):

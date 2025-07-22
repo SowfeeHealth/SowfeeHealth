@@ -227,7 +227,15 @@ class SurveyResponse(models.Model):
     flagged = models.BooleanField(default=False)
     
     def __str__(self):
-        return f"{self.student.name} - {str(self.created)}"
+        name = None
+        if self.student:
+            name = getattr(self.student, 'name', None)
+        elif self.anonymous_student:
+            name = getattr(self.anonymous_student, 'name', None)
+        
+        if name:
+            return f"{name} - {str(self.created)}"
+        return f"Survey Response {self.id} - {str(self.created)}"
 
 
 class QuestionResponse(models.Model):

@@ -322,8 +322,7 @@ input[type="radio"] {
     }
 
     .tooltip {
-        display: block;
-        /* ... rest of tooltip styles */
+        display: none;
     }
 
     .start-fresh-container {

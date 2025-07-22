@@ -138,6 +138,7 @@ function SurveyQuestions() {
         fetchData();
     }, [hashLink]); // Re-fetch when hashLink changes
     
+    const [isSubmitted, setIsSubmitted] = useState(false);
 
     useEffect(() => {
     const autoSave = async () => {
@@ -166,9 +167,10 @@ function SurveyQuestions() {
         }
     };
     const interval = setInterval(() => {
+            if (isSubmitted) return;
             if (Object.keys(questionAnswers).length === 0) return;
             autoSave();
-    }, 5000);
+    }, 3000);
     
     return () => clearInterval(interval);
 }, [questionAnswers, studentEmail, studentName, templateId, isAuthenticated]);
@@ -216,9 +218,19 @@ function SurveyQuestions() {
         
         try {
             await api.delete(`/api/autosave/clear/${templateId}/`);
-            console.log('Autosave cleared');
+            
+            // Verify the autosave was actually cleared
+            const verifyResponse = await api.get(`/api/autosave/load/${templateId}`);
+            if (verifyResponse.data.success && verifyResponse.data.saved_data) {
+                console.warn('Autosave not fully cleared, retrying...');
+                // Retry once more
+                await api.delete(`/api/autosave/clear/${templateId}/`);
+            }
+            
+            console.log('Autosave cleared successfully');
         } catch (error) {
             console.error('Error clearing autosave:', error);
+            throw error; // Re-throw to handle in calling function
         }
     };
 
@@ -260,9 +272,10 @@ function SurveyQuestions() {
                     text: response.data.message,
                     type: 'success'
                 });
+                setIsSubmitted(true);
                 setTimeout(() => {
                 window.location.href = '/';
-            }, 2000);
+            }, 3000);
             } else {
                 setMessage({
                     text: response.data.message,

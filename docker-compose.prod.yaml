@@ -79,6 +79,17 @@ services:
     volumes:
       - static_volume:/shared_static
 
+  celery:
+    image: ${DOCKER_USERNAME}/django-app:latest
+    command: celery -A core worker -l info
+    volumes:
+      - ./backend:/app
+    env_file: .env
+    depends_on:
+      - redis
+      - db
+    working_dir: /app/backend
+
   nginx:
     image: nginx:1.24
     container_name: nginx

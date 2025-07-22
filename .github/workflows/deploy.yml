@@ -112,6 +112,7 @@ jobs:
           ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
           MYSQL_HEALTH_USER_PASSWORD=${{ secrets.MYSQL_HEALTH_USER_PASSWORD}}
           EC2_HOST=${{secrets.EC2_HOST}}
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
           EOL
 
 

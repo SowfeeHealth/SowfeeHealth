@@ -142,6 +142,7 @@ function SurveyQuestions() {
 
     useEffect(() => {
     const autoSave = async () => {
+        // console.log("AUTOSAVE RUNNING AT:", new Date().toISOString());
         // For authenticated users - save to backend
         if (isAuthenticated) {
             try {
@@ -173,7 +174,7 @@ function SurveyQuestions() {
     }, 3000);
     
     return () => clearInterval(interval);
-}, [questionAnswers, studentEmail, studentName, templateId, isAuthenticated]);
+}, [questionAnswers, studentEmail, studentName, templateId, isAuthenticated, isSubmitted]);
 
     useEffect(() => {
     const autoSaveLoad = async () => {

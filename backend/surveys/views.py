@@ -1178,11 +1178,11 @@ def get_active_template(institution):
 def survey_autosave(request):
     try:
         if not request.user.is_authenticated:
-            return JsonResponse({"success": False, "message": "User not authorized"}, status=401)
+            return JsonResponse({"success": False, "message": "User not authorized"}, status=200)
         data = request.data
         template_id = request.data.get("template_id")  
         if not template_id:
-            return JsonResponse({"success": False, "message": "Error: Wrong template id"}, status=400) 
+            return JsonResponse({"success": False, "message": "Error: Wrong template id"}, status=200) 
         try: 
             SurveyTemplate.objects.get(id=template_id)
         except SurveyTemplate.DoesNotExist:
@@ -1203,7 +1203,7 @@ def survey_autosave(request):
         return JsonResponse({"success": True, "message": "Progress saved"})
     except Exception as e:
         logger.error(f"Autosave error: {str(e)}")
-        return JsonResponse({"success": False, "message": "Failed to save progress"}, status=500)
+        return JsonResponse({"success": False, "message": "Failed to save progress"}, status=200)
 
 
 @api_view(["GET"])
@@ -1211,7 +1211,7 @@ def survey_autosave_load(request, template_id):
     try:
         # Check authentication
         if not request.user.is_authenticated:
-            return JsonResponse({"success": False, "message": "User not authorized"}, status=401)
+            return JsonResponse({"success": False, "message": "User not authorized"}, status=200)
         school_email = request.user.email
         cache_key = f"survey_autosave_{school_email}_{template_id}"
         cached_data = cache.get(cache_key)
@@ -1232,7 +1232,7 @@ def survey_autosave_load(request, template_id):
 def survey_autosave_clear(request, template_id):
     try:
         if not request.user.is_authenticated:
-            return JsonResponse({"success": False, "message": "User not authorized"}, status=401)
+            return JsonResponse({"success": False, "message": "User not authorized"}, status=200)
         school_email = request.user.email
         cache_key = f"survey_autosave_{school_email}_{template_id}"
         
@@ -1241,4 +1241,4 @@ def survey_autosave_clear(request, template_id):
         return JsonResponse({"success": True, "message": "Autosave data cleared"})
     except Exception as e:
         logger.error(f"Clear autosave error: {str(e)}")
-        return JsonResponse({"success": False, "message": "Failed to clear draft"}, status=500)
+        return JsonResponse({"success": False, "message": "Failed to clear draft"}, status=200)

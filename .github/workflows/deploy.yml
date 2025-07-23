@@ -104,6 +104,8 @@ jobs:
           MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
           MYSQL_HOST=${{ secrets.MYSQL_HOST }}
           MYSQL_PORT=${{ secrets.MYSQL_PORT }}
+          REDIS_HOST=${{ secrets.REDIS_HOST }}
+          REDIS_PORT=${{ secrets.REDIS_PORT }}
           DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
           DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
           DEBUG=False

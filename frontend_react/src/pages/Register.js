@@ -224,7 +224,7 @@ function Body() {
                     )}
                     
                     {isSecondPage && (
-                        <button type="submit" className="login-btn" id="submit_btn">
+                        <button type="submit" className="login-btn" id="register_submit_btn">
                             Submit
                         </button>
                     )}

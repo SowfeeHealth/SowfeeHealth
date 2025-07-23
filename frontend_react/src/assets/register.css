@@ -234,3 +234,9 @@
 .register-btn:hover {
   transform: translateY(-2px);
 }
+
+#register_submit_btn {
+  margin-top: 40px !important;
+  width: fit-content !important;
+  padding: 1rem !important;
+}

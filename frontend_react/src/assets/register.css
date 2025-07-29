@@ -1,0 +1,242 @@
+
+.form-group {
+    margin-bottom: 1.5rem;
+  }
+
+  label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  input {
+    width: 100%;
+    padding: 1rem;
+    border: 2px solid #e8e9f1;
+    border-radius: 10px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+  }
+
+  input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(105, 54, 245, 0.1);
+  }
+
+  .login-btn {
+    width: fit-content;
+    padding: 1rem;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+    margin-left: 10px;
+  }
+
+  .login-btn:hover {
+    transform: translateY(-2px);
+  }
+
+  .links {
+    margin-top: 1.5rem;
+    text-align: center;
+  }
+
+  .links a {
+    color: var(--primary);
+    text-decoration: none;
+    font-size: 0.9rem;
+  }
+
+  .divider {
+    margin: 2rem 0;
+    position: relative;
+    text-align: center;
+    color: #888;
+  }
+
+  .divider::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    border-top: 1px solid #eee;
+    z-index: 1;
+  }
+
+  .divider span {
+    background: white;
+    position: relative;
+    z-index: 2;
+    padding: 0 1rem;
+  }
+
+  .social-login {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  .social-btn {
+    flex: 1;
+    padding: 0.8rem;
+    border: 1px solid #e8e9f1;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .social-btn:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+  }
+
+  @media (max-width: 480px) {
+    .login-container {
+      padding: 2rem;
+      margin: 1rem;
+    }
+
+    .logo {
+      font-size: 1.75rem;
+    }
+  }
+
+  .close-button {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    cursor: pointer;
+    font-size: 20px;
+  }
+
+  .form-select {
+    width: 100%;
+    padding: 1rem;
+    border: 2px solid #e8e9f1;
+    border-radius: 10px;
+    font-size: 1rem;
+    appearance: none;
+  }
+
+  /* .select-container {
+    background-image: url("./../../images/down-arrow-svgrepo-com.svg") no-repeat right #000;
+  } */
+
+  select{
+    background: url(data:image/svg+xml;base64,PHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllciAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0Ljk1IDEwIj48ZGVmcz48c3R5bGU+LmNscy0xe2ZpbGw6I2ZmZjt9LmNscy0ye2ZpbGw6IzQ0NDt9PC9zdHlsZT48L2RlZnM+PHRpdGxlPmFycm93czwvdGl0bGU+PHJlY3QgY2xhc3M9ImNscy0xIiB3aWR0aD0iNC45NSIgaGVpZ2h0PSIxMCIvPjxwb2x5Z29uIGNsYXNzPSJjbHMtMiIgcG9pbnRzPSIxLjQxIDQuNjcgMi40OCAzLjE4IDMuNTQgNC42NyAxLjQxIDQuNjciLz48cG9seWdvbiBjbGFzcz0iY2xzLTIiIHBvaW50cz0iMy41NCA1LjMzIDIuNDggNi44MiAxLjQxIDUuMzMgMy41NCA1LjMzIi8+PC9zdmc+) no-repeat 100% 50%;
+    -moz-appearance: none;
+    -webkit-appearance: none;
+    -webkit-border-radius: 0px;
+    appearance: none;
+  }
+
+  #prevBtn {
+    margin-top: 40px;
+    width:fit-content;
+    background-color: #bbbbbb;
+  }
+
+  #nextBtn {
+    margin-top: 40px;
+    width: fit-content;
+  }
+
+  .step {
+    height: 10px;
+    width: 10px;
+    margin: 0 1px;
+    background-color: #bbbbbb;
+    border: none;  
+    border-radius: 50%;
+    display: inline-block;
+    opacity: 0.5;
+  }
+
+  .step.active {
+    opacity: 1;
+  }
+
+  .step.finish {
+    background-color: #8a63f2;
+  }
+
+  .error_message {
+    font-size: x-small;
+    color: red;
+    display: block;
+    margin-top: 2px;
+  }
+
+  .required-symbol {
+    font-size: small;
+    color: red;
+  }
+
+  .step-indicator {
+  text-align: center;
+  margin-top: 40px;
+}
+
+.button-container {
+  overflow: auto;
+}
+
+.button-group {
+  float: right;
+  display: flex;
+}
+
+.submit-button {
+  height: fit-content;
+  margin-top: 40px;
+}
+
+.disabled-submit {
+    background-color: #ccc !important;
+    color: #666 !important;
+    cursor: not-allowed !important;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.no-questions-message {
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+}
+
+.register-btn {
+  width: fit-content;
+  padding: 1rem;
+  background: var(--primary); /* This should be purple */
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+  margin-left: 10px;
+  margin-top: 40px;
+}
+
+.register-btn:hover {
+  transform: translateY(-2px);
+}
+
+#register_submit_btn {
+  margin-top: 40px !important;
+  width: fit-content !important;
+  padding: 1rem !important;
+}

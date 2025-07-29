@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+backend/surveys/__pycache__/
+*.py[cod]
+*.swp
+*.swo
+*.swn
+
+# Virtual Environment
+venv/
+.env
+
+# Django
+*.log
+db.sqlite3
+media/
+static/
+
+# VS Code
+.vscode/
+
+# MySQL
+mysql-data/
+
+# MacOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Other
+*.bak
+*.tmp
+*.pem
+security_recommendations.md
+db_security_guide.md
+

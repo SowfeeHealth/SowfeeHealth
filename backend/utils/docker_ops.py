@@ -5,7 +5,7 @@ from env_crypto import read_env, decrypt_env
 if __name__ == "__main__":
     import sys
     if len(sys.argv) < 2:
-        print("Usage: python docker_ops.py [up|down|restart]")
+        print("Usage: python docker_ops.py [up|down|restart|stop-nginx|start-nginx]")
         sys.exit(1)
 
     # Decrypt the .env file first
@@ -19,6 +19,10 @@ if __name__ == "__main__":
     elif command == "restart":
         os.system("docker-compose -f docker-compose.prod.yaml down")
         os.system("docker-compose -f docker-compose.prod.yaml up -d")
+    elif command == "stop-nginx":
+        os.system("docker-compose -f docker-compose.prod.yaml stop nginx")
+    elif command == "start-nginx":
+        os.system("docker-compose -f docker-compose.prod.yaml start nginx")
     
     # Clean up the decrypted file after docker-compose
     if os.path.exists('.env'):

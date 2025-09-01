@@ -27,18 +27,43 @@ logger = logging.getLogger("surveys")
 
 @ensure_csrf_cookie
 def set_csrf_token(request):
+    """
+    Set CSRF token for the client.
+    
+    @params:
+        request (HttpRequest): The HTTP request object
+    
+    @returns:
+        JsonResponse: JSON response containing CSRF token
+        - success (bool): Always True
+        - csrfToken (str): The CSRF token for the client
+    """
     return JsonResponse({'detail': 'CSRF cookie set'})
 
 def demo_survey_view(request):
     """
-    demo_survey_view renders a sample survey response to visitors
+    Render the demo survey page.
+    
+    @params:
+        request (HttpRequest): The HTTP request object
+    
+    @returns:
+        HttpResponse: Rendered demo survey HTML template
     """
     if request.method == "GET":
         return render(request, "demo_survey.html")
 
 @api_view(["GET"])
 def user_view(request):
-    """user_view returns the current user status"""
+    """
+    Render the user dashboard page.
+    
+    @params:
+        request (HttpRequest): The HTTP request object
+    
+    @returns:
+        HttpResponse: Rendered user dashboard HTML template
+    """
     if request.user.is_authenticated:
         # Create the response first
         response = Response(UserSerializer(request.user).data)
@@ -98,7 +123,20 @@ def user_view(request):
 
 @api_view(["POST"])
 def survey_view(request, hash_link=None):
-    """survey_view allows students to access the survey page and save survey responses"""
+    """
+    Render the survey page for a specific survey template.
+    
+    @params:
+        request (HttpRequest): The HTTP request object
+        hash_link (str): Unique hash identifier for the survey template
+    
+    @returns:
+        HttpResponse: Rendered survey HTML template with context data
+        Context includes:
+        - survey_template: The survey template object
+        - questions: List of questions for the survey
+        - hash_link: The survey hash link
+    """
     # Handle hash link survey submission
     if hash_link:
         try:
@@ -181,7 +219,17 @@ def survey_view(request, hash_link=None):
 
 def _handle_student_responses(request, survey_template, questions, hashed=False):
     """
-    A function that serializes student responses, returns proper Json responses and saves them to the database.
+    Handle student survey responses and save them to the database.
+    
+    @params:
+        request (HttpRequest): The HTTP request object containing survey responses
+        survey_template (SurveyTemplate): The survey template object
+    
+    @returns:
+        JsonResponse: JSON response indicating success or failure
+        - success (bool): True if responses saved successfully, False otherwise
+        - message (str): Success or error message
+        - response_id (int): ID of the created survey response (on success)
     """
     no_student_user = False
     if hashed:
@@ -294,7 +342,18 @@ def _handle_student_responses(request, survey_template, questions, hashed=False)
 def get_user_survey_questions(request, hash_link=None):
     """
     API endpoint to get survey questions for the current user based on their institution
+    @params:
+        request (HttpRequest): The HTTP request object
+        hash_link (str): Unique hash identifier for the survey template
+    
+    @returns:
+        JsonResponse: JSON response containing survey questions
+        - success (bool): True if questions retrieved successfully, False otherwise
+        - questions (list): List of question objects with details
+        - survey_template (dict): Survey template information
+        - error (str): Error message (on failure)
     """
+    
     # Handle hash link requests (authentication required)
     if hash_link:
         try:
@@ -406,7 +465,56 @@ def get_user_survey_questions(request, hash_link=None):
 @api_view(["GET"])
 def dashboard_api(request):
     """
-    dashboard_view returns the dashboard page for a particular university.
+    Provides comprehensive dashboard analytics for institution administrators.
+    
+    This endpoint aggregates and returns statistical data about students, survey responses,
+    and mental health metrics for a specific institution. It calculates various metrics
+    including response rates, flagged students, sleep quality, stress levels, and monthly trends.
+    
+    @params:
+        request (HttpRequest): Django HTTP request object
+            - Must be authenticated
+            - User must be an institution admin (not superuser)
+            - User must have institution_details associated
+    
+    @returns:
+        JsonResponse: Dashboard analytics data
+        
+        Success Response (200):
+        {
+            "num_students": int,                    # Total students (registered + anonymous)
+            "flagged_students": list,               # List of tuples [(name, email), ...] for flagged students
+            "num_flagged_students": int,            # Count of students with flagged responses
+            "num_responses": int,                   # Total number of survey responses
+            "response_rate": int,                   # Percentage of students who have responded
+            "num_stable_students": int,             # Students without flagged responses
+            "num_good_sleep_quality": int,          # Students with good sleep (likert <= 2)
+            "num_bad_sleep_quality": int,           # Students with poor sleep (likert >= 4)
+            "num_low_stress": int,                  # Students with low stress (likert <= 2)
+            "num_moderate_stress": int,             # Students with moderate stress (likert == 3)
+            "num_high_stress": int,                 # Students with high stress (likert >= 4)
+            "months": list,                         # Month abbreviations for current year up to latest response
+            "monthly_response_rates": list,         # Response rate percentages by month
+            "monthly_num_responses": list,          # Number of unique student responses by month
+            "monthly_support_perception": list,     # Support perception counts by month (if support questions exist)
+            "has_sleep_questions": bool,            # Whether institution has sleep category questions
+            "has_stress_questions": bool,           # Whether institution has stress category questions
+            "has_support_questions": bool           # Whether institution has support category questions
+        }
+        
+        Error Responses:
+        - 401: {"error": "Authentication required"} - User not authenticated
+        - 403: {"error": "Superuser access not allowed"} - Superuser attempted access
+        - 403: {"error": "Admin access required"} - User is not institution admin
+    
+    @notes:
+        - Calculates metrics only for question categories that exist in institution's templates
+        - Monthly trends are calculated from January to the month of the latest response
+        - Response rates are based on unique students per month
+        - Flagged students are determined by their latest survey response
+        - Sleep quality: good (1-2), neutral (3), bad (4-5) on Likert scale
+        - Stress levels: low (1-2), moderate (3), high (4-5) on Likert scale
+        - Support perception: positive responses (1-2) on Likert scale
     """
     if not request.user.is_authenticated:
         return JsonResponse({"error": "Authentication required"}, status=401)
@@ -620,6 +728,51 @@ def dashboard_api(request):
 
 @api_view(["POST"])
 def login_view(request):
+    """
+    Authenticates users and establishes session with secure cookies.
+    
+    This endpoint handles user authentication by validating email/password credentials,
+    creating a session, and setting secure authentication cookies for frontend use.
+    
+    @params:
+        request (HttpRequest): Django HTTP request object
+            - method: Must be POST
+            - body (JSON): {
+                "email": str,     # User's email address
+                "password": str   # User's password
+            }
+    
+    @returns:
+        JsonResponse: Authentication result with user information and cookies
+        
+        Success Response (200):
+        {
+            "success": true,
+            "message": "Login successful!",
+            "is_admin": bool,              # Whether user is institution admin
+            "redirect_path": str           # Suggested redirect path based on user role
+        }
+        
+        Cookies Set on Success:
+        - auth_token: Session key (7 days, Lax SameSite)
+        - user_email: User's email (7 days, Lax SameSite)
+        - is_superuser: "true"/"false" (7 days, Lax SameSite)
+        - is_institution_admin: "true"/"false" (7 days, Lax SameSite)
+        
+        Error Responses:
+        - 400: {"error": "No data provided"} - Empty request body
+        - 400: {"error": "Email and password required"} - Missing credentials
+        - 400: {"error": "Invalid JSON format"} - Malformed JSON
+        - 400: {"success": false, "message": "Invalid credentials"} - Authentication failed
+        - 405: {"error": "Use POST method"} - Wrong HTTP method
+        - 500: {"error": "Server error occurred"} - Internal server error
+    
+    @notes:
+        - Cookie settings use Django settings for domain, security, and SameSite policies
+        - Redirect path is "/dashboard/" for admins, "/survey/" for students
+        - All cookies expire after 7 days
+        - Uses Django's built-in authentication system
+    """
     if request.method == "POST":
         try:
             # Check if body exists
@@ -703,7 +856,44 @@ def login_view(request):
 @api_view(["POST"])
 def register_view(request):
     """
-    register_view allows users to register into the system via API
+    Registers new student users with institution validation.
+    
+    This endpoint creates new student accounts after validating institution membership
+    through email pattern matching and ensuring the institution exists in the system.
+    
+    @params:
+        request (HttpRequest): Django HTTP request object
+            - method: Must be POST
+            - data (JSON or form): {
+                "institution_name": str,    # Name of the institution
+                "name": str,               # Student's full name
+                "email": str,              # Student's email address
+                "password": str,           # Desired password
+                "confirm_password": str    # Password confirmation
+            }
+    
+    @returns:
+        Response: Registration result with success/error information
+        
+        Success Response (201):
+        {
+            "success": true,
+            "message": "Registration successful! Please log in."
+        }
+        
+        Error Responses:
+        - 400: {"success": false, "message": "Passwords do not match."}
+        - 400: {"success": false, "message": "Email already registered."}
+        - 400: {"success": false, "message": "Institution does not exist"}
+        - 400: {"success": false, "message": "Email does not match institution's format"}
+        - 500: {"success": false, "message": "Registration failed. Please try again."}
+    
+    @notes:
+        - Email must match the institution's regex pattern for validation
+        - Creates student users with is_student=True
+        - Institution must exist in the database before registration
+        - Uses case-insensitive regex matching for email validation
+        - Automatically associates user with the specified institution
     """
     if request.method == "POST":
         # Extract form data from request.data (for JSON) or request.POST (for form data)
@@ -769,7 +959,37 @@ def register_view(request):
 @api_view(["POST"])
 def logout_view(request):
     """
-    logout_view allows users to logout of the system
+    Logs out authenticated users and clears session cookies.
+    
+    This endpoint terminates the user's session and removes all authentication-related
+    cookies to ensure complete logout from the system.
+    
+    @params:
+        request (HttpRequest): Django HTTP request object
+            - method: Must be POST
+            - user: Must be authenticated (automatic Django middleware)
+    
+    @returns:
+        JsonResponse: Logout confirmation with cleared cookies
+        
+        Success Response (200):
+        {
+            "success": true,
+            "message": "You have been logged out successfully."
+        }
+        
+        Cookies Cleared:
+        - sessionid: Django session cookie
+        - auth_token: Custom authentication token
+        - user_email: Stored user email
+        - is_institution_admin: Admin status flag
+        - is_superuser: Superuser status flag
+    
+    @notes:
+        - Always returns success response regardless of authentication status
+        - Clears cookies using Django settings for domain configuration
+        - Uses Django's built-in logout() function to terminate session
+        - Safe to call multiple times or when already logged out
     """
     logout(request)
 
@@ -804,9 +1024,42 @@ def logout_view(request):
 @api_view(['GET'])
 def student_response_view(request):
     """
-    student_response_view is an API view that returns survey responses
-    - Superusers see all responses
+    Retrieves survey responses with role-based access control.
+    
+    This endpoint returns survey responses based on user permissions:
+    - Superusers see all responses across all institutions
     - Institution admins see only responses from their institution
+    
+    @params:
+        request (HttpRequest): Django HTTP request object
+            - method: Must be GET
+            - user: Must be authenticated superuser or institution admin
+    
+    @returns:
+        Response: Serialized survey response data
+        
+        Success Response (200):
+        [
+            {
+                "id": int,
+                "student": int|null,           # Student ID (null for anonymous)
+                "anonymous_student": int|null, # Anonymous student ID
+                "created": str,                # ISO datetime string
+                "flagged": bool,               # Whether response is flagged
+                "responses": [...],            # Question responses array
+                # ... other SurveyResponse fields
+            },
+            ...
+        ]
+        
+        Error Responses:
+        - 400: "Request method not allowed" - Authentication or permission failed
+    
+    @notes:
+        - Includes both registered student and anonymous student responses
+        - Institution admins see responses filtered by their institution
+        - Uses Q objects to query across student and anonymous_student relationships
+        - Returns serialized data using SurveyResponseSerializer
     """
     if request.method == "GET" and request.user.is_authenticated and (request.user.is_superuser or request.user.is_institution_admin):
         if request.user.is_superuser:
@@ -830,9 +1083,41 @@ def student_response_view(request):
 @api_view(["GET"])
 def flagged_responses_view(request):
     """
-    flagged_responses_view is an API view that returns flagged survey responses
-    - Superusers see all flagged responses
-    - Institution admins see only flagged responses from their institution
+    Retrieves flagged survey responses with role-based filtering.
+    
+    This endpoint returns only survey responses that have been flagged as concerning,
+    with access control based on user permissions.
+    
+    @params:
+        request (HttpRequest): Django HTTP request object
+            - method: Must be GET
+            - user: Must be authenticated superuser or institution admin
+    
+    @returns:
+        Response: Serialized flagged survey response data
+        
+        Success Response (200):
+        [
+            {
+                "id": int,
+                "student": int|null,           # Student ID (null for anonymous)
+                "anonymous_student": int|null, # Anonymous student ID
+                "created": str,                # ISO datetime string
+                "flagged": true,               # Always true for this endpoint
+                "responses": [...],            # Question responses array
+                # ... other SurveyResponse fields
+            },
+            ...
+        ]
+        
+        Error Responses:
+        - 400: "Request method not allowed" - Authentication or permission failed
+    
+    @notes:
+        - Only returns responses where flagged=True
+        - Superusers see all flagged responses across institutions
+        - Institution admins see only flagged responses from their institution
+        - Includes both registered and anonymous student flagged responses
     """
     if request.method == "GET" and request.user.is_authenticated and (request.user.is_superuser or request.user.is_institution_admin):
         if request.user.is_superuser:
@@ -856,9 +1141,55 @@ def flagged_responses_view(request):
 @api_view(["GET"])
 def students_view(request):
     """
-    students_view is an API view that returns students (both registered and anonymous)
-    - Superusers see all students
-    - Institution admins see only students from their institution
+    Retrieves student information with role-based access control.
+    
+    This endpoint returns both registered and anonymous students based on user permissions,
+    providing a comprehensive view of all students in the system or institution.
+    
+    @params:
+        request (HttpRequest): Django HTTP request object
+            - method: Must be GET
+            - user: Must be authenticated superuser or institution admin
+    
+    @returns:
+        Response: Combined registered and anonymous student data
+        
+        Success Response (200):
+        {
+            "registered_students": [
+                {
+                    "id": int,
+                    "email": str,
+                    "name": str,
+                    "institution_details": int,    # Institution ID
+                    "is_student": true,
+                    "date_joined": str,            # ISO datetime string
+                    # ... other User fields
+                },
+                ...
+            ],
+            "anonymous_students": [
+                {
+                    "id": int,
+                    "name": str|null,              # May be null for anonymous
+                    "email": str,
+                    "survey_template": int,        # Template ID
+                    "created": str,                # ISO datetime string
+                    # ... other AnonymousStudent fields
+                },
+                ...
+            ]
+        }
+        
+        Error Responses:
+        - 400: "Request method not allowed" - Authentication or permission failed
+    
+    @notes:
+        - Separates registered users (User model) from anonymous students (AnonymousStudent model)
+        - Superusers see all students across all institutions
+        - Institution admins see only students from their institution
+        - Uses separate serializers for different student types
+        - Anonymous students are linked to institutions through survey templates
     """
     if request.method == "GET" and request.user.is_authenticated and (request.user.is_superuser or request.user.is_institution_admin):
         if request.user.is_superuser:
@@ -983,8 +1314,35 @@ def flagged_students_view(request):
 @api_view(["GET"])
 def institutions_view(request):
     """
-    institution_view is an API view that returns all students
-    in the database
+    Retrieves all institutions in the database.
+    
+    This endpoint returns a list of all registered institutions available in the system.
+    
+    @params:
+        request (HttpRequest): Django HTTP request object
+            - method: Must be GET
+    
+    @returns:
+        Response: Serialized institution data
+        
+        Success Response (200):
+        [
+            {
+                "id": int,
+                "institution_name": str,
+                "institution_regex_pattern": str,
+                # ... other Institution fields
+            },
+            ...
+        ]
+        
+        Error Responses:
+        - 400: "Request method not allowed" - Wrong HTTP method
+    
+    @notes:
+        - No authentication required - public endpoint
+        - Returns all institutions without filtering
+        - Used for registration form population
     """
     if request.method == "GET":
         all_institutions = Institution.objects.all()
@@ -996,6 +1354,30 @@ def institutions_view(request):
 
 @api_view(["GET"])
 def survey_templates_admin_view(request):
+    """
+    Renders the survey templates administration page.
+    
+    This endpoint serves the HTML template for institution admins to manage
+    their survey templates through a web interface.
+    
+    @params:
+        request (HttpRequest): Django HTTP request object
+            - method: Must be GET
+            - user: Must be authenticated institution admin
+    
+    @returns:
+        HttpResponse: Rendered survey templates admin HTML page
+        
+        Success Response (200): HTML template "survey_templates_admin.html"
+        
+        Error Responses:
+        - 400: "Request method not allowed" - Authentication or permission failed
+    
+    @notes:
+        - Only accessible to authenticated institution admins
+        - Returns rendered HTML template, not JSON data
+        - Used for web-based template management interface
+    """
     if request.method == "GET" and request.user.is_authenticated and request.user.is_institution_admin:
         return render(request, "survey_templates_admin.html")
     
@@ -1005,7 +1387,61 @@ def survey_templates_admin_view(request):
 @api_view(["GET", "POST", "DELETE"])
 def survey_templates_view(request):
     """
-    API to list, create and delete survey templates
+    Manages survey templates with full CRUD operations.
+    
+    This endpoint allows institution admins to list, create, and delete survey templates
+    for their institution with proper access control.
+    
+    @params:
+        request (HttpRequest): Django HTTP request object
+            - method: GET, POST, or DELETE
+            - user: Must be authenticated institution admin
+            - data (for POST/DELETE): JSON payload with operation-specific fields
+    
+    @returns:
+        JsonResponse: Operation result with template data or confirmation
+        
+        GET Success Response (200):
+        {
+            "success": true,
+            "templates": [
+                {
+                    "id": int,
+                    "institution": int,
+                    "hash_link": str,
+                    "used": bool,
+                    "created": str,
+                    # ... other SurveyTemplate fields
+                },
+                ...
+            ]
+        }
+        
+        POST Success Response (200):
+        {
+            "success": true,
+            "message": "Survey template created",
+            "id": int,
+            "hash_link": str
+        }
+        
+        DELETE Success Response (200):
+        {
+            "success": true,
+            "message": "Template deleted"
+        }
+        
+        Error Responses:
+        - 403: {"success": false, "error": "Permission denied"} - Not institution admin
+        - 400: {"success": false, "error": "Template ID is required"} - Missing template_id for DELETE
+        - 404: Template not found or doesn't belong to institution
+        - 500: {"success": false, "error": "..."} - Server error
+    
+    @notes:
+        - GET: Lists all templates for admin's institution
+        - POST: Creates new template automatically associated with admin's institution
+        - DELETE: Requires template_id in request data, cascades to delete questions
+        - All operations restricted to institution admin's own templates
     """
     if not request.user.is_authenticated or not request.user.is_institution_admin:
         return JsonResponse({"success": False, "error": "Permission denied"})
@@ -1059,7 +1495,76 @@ def survey_templates_view(request):
 @api_view(["GET", "POST", "DELETE"])
 def survey_questions_view(request, template_id):
     """
-    API to manage questions for a specific survey template
+    Manages survey questions for a specific template with full CRUD operations.
+    
+    This endpoint allows institution admins to list, create, and delete questions
+    within their survey templates with proper validation and ordering.
+    
+    @params:
+        request (HttpRequest): Django HTTP request object
+            - method: GET, POST, or DELETE
+            - user: Must be authenticated institution admin
+        template_id (int): ID of the survey template to manage
+        
+        POST data (JSON):
+        {
+            "question_text": str,          # Question content
+            "question_type": str,          # QuestionType enum value
+            "question_category": str,      # QuestionCategory enum value
+            "answer_choices": str|null     # JSON string for Likert choices
+        }
+        
+        DELETE data (JSON):
+        {
+            "question_id": int             # ID of question to delete
+        }
+    
+    @returns:
+        JsonResponse: Operation result with question data or confirmation
+        
+        GET Success Response (200):
+        {
+            "success": true,
+            "questions": [
+                {
+                    "id": int,
+                    "question_text": str,
+                    "question_type": str,
+                    "category": str,
+                    "order": int,
+                    "answer_choices": str|null,
+                    # ... other SurveyQuestion fields
+                },
+                ...
+            ]
+        }
+        
+        POST Success Response (200):
+        {
+            "success": true,
+            "message": "Question added",
+            "question": { /* serialized question data */ }
+        }
+        
+        DELETE Success Response (200):
+        {
+            "success": true,
+            "message": "Question deleted"
+        }
+        
+        Error Responses:
+        - 403: {"success": false, "error": "Permission denied"} - Not institution admin
+        - 403: {"success": false, "error": "You can only manage your institution's surveys"}
+        - 404: Template not found
+        - 400: {"success": false, "error": "Question ID is required"} - Missing question_id for DELETE
+        - 500: {"success": false, "error": "..."} - Server error
+    
+    @notes:
+        - GET: Returns questions ordered by 'order' field
+        - POST: Auto-assigns next available order number, defaults to LIKERT/GENERAL
+        - DELETE: Automatically reorders remaining questions after deletion
+        - Template ownership validated against admin's institution
+        - Supports both Likert scale and text question types
     """
     if not request.user.is_authenticated or not request.user.is_institution_admin:
         return JsonResponse({"success": False, "error": "Permission denied"})
@@ -1139,7 +1644,37 @@ def survey_questions_view(request, template_id):
 
 @api_view(["POST"])
 def use_template(request, template_id):
-    """Activate a specific template for use"""
+    """
+    Activates a specific survey template for institutional use.
+    
+    This endpoint allows institution admins to designate which survey template
+    should be actively used for student surveys, deactivating all others.
+    
+    @params:
+        request (HttpRequest): Django HTTP request object
+            - method: Must be POST
+            - user: Must be authenticated institution admin
+        template_id (int): ID of the survey template to activate
+    
+    @returns:
+        JsonResponse: Activation result
+        
+        Success Response (200):
+        {
+            "success": true
+        }
+        
+        Error Responses:
+        - 403: {"success": false, "error": "Unauthorized"} - Not institution admin
+        - 404: Template not found or doesn't belong to institution
+        - 500: {"success": false, "error": "..."} - Server error
+    
+    @notes:
+        - Only one template per institution can be active at a time
+        - Automatically deactivates all other templates for the institution
+        - Template must belong to the admin's institution
+        - Used template becomes the default for student surveys
+    """
     if not request.user.is_authenticated or not request.user.is_institution_admin:
         return JsonResponse({"success": False, "error": "Unauthorized"})
 
@@ -1160,7 +1695,24 @@ def use_template(request, template_id):
 
 # Modify the existing survey_view to use the 'used' field
 def get_active_template(institution):
-    """Helper function to get the active template or fallback to the one with minimal ID"""
+    """
+    Retrieves the active survey template for an institution.
+    
+    This helper function finds the currently active survey template for an institution,
+    with fallback logic to automatically activate the oldest template if none is marked as used.
+    
+    @params:
+        institution (Institution): Institution object to find template for
+    
+    @returns:
+        SurveyTemplate|None: Active template object or None if no templates exist
+    
+    @notes:
+        - First tries to find template with used=True
+        - Falls back to template with lowest ID if no active template
+        - Automatically marks fallback template as used=True
+        - Returns None if institution has no templates
+    """
     # Try to get the used template first
     template = SurveyTemplate.objects.filter(institution=institution, used=True).first()
     
@@ -1176,6 +1728,43 @@ def get_active_template(institution):
 
 @api_view(["POST"])
 def survey_autosave(request):
+    """
+    Saves survey progress to cache for authenticated users.
+    
+    This endpoint allows students to save their survey progress temporarily,
+    enabling them to resume later without losing their responses.
+    
+    @params:
+        request (HttpRequest): Django HTTP request object
+            - method: Must be POST
+            - user: Must be authenticated
+            - data (JSON): {
+                "template_id": int,        # Survey template ID
+                "answers": dict            # Question ID -> response mapping
+            }
+    
+    @returns:
+        JsonResponse: Save operation result
+        
+        Success Response (200):
+        {
+            "success": true,
+            "message": "Progress saved"
+        }
+        
+        Error Responses:
+        - 200: {"success": false, "message": "User not authorized"} - Not authenticated
+        - 200: {"success": false, "message": "Error: Wrong template id"} - Missing template_id
+        - 404: {"success": false, "message": "Invalid survey template"} - Template not found
+        - 200: {"success": false, "message": "Failed to save progress"} - Cache error
+    
+    @notes:
+        - Data cached for 30 minutes (1800 seconds)
+        - Cache key format: "survey_autosave_{email}_{template_id}"
+        - Includes timestamp of last save
+        - Overwrites previous autosave data for same user/template
+        - Uses Django cache framework for temporary storage
+    """
     try:
         if not request.user.is_authenticated:
             return JsonResponse({"success": False, "message": "User not authorized"}, status=200)
@@ -1208,6 +1797,45 @@ def survey_autosave(request):
 
 @api_view(["GET"])
 def survey_autosave_load(request, template_id):
+    """
+    Loads previously saved survey progress from cache.
+    
+    This endpoint retrieves autosaved survey data for authenticated users,
+    allowing them to resume their survey from where they left off.
+    
+    @params:
+        request (HttpRequest): Django HTTP request object
+            - method: Must be GET
+            - user: Must be authenticated
+        template_id (int): Survey template ID to load progress for
+    
+    @returns:
+        JsonResponse: Load operation result with saved data
+        
+        Success Response (200):
+        {
+            "success": true,
+            "saved_data": {
+                "template_id": int,
+                "student_name": str,
+                "school_email": str,
+                "last_saved": str,         # ISO datetime string
+                "answers": dict            # Question ID -> response mapping
+            }
+        }
+        
+        Error Responses:
+        - 200: {"success": false, "message": "User not authorized"} - Not authenticated
+        - 200: {"success": false, "message": "No autosaved data found"} - No cached data
+        - 200: {"success": false, "message": "Corrupted save data. Please press the clear button"} - Invalid JSON
+        - 200: {"success": false, "message": "Failed to load autosave"} - Cache error
+    
+    @notes:
+        - Cache key format: "survey_autosave_{email}_{template_id}"
+        - Automatically clears corrupted cache data
+        - Returns user's name and email along with answers
+        - Data expires after 30 minutes of inactivity
+    """
     try:
         # Check authentication
         if not request.user.is_authenticated:
@@ -1230,6 +1858,37 @@ def survey_autosave_load(request, template_id):
 
 @api_view(["DELETE"])
 def survey_autosave_clear(request, template_id):
+    """
+    Clears saved survey progress from cache.
+    
+    This endpoint allows authenticated users to manually delete their autosaved
+    survey progress, useful when starting fresh or after successful submission.
+    
+    @params:
+        request (HttpRequest): Django HTTP request object
+            - method: Must be DELETE
+            - user: Must be authenticated
+        template_id (int): Survey template ID to clear progress for
+    
+    @returns:
+        JsonResponse: Clear operation result
+        
+        Success Response (200):
+        {
+            "success": true,
+            "message": "Autosave data cleared"
+        }
+        
+        Error Responses:
+        - 200: {"success": false, "message": "User not authorized"} - Not authenticated
+        - 200: {"success": false, "message": "Failed to clear draft"} - Cache error
+    
+    @notes:
+        - Cache key format: "survey_autosave_{email}_{template_id}"
+        - Safe to call even if no autosave data exists
+        - Typically called after successful survey submission
+        - Immediately removes data from cache
+    """
     try:
         if not request.user.is_authenticated:
             return JsonResponse({"success": False, "message": "User not authorized"}, status=200)

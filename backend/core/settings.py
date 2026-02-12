@@ -93,8 +93,8 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:3000', 
     'http://localhost:8000',
     'http://127.0.0.1:8000', 
-    'https://sowfeehealth.com',
-    'https://www.sowfeehealth.com',
+    'https://sowfeehealth.live',
+    'https://www.sowfeehealth.live',
     f'http://{os.getenv("EC2_HOST")}',
     f'https://{os.getenv("EC2_HOST")}',
 ]
@@ -112,13 +112,13 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:8000',
     'http://localhost:3000',
     'http://127.0.0.1:3000',
-    'http://sowfeehealth.com',        
-    'http://www.sowfeehealth.com', 
-    'https://sowfeehealth.com',
-    'http://www.sowfeehealth.com',
-    'https://www.sowfeehealth.com',
-    'https://sowfeehealth.com/',
-    'https://www.sowfeehealth.com/'      
+    'http://sowfeehealth.live',        
+    'http://www.sowfeehealth.live', 
+    'https://sowfeehealth.live',
+    'http://www.sowfeehealth.live',
+    'https://www.sowfeehealth.live',
+    'https://sowfeehealth.live/',
+    'https://www.sowfeehealth.live/'      
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -254,7 +254,7 @@ LOGGING = {
 
 
 # Cookie settings based on environment
-COOKIE_DOMAIN = '.sowfeehealth.com' if IS_PRODUCTION else None
+COOKIE_DOMAIN = '.sowfeehealth.live' if IS_PRODUCTION else None
 COOKIE_SECURE = IS_PRODUCTION
 
 # Session cookie settings

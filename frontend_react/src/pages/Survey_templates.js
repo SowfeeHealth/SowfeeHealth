@@ -222,7 +222,7 @@ function SurveyTemplates() {
 
     // Add this function to copy hash link
     const copyHashLink = (hashLink) => {
-        const fullUrl = `https://sowfeehealth.com/survey/link/${hashLink}`;
+        const fullUrl = `https://sowfeehealth.live/survey/link/${hashLink}`;
         navigator.clipboard.writeText(fullUrl).then(() => {
             showMessage('Hash link copied to clipboard!', 'success');
         }).catch(() => {
@@ -296,7 +296,7 @@ function SurveyTemplates() {
                                                     <strong>Survey Link:</strong> 
                                                     <br />
                                                     <code style={{ wordBreak: 'break-all', backgroundColor: '#e9ecef', padding: '2px 4px', borderRadius: '2px' }}>
-                                                        https://sowfeehealth.com/survey/link/{template.hash_link}
+                                                        https://sowfeehealth.live/survey/link/{template.hash_link}
                                                     </code>
                                                     <button 
                                                         className="btn"

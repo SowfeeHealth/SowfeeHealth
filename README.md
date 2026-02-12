@@ -2,7 +2,7 @@
 
 A full-stack web application built for healthcare institutions to create, customize, and manage student health surveys with advanced templating and analytics capabilities.
 
-🌐 **Live Demo:** [sowfeehealth.com](https://sowfeehealth.com)
+🌐 **Live Demo:** [sowfeehealth.live](https://sowfeehealth.live)
 
 ## Overview
 

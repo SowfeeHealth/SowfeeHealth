@@ -15,7 +15,7 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework import status
 import json
-from django.db.models import Q
+from django.db.models import Subquery, OuterRef, Count, Q
 from django.conf import settings
 from django.core.cache import cache
 from datetime import datetime
@@ -570,35 +570,65 @@ def dashboard_api(request):
 
     # Initialize list for flagged students
     school_flagged_responses = []
-    
-    # For each student, check if their latest response is flagged
-    for student in institution_students:
-        # Get the latest response for this student
-        latest_response = SurveyResponse.objects.filter(student=student).order_by('-created').first()
-        if latest_response:
-            responded_students += 1
-        # If the student has a response and it's flagged, add them to the list
-        if latest_response and latest_response.flagged:
-            school_flagged_responses.append((student.name, student.email))
+    # ── Latest response per registered student (1 query using Subquery) ──
+    latest_registered_response = SurveyResponse.objects.filter(
+        student=OuterRef('pk')
+    ).order_by('-created')
 
-    # For each anonymous student, check if their latest response is flagged
-    for anon_student in anonymous_students:
-        # Get the latest response for this student
-        latest_response = SurveyResponse.objects.filter(anonymous_student=anon_student).order_by('-created').first()
-        if latest_response:
-            responded_students += 1
-        # If the student has a response and it's flagged, add them to the list
-        if latest_response and latest_response.flagged:
-            school_flagged_responses.append((anon_student.name or "Anonymous", anon_student.email))
+    registered_with_status = User.objects.filter(
+        is_student=True,
+        institution_details=institution_details
+    ).annotate(
+        has_response=Subquery(latest_registered_response.values('id')[:1]),
+        latest_flagged=Subquery(latest_registered_response.values('flagged')[:1])
+    )
+
+    registered_responded = registered_with_status.filter(
+        has_response__isnull=False
+    ).count()
+
+    registered_flagged = list(
+        registered_with_status.filter(
+            latest_flagged=True
+        ).values_list('name', 'email')
+    )
+
+    # ── Latest response per anonymous student (1 query using Subquery) ──
+    latest_anon_response = SurveyResponse.objects.filter(
+        anonymous_student=OuterRef('pk')
+    ).order_by('-created')
+
+    anon_with_status = AnonymousStudent.objects.filter(
+        survey_template__institution=institution_details
+    ).annotate(
+        has_response=Subquery(latest_anon_response.values('id')[:1]),
+        latest_flagged=Subquery(latest_anon_response.values('flagged')[:1])
+    )
+
+    anon_responded = anon_with_status.filter(
+        has_response__isnull=False
+    ).count()
+
+    anon_flagged = list(
+        anon_with_status.filter(
+            latest_flagged=True
+        ).values_list('name', 'email')
+    )
+
+    # ── Combine results ──
+    responded_students = registered_responded + anon_responded
+    school_flagged_responses = registered_flagged + anon_flagged
+    num_flagged_students = len(school_flagged_responses)
 
     # Number of responses for students registered in the university
-    all_registered_responses = SurveyResponse.objects.filter(student__institution_details=institution_details)
-    all_anonymous_responses = SurveyResponse.objects.filter(anonymous_student__survey_template__institution=institution_details)
-    num_responses = len(all_registered_responses)+len(all_anonymous_responses)
+    #all_registered_responses = SurveyResponse.objects.filter(student__institution_details=institution_details)
+    #all_anonymous_responses = SurveyResponse.objects.filter(anonymous_student__survey_template__institution=institution_details)
+    #num_responses = len(all_registered_responses)+len(all_anonymous_responses)
     all_responses = SurveyResponse.objects.filter(
     Q(student__institution_details=institution_details) | 
     Q(anonymous_student__survey_template__institution=institution_details)
-)
+    )
+    num_responses = all_responses.count()
     
     # Number of students registered in the university and marked as flagged
     num_flagged_students = len(school_flagged_responses)
@@ -630,57 +660,34 @@ def dashboard_api(request):
     num_low_stress = 0
     num_moderate_stress = 0
     num_high_stress = 0
-    monthly_support_perception = []
-    
-    # Only calculate sleep metrics if sleep questions exist
+    monthly_support_perception = []  
     if has_sleep_questions:
-        # Find sleep quality questions
-        sleep_questions = SurveyQuestion.objects.filter(
-            survey_template__in=survey_templates,
-            category=QuestionCategory.SLEEP
+        sleep_stats = QuestionResponse.objects.filter(
+            question__survey_template__in=survey_templates,
+            question__category=QuestionCategory.SLEEP,
+            survey_response__in=all_responses,
+            likert_value__isnull=False
+        ).aggregate(
+            good=Count('id', filter=Q(likert_value__lte=2)),
+            bad=Count('id', filter=Q(likert_value__gte=4))
         )
-        
-        # Get responses for sleep questions
-        for response in all_responses:
-            for sleep_question in sleep_questions:
-                try:
-                    question_response = QuestionResponse.objects.get(
-                        survey_response=response,
-                        question=sleep_question
-                    )
-                    if question_response.likert_value is not None:
-                        if question_response.likert_value <= 2:
-                            num_good_sleep_quality += 1
-                        elif question_response.likert_value >= 4:
-                            num_bad_sleep_quality += 1
-                except QuestionResponse.DoesNotExist:
-                    continue
-    
-    # Only calculate stress metrics if stress questions exist
+        num_good_sleep_quality = sleep_stats['good']
+        num_bad_sleep_quality = sleep_stats['bad']
+
     if has_stress_questions:
-        # Find stress level questions
-        stress_questions = SurveyQuestion.objects.filter(
-            survey_template__in=survey_templates,
-            category=QuestionCategory.STRESS
+        stress_stats = QuestionResponse.objects.filter(
+            question__survey_template__in=survey_templates,
+            question__category=QuestionCategory.STRESS,
+            survey_response__in=all_responses,
+            likert_value__isnull=False
+        ).aggregate(
+            low=Count('id', filter=Q(likert_value__lte=2)),
+            moderate=Count('id', filter=Q(likert_value=3)),
+            high=Count('id', filter=Q(likert_value__gte=4))
         )
-        
-        # Get responses for stress questions
-        for response in all_responses:
-            for stress_question in stress_questions:
-                try:
-                    question_response = QuestionResponse.objects.get(
-                        survey_response=response,
-                        question=stress_question
-                    )
-                    if question_response.likert_value is not None:
-                        if question_response.likert_value <= 2:
-                            num_low_stress += 1
-                        elif question_response.likert_value == 3:
-                            num_moderate_stress += 1
-                        elif question_response.likert_value >= 4:
-                            num_high_stress += 1
-                except QuestionResponse.DoesNotExist:
-                    continue
+        num_low_stress = stress_stats['low']
+        num_moderate_stress = stress_stats['moderate']
+        num_high_stress = stress_stats['high']
 
     months = []
     months_idx = []
@@ -706,28 +713,15 @@ def dashboard_api(request):
             
             # Store the count of unique student responses
             monthly_num_responses.append(unique_students_responded)
-            
-            # Only calculate support perception if support questions exist
+       
             if has_support_questions:
-                # Rest of the support perception calculation remains the same
-                support_count = 0
-                support_questions = SurveyQuestion.objects.filter(
-                    survey_template__in=survey_templates,
-                    category=QuestionCategory.SUPPORT
-                )
-                
-                for response in month_responses:
-                    for support_question in support_questions:
-                        try:
-                            question_response = QuestionResponse.objects.get(
-                                survey_response=response,
-                                question=support_question
-                            )
-                            if question_response.likert_value is not None and question_response.likert_value <= 2:
-                                support_count += 1
-                        except QuestionResponse.DoesNotExist:
-                            continue
-                
+                support_count = QuestionResponse.objects.filter(
+                    question__survey_template__in=survey_templates,
+                    question__category=QuestionCategory.SUPPORT,
+                    survey_response__in=month_responses,
+                    likert_value__isnull=False,
+                    likert_value__lte=2
+                ).count()
                 monthly_support_perception.append(support_count)
 
     context = {

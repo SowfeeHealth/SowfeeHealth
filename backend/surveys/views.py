@@ -20,6 +20,7 @@ from django.conf import settings
 from django.core.cache import cache
 from datetime import datetime
 from surveys.tasks import analyze_survey_responses_async
+from django.db import transaction, IntegrityError
 
 
 # Use a single logger configuration
@@ -145,7 +146,7 @@ def survey_view(request, hash_link=None):
             questions = SurveyQuestion.objects.filter(survey_template=survey_template)
             if not questions.exists():
                 return JsonResponse({"success": False, "message": "No questions found in the survey template"})
-            
+                
             # Check if all questions have responses
             missing_responses = []
             for question in questions:
@@ -276,51 +277,77 @@ def _handle_student_responses(request, survey_template, questions, hashed=False)
     
     # Create the survey response
     try:
-        if not no_student_user:
-            survey_response = SurveyResponse.objects.create(
-                student=student,
-                survey_template=survey_template,
-                flagged=False  # Will update this after checking responses
-            )
-        else:
-            survey_response = SurveyResponse.objects.create(
-                anonymous_student=ano_student,
-                survey_template = survey_template,
-                flagged=False
-            )
-        
-        # Create individual question responses
-        should_flag = False
-        for question in questions:
-            question_id = str(question.id)
-            response_value = request.data.get(question_id)
-            
-            if question.question_type == 'likert':
-                likert_value = int(response_value)
-                text_response = None
-                # Check if this response should trigger flagging
-                if likert_value >= 3:  # Assuming 3+ is concerning for any question
-                    should_flag = True
-            else:  # text response
-                likert_value = None
-                text_response = response_value
-            
-            QuestionResponse.objects.create(
-                survey_response=survey_response,
-                question=question,
-                likert_value=likert_value,
-                text_response=text_response
-            )
-        
-        # Update flagged status if needed
-        if should_flag:
-            survey_response.flagged = True
-            survey_response.save()
-        
-        # Pass question IDs instead of model objects
-        question_ids = [q.id for q in questions]
-        result = analyze_survey_responses_async.delay(survey_response.id, question_ids)
+        with transaction.atomic():
+            if not no_student_user:
+                recent = SurveyResponse.objects.select_for_update().filter(
+                    student=student,
+                    survey_template=survey_template,
+                    created__gte=timezone.now() - timezone.timedelta(seconds=60)
+                ).first()
 
+                if recent:
+                    return JsonResponse({
+                        "success": False,
+                        "message": "You recently submitted this survey. Please wait before submitting again."
+                    })
+
+                survey_response = SurveyResponse.objects.create(
+                    student=student,
+                    survey_template=survey_template,
+                    flagged=False  # Will update this after checking responses
+                )
+            else:
+                recent = SurveyResponse.objects.select_for_update().filter(
+                    anonymous_student=ano_student,
+                    survey_template=survey_template,
+                    created__gte=timezone.now() - timezone.timedelta(seconds=60)
+                ).first()
+
+                if recent:
+                    return JsonResponse({
+                        "success": False,
+                        "message": "You recently submitted this survey. Please wait before submitting again."
+                    })
+
+                survey_response = SurveyResponse.objects.create(
+                    anonymous_student=ano_student,
+                    survey_template = survey_template,
+                    flagged=False
+                )
+            
+            # Create individual question responses
+            should_flag = False
+            for question in questions:
+                question_id = str(question.id)
+                response_value = request.data.get(question_id)
+                
+                if question.question_type == 'likert':
+                    likert_value = int(response_value)
+                    text_response = None
+                    # Check if this response should trigger flagging
+                    if likert_value >= 3:  # Assuming 3+ is concerning for any question
+                        should_flag = True
+                else:  # text response
+                    likert_value = None
+                    text_response = response_value
+                
+                QuestionResponse.objects.create(
+                    survey_response=survey_response,
+                    question=question,
+                    likert_value=likert_value,
+                    text_response=text_response
+                )
+            
+            # Update flagged status if needed
+            if should_flag:
+                survey_response.flagged = True
+                survey_response.save()
+            
+            # Pass question IDs instead of model objects
+            question_ids = [q.id for q in questions]
+            transaction.on_commit(
+                lambda: analyze_survey_responses_async.delay(survey_response.id, question_ids)
+            )
         # Return success response
         response_data = {
             "success": True,
@@ -937,18 +964,24 @@ def register_view(request):
         
         # Create a new student
         try:
-            student = User.objects.create_student(
-                email=email, 
-                password=password, 
-                institution_details=institution_details, 
-                name=name
-            )
-            student.save()
-            
+            with transaction.atomic():
+                student = User.objects.create_student(
+                    email=email, 
+                    password=password, 
+                    institution_details=institution_details, 
+                    name=name
+                )
+                #student.save()
+                
+                return Response({
+                    'success': True,
+                    'message': "Registration successful! Please log in."
+                }, status=status.HTTP_201_CREATED)
+        except IntegrityError:
             return Response({
-                'success': True,
-                'message': "Registration successful! Please log in."
-            }, status=status.HTTP_201_CREATED)
+                'success': False,
+                'message': "Registration failed. Email already registered"
+            }, status=status.HTTP_400_BAD_REQUEST)
             
         except Exception as e:
             return Response({
@@ -1586,26 +1619,29 @@ def survey_questions_view(request, template_id):
         # Add a new question to the template
         try:
             data = request.data
-            
-            # Get the highest current order value
-            highest_order = SurveyQuestion.objects.filter(survey_template=template).order_by('-order').first()
-            new_order = 1 if not highest_order else highest_order.order + 1
-            
-            # Create question with basic fields
-            new_question = SurveyQuestion(
-                survey_template=template,
-                question_text=data.get('question_text', 'New Question'),
-                question_type=data.get('question_type', QuestionType.LIKERT),
-                category=data.get('question_category', QuestionCategory.GENERAL),
-                order=new_order,
-                answer_choices=data.get('answer_choices')
-            )
-            
-            # Add answer choices if provided
-            if data.get('answer_choices') and data.get('question_type') == QuestionType.LIKERT:
-                new_question.answer_choices = data.get('answer_choices')
-            
-            new_question.save()
+            with transaction.atomic():
+                locked_qs = list(
+                    SurveyQuestion.objects.filter(survey_template=template).select_for_update()
+                )
+                # Get the highest current order value
+                highest_order = SurveyQuestion.objects.filter(survey_template=template).order_by('-order').first()
+                new_order = 1 if not highest_order else highest_order.order + 1
+                
+                # Create question with basic fields
+                new_question = SurveyQuestion(
+                    survey_template=template,
+                    question_text=data.get('question_text', 'New Question'),
+                    question_type=data.get('question_type', QuestionType.LIKERT),
+                    category=data.get('question_category', QuestionCategory.GENERAL),
+                    order=new_order,
+                    answer_choices=data.get('answer_choices')
+                )
+                
+                # Add answer choices if provided
+                #if data.get('answer_choices') and data.get('question_type') == QuestionType.LIKERT:
+                #    new_question.answer_choices = data.get('answer_choices')
+                
+                new_question.save()
             
             serializer = SurveyQuestionSerializer(new_question)
             return JsonResponse({
@@ -1624,16 +1660,21 @@ def survey_questions_view(request, template_id):
             
             if not question_id:
                 return JsonResponse({"success": False, "error": "Question ID is required"})
-            
-            question = get_object_or_404(SurveyQuestion, id=question_id, survey_template=template)
-            question.delete()
-            
-            # Reorder remaining questions
-            remaining_questions = SurveyQuestion.objects.filter(survey_template=template).order_by('order')
-            for i, q in enumerate(remaining_questions, 1):
-                q.order = i
-                q.save()
-            
+            with transaction.atomic():
+                
+                locked_qs = list(
+                    SurveyQuestion.objects.filter(survey_template=template).select_for_update()
+                )
+
+                question = get_object_or_404(SurveyQuestion, id=question_id, survey_template=template)
+                question.delete()
+                
+                # Reorder remaining questions
+                remaining_questions = SurveyQuestion.objects.filter(survey_template=template).order_by('order')
+                for i, q in enumerate(remaining_questions, 1):
+                    q.order = i
+                    q.save()
+                
             return JsonResponse({
                 "success": True,
                 "message": "Question deleted"
@@ -1679,16 +1720,18 @@ def use_template(request, template_id):
         return JsonResponse({"success": False, "error": "Unauthorized"})
 
     try:
-        # Get the template to activate
-        template = get_object_or_404(SurveyTemplate, id=template_id, institution=request.user.institution_details)
-        
-        # Deactivate all other templates for this institution
-        SurveyTemplate.objects.filter(institution=request.user.institution_details).update(used=False)
-        
-        # Activate the selected template
-        template.used = True
-        template.save()
-        
+        with transaction.atomic():
+            SurveyTemplate.objects.filter(
+            institution=request.user.institution_details
+            ).select_for_update().update(used=False)
+
+            # Get the template to activate
+            template = get_object_or_404(SurveyTemplate.objects.select_for_update(), id=template_id, institution=request.user.institution_details)
+            
+            # Activate the selected template
+            template.used = True
+            template.save()
+            
         return JsonResponse({"success": True})
     except Exception as e:
         return JsonResponse({"success": False, "error": str(e)})
@@ -1713,16 +1756,17 @@ def get_active_template(institution):
         - Automatically marks fallback template as used=True
         - Returns None if institution has no templates
     """
-    # Try to get the used template first
-    template = SurveyTemplate.objects.filter(institution=institution, used=True).first()
-    
-    # If no template is marked as used, get the one with minimal ID
-    if not template:
-        template = SurveyTemplate.objects.filter(institution=institution).order_by('id').first()
-        if template:
-            # Automatically mark this template as used
-            template.used = True
-            template.save()
+    with transaction.atomic():
+        # Try to get the used template first
+        template = SurveyTemplate.objects.select_for_update().filter(institution=institution, used=True).first()
+        
+        # If no template is marked as used, get the one with minimal ID
+        if not template:
+            template = SurveyTemplate.objects.select_for_update().filter(institution=institution).order_by('id').first()
+            if template:
+                # Automatically mark this template as used
+                template.used = True
+                template.save()
     
     return template
 

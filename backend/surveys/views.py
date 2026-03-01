@@ -556,13 +556,13 @@ def dashboard_api(request):
     institution_details = request.user.institution_details
 
     # Number of students registered in the university
-    num_registered_students = len(User.objects.filter(is_student=True, institution_details=institution_details))
+    num_registered_students = User.objects.filter(is_student=True, institution_details=institution_details).count()
 
-    num_anonymous_students = len(AnonymousStudent.objects.filter(survey_template__institution=institution_details))
+    num_anonymous_students = AnonymousStudent.objects.filter(survey_template__institution=institution_details).count()
 
     num_students = num_registered_students+num_anonymous_students
 
-    responded_students = 0
+    #responded_students = 0
     # Get all students in the institution
     institution_students = User.objects.filter(is_student=True, institution_details=institution_details)
     
@@ -1265,59 +1265,64 @@ def flagged_students_view(request):
         flagged_registered_students = []
         flagged_anonymous_students = []
         
-        # Handle registered students
-        if request.user.is_superuser:
-            students = User.objects.filter(is_student=True)
-        else:
-            students = User.objects.filter(
-                is_student=True, 
+        # ── Registered students ──
+        latest_response = SurveyResponse.objects.filter(
+            student=OuterRef('pk')
+        ).order_by('-created')
+
+        students_qs = User.objects.filter(is_student=True)
+        if not request.user.is_superuser:
+            students_qs = students_qs.filter(
                 institution_details=request.user.institution_details
             )
-        
-        # Check each registered student's latest response
-        for student in students:
-            latest_response = SurveyResponse.objects.filter(
-                student=student
-            ).order_by('-created').first()
-            
-            # If latest response exists and is flagged, include this student
-            if latest_response and latest_response.flagged:
-                flagged_registered_students.append({
-                    "id": student.id,
-                    "name": student.name,
-                    "email": student.email,
-                    "institution_id": student.institution_details.id if student.institution_details else None,
-                    "institution_name": student.institution_details.institution_name if student.institution_details else None,
-                    "latest_response_date": latest_response.created,
-                    "latest_response_id": latest_response.id
-                })
-        
-        # Handle anonymous students
-        if request.user.is_superuser:
-            anonymous_students = AnonymousStudent.objects.all()
-        else:
-            anonymous_students = AnonymousStudent.objects.filter(
+
+        flagged_registered = students_qs.annotate(
+            latest_flagged=Subquery(latest_response.values('flagged')[:1]),
+            latest_response_date=Subquery(latest_response.values('created')[:1]),
+            latest_response_id=Subquery(latest_response.values('id')[:1])
+        ).filter(
+            latest_flagged=True
+        ).select_related('institution_details')
+
+        flagged_registered_students = [{
+            "id": s.id,
+            "name": s.name,
+            "email": s.email,
+            "institution_id": s.institution_details.id if s.institution_details else None,
+            "institution_name": s.institution_details.institution_name if s.institution_details else None,
+            "latest_response_date": s.latest_response_date,
+            "latest_response_id": s.latest_response_id
+        } for s in flagged_registered]
+
+        # ── Anonymous students ──
+        latest_anon_response = SurveyResponse.objects.filter(
+            anonymous_student=OuterRef('pk')
+        ).order_by('-created')
+
+        anon_qs = AnonymousStudent.objects.all()
+        if not request.user.is_superuser:
+            anon_qs = anon_qs.filter(
                 survey_template__institution=request.user.institution_details
             )
-        
-        # Check each anonymous student's latest response
-        for anonymous_student in anonymous_students:
-            latest_response = SurveyResponse.objects.filter(
-                anonymous_student=anonymous_student
-            ).order_by('-created').first()
-            
-            # If latest response exists and is flagged, include this anonymous student
-            if latest_response and latest_response.flagged:
-                flagged_anonymous_students.append({
-                    "email": anonymous_student.email,
-                    "name": anonymous_student.name,
-                    "institution_id": anonymous_student.survey_template.institution.id if anonymous_student.survey_template else None,
-                    "institution_name": anonymous_student.survey_template.institution.institution_name if anonymous_student.survey_template else None,
-                    "survey_template_id": anonymous_student.survey_template.id if anonymous_student.survey_template else None,
-                    "latest_response_date": latest_response.created,
-                    "latest_response_id": latest_response.id,
-                    "created_at": anonymous_student.created_at
-                })
+
+        flagged_anon = anon_qs.annotate(
+            latest_flagged=Subquery(latest_anon_response.values('flagged')[:1]),
+            latest_response_date=Subquery(latest_anon_response.values('created')[:1]),
+            latest_response_id=Subquery(latest_anon_response.values('id')[:1])
+        ).filter(
+            latest_flagged=True
+        ).select_related('survey_template__institution')
+
+        flagged_anonymous_students = [{
+            "email": s.email,
+            "name": s.name,
+            "institution_id": s.survey_template.institution.id if s.survey_template else None,
+            "institution_name": s.survey_template.institution.institution_name if s.survey_template else None,
+            "survey_template_id": s.survey_template.id if s.survey_template else None,
+            "latest_response_date": s.latest_response_date,
+            "latest_response_id": s.latest_response_id,
+            "created_at": s.created_at
+        } for s in flagged_anon]
         
         return JsonResponse({
             "success": True,

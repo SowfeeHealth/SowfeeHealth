@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='user',
             name='email',
-            field=models.EmailField(max_length=254, unique=True, validators=[django.core.validators.EmailValidator(), surveys.models.validate_edu_email]),
+            field=models.EmailField(max_length=254, unique=True, validators=[django.core.validators.EmailValidator()]),
         ),
         migrations.AlterField(
             model_name='user',

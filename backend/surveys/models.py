@@ -125,6 +125,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.email
 
     def has_perm(self, perm, obj=None):
+        if self.is_superuser:
+            return True
         return self.role == self.Role.INSTITUTION_ADMIN
 
     def has_module_perms(self, app_label):

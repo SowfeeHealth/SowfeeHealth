@@ -47,9 +47,8 @@ class UserManager(BaseUserManager):
         password: password chosen by the user
         """
         user = self.create_user(email=email, password=password)
-        
         # Give all the permissions to the user
-        user.is_admin = True
+        # user.is_admin = True
         user.is_superuser = True
 
         # Save permission changes to the database
@@ -67,7 +66,7 @@ class UserManager(BaseUserManager):
         password: password corresponding to the student
         institution_details: institution corresponding to the student
         """
-        student = self.model(email=email, is_student=True, name=name, institution_details=institution_details)
+        student = self.model(email=email, role = User.Role.STUDENT, name=name, institution_details=institution_details)
         student.set_password(password)
         student.save()
 
@@ -83,34 +82,34 @@ class UserManager(BaseUserManager):
         password: password corresponding to the admin
         institution_details: institution corresponding to the admin
         """
-        admin = self.model(email=email, is_institution_admin=True, institution_details=institution_details)
+        admin = self.model(email=email, role = User.Role.INSTITUTION_ADMIN, institution_details=institution_details)
         admin.set_password(password)
         admin.save()
 
         return admin
+  
 
-
-
-def validate_edu_email(value):
-    """
-    validate_edu_email is a helper function that checks if the email
-    address of a user ends with .edu
-
-    value: input email address
-    """
-    if not value.endswith('.edu'):
-        raise ValidationError('Only .edu email addresses are accepted.')
-        
 class User(AbstractBaseUser, PermissionsMixin):
     """
     User model is used to register and authenticate users
     """
-    email = models.EmailField(unique=True, validators=[validate_email, validate_edu_email])
-    is_admin = models.BooleanField(default=False)
+            
+    class Role(models.TextChoices):
+        STUDENT = 'student', 'Student'
+        INSTITUTION_ADMIN = 'institution_admin', 'Institution Admin'
+        COUNSELOR = 'counselor', 'Counselor'
+        PARENT = 'parent', 'Parent'
+    email = models.EmailField(unique=True, validators=[validate_email])
+    # is_admin = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
-    is_staff = models.BooleanField(default=False)
-    is_student = models.BooleanField(default=False)
-    is_institution_admin = models.BooleanField(default=False)
+    # is_staff = models.BooleanField(default=False)
+    # is_student = models.BooleanField(default=False)
+    # is_institution_admin = models.BooleanField(default=False)
+    role = models.CharField(
+        max_length=20,  # institution_admin = 17 字符
+        choices=Role.choices,
+        default=Role.STUDENT,
+    )
      # name required only when user is student 
     name = models.CharField(null=True, blank=True, max_length=250)
     # institution_details required only when user is student or admin                            
@@ -126,7 +125,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.email
 
     def has_perm(self, perm, obj=None):
-        return self.is_admin
+        return self.role == self.Role.INSTITUTION_ADMIN
 
     def has_module_perms(self, app_label):
         return True
@@ -134,9 +133,19 @@ class User(AbstractBaseUser, PermissionsMixin):
     def get_username(self):
         return self.email
 
+    def clean(self):
+        super().clean()
+        edu_roles = [self.Role.STUDENT, self.Role.INSTITUTION_ADMIN]
+        if self.role in edu_roles and not self.email.endswith('.edu'):
+            raise ValidationError({
+                'email': 'Students and institution admins must use a .edu email.'
+            })
+
     @property
     def is_staff(self):
-        return self.is_admin
+        if self.is_superuser:
+            return True
+        return self.role == self.Role.INSTITUTION_ADMIN
 
 # In SurveyTemplate class
 class SurveyTemplate(models.Model):

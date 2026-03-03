@@ -28,17 +28,17 @@ class SurveyResponseAdmin(admin.ModelAdmin):
 
 # Configure admin interface for User model
 class UserAdmin(BaseUserAdmin):
-    list_display = ('email', 'name', 'is_admin', 'is_superuser', 'date_joined', 'institution_details')
+    list_display = ('email', 'name', 'role', 'is_superuser', 'date_joined', 'institution_details')
     fieldsets = (
-        (None, {"fields": ("email", "name", "password", "institution_details")}),
-        ('Permissions', {"fields": ("is_institution_admin", "is_superuser", "groups", "user_permissions")}),
+        (None, {"fields": ("email", "name", "password", "institution_details", "role")}),
+        ('Permissions', {"fields": ("is_superuser", "groups", "user_permissions")}),
         ('Important dates', {"fields": ("last_login", "date_joined")}),
     )
     add_fieldsets = (
-        (None, {"fields": ("email", "name", "password1", "password2", "is_institution_admin", "institution_details")}),
+        (None, {"fields": ("email", "name", "password1", "password2", "role", "institution_details")}),
     )
     search_fields = ('email', "name")
-    list_filter = ('is_admin', 'is_institution_admin', "date_joined")
+    list_filter = ('role', "date_joined")
     ordering = ('email',)
 
 # Configure admin interface for Institution model

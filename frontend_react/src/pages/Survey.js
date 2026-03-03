@@ -69,7 +69,7 @@ function SurveyQuestions() {
                         if (userData && userData.email) {
                             setStudentEmail(userData.email);
                             setStudentName(userData.name);
-                            setIsAdmin(userData.is_institution_admin || false);
+                            setIsAdmin(userData.role === 'institution_admin' || false);
                             setIsAuthenticated(true);
                         }
                     } catch (error) {
@@ -100,7 +100,7 @@ function SurveyQuestions() {
 
                 setStudentEmail(userData.email);
                 setStudentName(userData.name);
-                setIsAdmin(userData.is_institution_admin || false);
+                setIsAdmin(userData.role === 'institution_admin' || false);
                 setIsAuthenticated(true);
                 
                 const responseData = await fetchSurveyQuestions();

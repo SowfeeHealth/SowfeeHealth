@@ -109,7 +109,7 @@ def user_view(request):
         if not request.COOKIES.get('is_institution_admin'):
             response.set_cookie(
                 'is_institution_admin', 
-                'true' if request.user.is_institution_admin else 'false', 
+                'true' if request.user.role == User.Role.INSTITUTION_ADMIN else 'false', 
                 max_age=3600*24*7, 
                 path='/', 
                 domain=settings.COOKIE_DOMAIN,
@@ -242,7 +242,7 @@ def _handle_student_responses(request, survey_template, questions, hashed=False)
                 "success": False,
                 "message": "Please use your institution email. Normally should end with .edu"
             })
-        student = User.objects.filter(is_student=True, email=school_email).first()
+        student = User.objects.filter(role=User.Role.STUDENT, email=school_email).first()
         if not student:
             no_student_user=True
             ano_student, created = AnonymousStudent.objects.get_or_create(
@@ -549,14 +549,14 @@ def dashboard_api(request):
     if request.user.is_superuser:
         return JsonResponse({"error": "Superuser access not allowed"}, status=403)
     
-    if not request.user.is_institution_admin:
+    if request.user.role != User.Role.INSTITUTION_ADMIN:
         return JsonResponse({"error": "Admin access required"}, status=403)
     
     # Get the institution details of the admin
     institution_details = request.user.institution_details
 
     # Number of students registered in the university
-    num_registered_students = User.objects.filter(is_student=True, institution_details=institution_details).count()
+    num_registered_students = User.objects.filter(role=User.Role.STUDENT, institution_details=institution_details).count()
 
     num_anonymous_students = AnonymousStudent.objects.filter(survey_template__institution=institution_details).count()
 
@@ -564,7 +564,7 @@ def dashboard_api(request):
 
     #responded_students = 0
     # Get all students in the institution
-    institution_students = User.objects.filter(is_student=True, institution_details=institution_details)
+    institution_students = User.objects.filter(role=User.Role.STUDENT, institution_details=institution_details)
     
     anonymous_students = AnonymousStudent.objects.filter(survey_template__institution=institution_details)
 
@@ -576,7 +576,7 @@ def dashboard_api(request):
     ).order_by('-created')
 
     registered_with_status = User.objects.filter(
-        is_student=True,
+        role=User.Role.STUDENT,
         institution_details=institution_details
     ).annotate(
         has_response=Subquery(latest_registered_response.values('id')[:1]),
@@ -817,8 +817,8 @@ def login_view(request):
                 response = JsonResponse({
                     'success': True,
                     'message': 'Login successful!',
-                    'is_admin': user.is_institution_admin,
-                    'redirect_path': '/dashboard/' if user.is_institution_admin else '/survey/'
+                    'is_admin': user.role == User.Role.INSTITUTION_ADMIN,
+                    'redirect_path': '/dashboard/' if user.role == User.Role.INSTITUTION_ADMIN else '/survey/'
                 })
                 
                 # Production-ready cookie settings
@@ -854,7 +854,7 @@ def login_view(request):
                 )
                 response.set_cookie(
                     'is_institution_admin', 
-                    'true' if user.is_institution_admin else 'false', 
+                    'true' if user.role == User.Role.INSTITUTION_ADMIN else 'false', 
                     max_age=3600*24*7,
                     path='/',
                     domain=settings.COOKIE_DOMAIN,
@@ -911,7 +911,7 @@ def register_view(request):
     
     @notes:
         - Email must match the institution's regex pattern for validation
-        - Creates student users with is_student=True
+        - Creates student users with role=STUDENT
         - Institution must exist in the database before registration
         - Uses case-insensitive regex matching for email validation
         - Automatically associates user with the specified institution
@@ -1060,7 +1060,7 @@ def student_response_view(request):
     @params:
         request (HttpRequest): Django HTTP request object
             - method: Must be GET
-            - user: Must be authenticated superuser or institution admin
+            - user: Must be authenticated superuser or institution admin (User.Role.INSTITUTION_ADMIN)
     
     @returns:
         Response: Serialized survey response data
@@ -1088,7 +1088,7 @@ def student_response_view(request):
         - Uses Q objects to query across student and anonymous_student relationships
         - Returns serialized data using SurveyResponseSerializer
     """
-    if request.method == "GET" and request.user.is_authenticated and (request.user.is_superuser or request.user.is_institution_admin):
+    if request.method == "GET" and request.user.is_authenticated and (request.user.is_superuser or request.user.role == User.Role.INSTITUTION_ADMIN):
         if request.user.is_superuser:
             # Superuser sees all responses
             survey_responses = SurveyResponse.objects.all()
@@ -1118,7 +1118,7 @@ def flagged_responses_view(request):
     @params:
         request (HttpRequest): Django HTTP request object
             - method: Must be GET
-            - user: Must be authenticated superuser or institution admin
+            - user: Must be authenticated superuser or institution admin (User.Role.INSTITUTION_ADMIN)
     
     @returns:
         Response: Serialized flagged survey response data
@@ -1146,7 +1146,7 @@ def flagged_responses_view(request):
         - Institution admins see only flagged responses from their institution
         - Includes both registered and anonymous student flagged responses
     """
-    if request.method == "GET" and request.user.is_authenticated and (request.user.is_superuser or request.user.is_institution_admin):
+    if request.method == "GET" and request.user.is_authenticated and (request.user.is_superuser or request.user.role == User.Role.INSTITUTION_ADMIN):
         if request.user.is_superuser:
             # Superuser sees all flagged responses
             flagged_students = SurveyResponse.objects.filter(flagged=True)
@@ -1176,7 +1176,7 @@ def students_view(request):
     @params:
         request (HttpRequest): Django HTTP request object
             - method: Must be GET
-            - user: Must be authenticated superuser or institution admin
+            - user: Must be authenticated superuser or institution admin (User.Role.INSTITUTION_ADMIN)
     
     @returns:
         Response: Combined registered and anonymous student data
@@ -1218,15 +1218,15 @@ def students_view(request):
         - Uses separate serializers for different student types
         - Anonymous students are linked to institutions through survey templates
     """
-    if request.method == "GET" and request.user.is_authenticated and (request.user.is_superuser or request.user.is_institution_admin):
+    if request.method == "GET" and request.user.is_authenticated and (request.user.is_superuser or request.user.role == User.Role.INSTITUTION_ADMIN):
         if request.user.is_superuser:
             # Superuser sees all students
-            all_students = User.objects.filter(is_student=True)
+            all_students = User.objects.filter(role=User.Role.STUDENT)
             all_anonymous_students = AnonymousStudent.objects.all()
         else:
             # Institution admin sees only students from their institution
             all_students = User.objects.filter(
-                is_student=True,
+                role=User.Role.STUDENT,
                 institution_details=request.user.institution_details
             )
             all_anonymous_students = AnonymousStudent.objects.filter(
@@ -1258,7 +1258,7 @@ def flagged_students_view(request):
     if not request.user.is_authenticated:
         return JsonResponse({"error": "Authentication required"}, status=401)
     
-    if not (request.user.is_superuser or request.user.is_institution_admin):
+    if not (request.user.is_superuser or request.user.role == User.Role.INSTITUTION_ADMIN):
         return JsonResponse({"error": "Admin access required"}, status=403)
     
     try:
@@ -1270,7 +1270,7 @@ def flagged_students_view(request):
             student=OuterRef('pk')
         ).order_by('-created')
 
-        students_qs = User.objects.filter(is_student=True)
+        students_qs = User.objects.filter(role=User.Role.STUDENT)
         if not request.user.is_superuser:
             students_qs = students_qs.filter(
                 institution_details=request.user.institution_details
@@ -1410,7 +1410,7 @@ def survey_templates_admin_view(request):
         - Returns rendered HTML template, not JSON data
         - Used for web-based template management interface
     """
-    if request.method == "GET" and request.user.is_authenticated and request.user.is_institution_admin:
+    if request.method == "GET" and request.user.is_authenticated and request.user.role == User.Role.INSTITUTION_ADMIN:
         return render(request, "survey_templates_admin.html")
     
     else:
@@ -1475,7 +1475,7 @@ def survey_templates_view(request):
         - DELETE: Requires template_id in request data, cascades to delete questions
         - All operations restricted to institution admin's own templates
     """
-    if not request.user.is_authenticated or not request.user.is_institution_admin:
+    if not request.user.is_authenticated or request.user.role != User.Role.INSTITUTION_ADMIN:
         return JsonResponse({"success": False, "error": "Permission denied"})
     
     if request.method == "GET":
@@ -1529,13 +1529,13 @@ def survey_questions_view(request, template_id):
     """
     Manages survey questions for a specific template with full CRUD operations.
     
-    This endpoint allows institution admins to list, create, and delete questions
+    This endpoint allows institution admins (User.Role.INSTITUTION_ADMIN) to list, create, and delete questions
     within their survey templates with proper validation and ordering.
     
     @params:
         request (HttpRequest): Django HTTP request object
             - method: GET, POST, or DELETE
-            - user: Must be authenticated institution admin
+            - user: Must be authenticated institution admin (User.Role.INSTITUTION_ADMIN)
         template_id (int): ID of the survey template to manage
         
         POST data (JSON):
@@ -1598,7 +1598,7 @@ def survey_questions_view(request, template_id):
         - Template ownership validated against admin's institution
         - Supports both Likert scale and text question types
     """
-    if not request.user.is_authenticated or not request.user.is_institution_admin:
+    if not request.user.is_authenticated or request.user.role != User.Role.INSTITUTION_ADMIN:
         return JsonResponse({"success": False, "error": "Permission denied"})
     
     # Get the survey template
@@ -1715,7 +1715,7 @@ def use_template(request, template_id):
         - Template must belong to the admin's institution
         - Used template becomes the default for student surveys
     """
-    if not request.user.is_authenticated or not request.user.is_institution_admin:
+    if not request.user.is_authenticated or request.user.role != User.Role.INSTITUTION_ADMIN:
         return JsonResponse({"success": False, "error": "Unauthorized"})
 
     try:

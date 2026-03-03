@@ -30,6 +30,13 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = "__all__"
+    def validate(self, data):
+        instance = User(**data)
+        try:
+            instance.clean()
+        except ValidationError as e:
+            raise serializers.ValidationError(e.message_dict)
+        return data
 
 class InstitutionSerializer(serializers.ModelSerializer):
     class Meta:

@@ -75,7 +75,7 @@ function Body() {
                             text: 'Super users cannot access this page',
                             type: 'error'
                         });
-                    } else if (userData.is_institution_admin) {
+                    } else if (userData.role === 'institution_admin') {
                         // Institution admin - redirect to dashboard
                         window.location.href = '/dashboard/';
                     } else {
@@ -123,7 +123,7 @@ function Body() {
                         type: 'error'
                     });
                     return;
-                } else if (userData.is_institution_admin) {
+                } else if (userData.role === 'institution_admin') {
                     redirectPath = '/dashboard/';
                 }
 

@@ -43,17 +43,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Copy .cnf file to EC2
-      uses: appleboy/scp-action@master
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ${{ secrets.EC2_USERNAME }}
-        key: ${{ secrets.EC2_SSH_KEY }}
-        source: |
-          mysql/my.cnf,
-          mysql/create_health_user.sql
-        target: "~/app/"
-
     - name: Copy utils to EC2
       uses: appleboy/scp-action@master
       with:
@@ -99,12 +88,11 @@ jobs:
         script: |
           mkdir -p ~/app
           cat > ~/app/.env << EOL
-          MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
-          MYSQL_USER=${{ secrets.MYSQL_USER }}
-          MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
-          MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
-          MYSQL_HOST=${{ secrets.MYSQL_HOST }}
-          MYSQL_PORT=${{ secrets.MYSQL_PORT }}
+          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_HOST=${{ secrets.POSTGRES_HOST }}
+          POSTGRES_PORT=${{ secrets.POSTGRES_PORT }}
           REDIS_HOST=${{ secrets.REDIS_HOST }}
           REDIS_PORT=${{ secrets.REDIS_PORT }}
           DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
@@ -113,7 +101,6 @@ jobs:
           ALLOWED_HOSTS=${{ secrets.EC2_HOST }}
           ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}
           ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
-          MYSQL_HEALTH_USER_PASSWORD=${{ secrets.MYSQL_HEALTH_USER_PASSWORD}}
           EC2_HOST=${{secrets.EC2_HOST}}
           OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
           EOL
@@ -145,10 +132,6 @@ jobs:
         script: |
           cd ~/app
           
-          chmod 644 mysql/create_health_user.sql
-
-          ls -l mysql/create_health_user.sql
-
           # Remove existing image
           docker images ${{ secrets.DOCKER_USERNAME }}/django-app --format "{{.ID}}" | xargs -r docker rmi -f || true
           docker image prune -f

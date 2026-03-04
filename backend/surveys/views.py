@@ -1384,38 +1384,6 @@ def institutions_view(request):
     else:
         return HttpResponseBadRequest("Request method not allowed")
 
-@api_view(["GET"])
-def survey_templates_admin_view(request):
-    """
-    Renders the survey templates administration page.
-    
-    This endpoint serves the HTML template for institution admins to manage
-    their survey templates through a web interface.
-    
-    @params:
-        request (HttpRequest): Django HTTP request object
-            - method: Must be GET
-            - user: Must be authenticated institution admin
-    
-    @returns:
-        HttpResponse: Rendered survey templates admin HTML page
-        
-        Success Response (200): HTML template "survey_templates_admin.html"
-        
-        Error Responses:
-        - 400: "Request method not allowed" - Authentication or permission failed
-    
-    @notes:
-        - Only accessible to authenticated institution admins
-        - Returns rendered HTML template, not JSON data
-        - Used for web-based template management interface
-    """
-    if request.method == "GET" and request.user.is_authenticated and request.user.role == User.Role.INSTITUTION_ADMIN:
-        return render(request, "survey_templates_admin.html")
-    
-    else:
-        return HttpResponseBadRequest("Request method not allowed")
-
 @api_view(["GET", "POST", "DELETE"])
 def survey_templates_view(request):
     """

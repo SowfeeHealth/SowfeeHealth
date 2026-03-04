@@ -18,7 +18,7 @@ urlpatterns = [
     # Add new URLs for survey management
     path('api/survey-templates/', views.survey_templates_view, name='survey-templates-api'),
     path('api/survey-templates/<int:template_id>/questions/', views.survey_questions_view, name='survey-questions-api'),
-    path('api/admin/survey-templates/', views.survey_templates_admin_view, name='survey-templates-admin'),
+    #path('api/admin/survey-templates/', views.survey_templates_admin_view, name='survey-templates-admin'),
     path('api/get-user-survey-questions/', views.get_user_survey_questions, name='get-user-survey-questions'),
     path('api/survey-templates/<int:template_id>/use/', views.use_template, name='use_template'),
     path('api/dashboard/', views.dashboard_api, name='dashboard-api'),

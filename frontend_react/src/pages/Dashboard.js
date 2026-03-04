@@ -52,7 +52,7 @@ function Dashboard() {
             }
             
             // Check if user is admin
-            if (!userData.is_institution_admin) {
+            if (userData.role !== 'institution_admin') {
                 setError('Admin access required');
                 return;
             }

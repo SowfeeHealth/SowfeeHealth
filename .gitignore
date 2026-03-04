@@ -36,3 +36,4 @@ security_recommendations.md
 db_security_guide.md
 
 *.sql
+migrate.py

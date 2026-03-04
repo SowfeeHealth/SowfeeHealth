@@ -1,15 +1,13 @@
 services:
   db:
-    image: mysql:8
-    container_name: my-mysql-container
+    image: pgvector/pgvector:pg16
+    container_name: my-postgres-container
     restart: always
     env_file: .env
     volumes:
-      - mysql_data:/var/lib/mysql
-      - ./mysql/my.cnf:/etc/mysql/conf.d/my.cnf
-      - ./mysql/create_health_user.sql:/docker-entrypoint-initdb.d/create_health_user.sql
+       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u health_user -p$MYSQL_HEALTH_USER_PASSWORD"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 8s
       retries: 8

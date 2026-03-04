@@ -35,3 +35,4 @@ Thumbs.db
 security_recommendations.md
 db_security_guide.md
 
+*.sql

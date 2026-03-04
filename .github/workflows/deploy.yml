@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - nextjs-frontend
+      - v2
 
 jobs:
   build:

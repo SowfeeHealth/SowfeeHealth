@@ -33,6 +33,7 @@ ALLOWED_HOSTS = ["*"]
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'corsheaders',
     'django.contrib.auth',
@@ -42,6 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'surveys',
+    'chat',
 ]
 
 # Add or update these settings
@@ -99,7 +101,6 @@ CORS_ALLOWED_ORIGINS = [
     f'https://{os.getenv("EC2_HOST")}',
 ]
 CORS_ALLOW_CREDENTIALS = True
-
 # 添加 CSRF 配置
 CSRF_TRUSTED_ORIGINS = [
     'https://localhost',
@@ -255,6 +256,7 @@ COOKIE_SECURE = IS_PRODUCTION
 # Session cookie settings
 SESSION_COOKIE_DOMAIN = COOKIE_DOMAIN
 SESSION_COOKIE_SECURE = COOKIE_SECURE
+#SESSION_COOKIE_NAME = 'auth_token'
 
 REDIS_HOST = os.getenv('REDIS_HOST', 'redis')  # Default to your container name
 REDIS_PORT = os.getenv('REDIS_PORT', '6379')
@@ -289,3 +291,15 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+
+ASGI_APPLICATION = "core.asgi.application"
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [(os.environ.get("REDIS_HOST", "127.0.0.1"), 
+                       int(os.environ.get("REDIS_PORT", 6379)))],
+        },
+    }
+}

@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, include
 from django.contrib.auth.decorators import login_required
 from .auth_views import set_csrf_token, user_view, login_view, register_view, logout_view
 from .survey_views import demo_survey_view, survey_view, get_user_survey_questions, survey_autosave, survey_autosave_load, survey_autosave_clear
@@ -40,4 +40,5 @@ urlpatterns = [
     path("api/register/", register_view, name="register"),
     path("api/logout/", logout_view, name="logout"),
     path("api/demo-survey/", demo_survey_view, name="demo-survey"),
+    path('api/chat/', include('chat.urls')),
 ]

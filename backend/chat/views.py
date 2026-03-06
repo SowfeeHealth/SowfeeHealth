@@ -6,8 +6,11 @@ from django.db.models import Q,F
 from django.shortcuts import get_object_or_404
 from .serializers import AssignmentSerializer
 from surveys.models import User
-from .models import CounselorStudentAssignment, AuditLog
+from .models import CounselorStudentAssignment, AuditLog, ChatMessage
 from .utils import log_audit
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+from surveys.serializers import UserSerializer
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
@@ -22,7 +25,7 @@ def assignments(request):
     """
     if request.method == 'GET':
         if request.user.is_superuser:
-            qs = CounselorStudentAssignment.objects.select_related('counselor', 'student').all()
+            return Response({'error': 'Superuser does not have access to assignments'}, status=status.HTTP_403_FORBIDDEN)
         elif request.user.role == User.Role.INSTITUTION_ADMIN:
             qs = CounselorStudentAssignment.objects.select_related('counselor', 'student').filter(
                 Q(counselor__institution_details=request.user.institution_details) |
@@ -50,6 +53,43 @@ def assignments(request):
         })
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def chat_messages(request, userId):
+    """
+    GET - List chat messages between user and current user
+    """
+    assignment = CounselorStudentAssignment.objects.filter(
+        Q(counselor = request.user, student_id = userId) |
+        Q(student = request.user, counselor_id = userId),
+        is_active = True
+    ).first()
+    if not assignment:
+        return Response({'error': 'No active assignment'}, status = status.HTTP_404_NOT_FOUND)
+    try:
+        conversation = assignment.conversations
+    except Exception:
+        return Response({'error': 'No conversation found'}, status=status.HTTP_404_NOT_FOUND)
+    messages = ChatMessage.objects.filter(
+        conversation = conversation
+    ).order_by('server_seq').values(
+        'id', 'sender__email', 'sender_id', 'content',
+        'timestamp', 'server_seq', 'client_message_id', 'is_read'
+    )
+    return Response(list(messages))
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def counselors(request):
+    if request.user.role != User.Role.INSTITUTION_ADMIN:
+        return Response({'error': 'Admin only'}, status=status.HTTP_403_FORBIDDEN)
+    
+    qs = User.objects.filter(
+        role=User.Role.COUNSELOR,
+        institution_details=request.user.institution_details
+    )
+    serializer = UserSerializer(qs, many=True)
+    return Response(serializer.data)
 
 @api_view(['PATCH', 'DELETE'])
 @permission_classes([IsAuthenticated])
@@ -99,9 +139,24 @@ def assignment_detail(request, pk):
 
         log_audit(request, AuditLog.Action.UPDATE, assignment, changes)
 
+        # Consent revocation: if assignment deactivated, kick WebSocket users
+        if not assignment.is_active:
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f"chat_{assignment.id}",
+                {"type": "force_disconnect"}
+            )
+
         return Response(AssignmentSerializer(assignment).data)
 
     if request.method == 'DELETE':
+        # Kick WebSocket users before deleting
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f"chat_{assignment.id}",
+            {"type": "force_disconnect"}
+        )
+
         log_audit(request, AuditLog.Action.DELETE, assignment, {
             "counselor_id": assignment.counselor_id,
             "student_id": assignment.student_id,

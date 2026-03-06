@@ -1,9 +1,8 @@
 import json
-from django.db import models
+from django.db import models,transaction
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
-from .models import CounselorStudentAssignment, ChatMessage
-
+from .models import CounselorStudentAssignment, ChatMessage, Conversation
 
 class ChatConsumer(AsyncWebsocketConsumer):
 
@@ -34,12 +33,23 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def receive(self, text_data):
         data = json.loads(text_data)
         content = data.get("message", "").strip()
-
+        client_message_id = data.get("client_message_id")
         if not content:
+            return
+        
+        # Per-message permission check: re-verify assignment is still active
+        is_active = await self.check_assignment_active()
+        if not is_active:
+            await self.send(text_data=json.dumps({
+                "error": "Assignment has been deactivated. You can no longer send messages."
+            }))
+            await self.close(code=4003)
             return
 
         # Persist message to database
-        message = await self.save_message(content)
+        message = await self.save_message(content, client_message_id)
+        if message is None:
+            return
 
         # Broadcast to everyone in the room
         await self.channel_layer.group_send(
@@ -51,6 +61,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 "sender_email": self.user.email,
                 "timestamp": message.timestamp.isoformat(),
                 "message_id": message.id,
+                "client_message_id": client_message_id,
+                "server_seq": message.server_seq,
             }
         )
 
@@ -61,7 +73,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
             "sender_email": event["sender_email"],
             "timestamp": event["timestamp"],
             "message_id": event["message_id"],
+            "server_seq": event["server_seq"],
+            "client_message_id": event.get("client_message_id"),
         }))
+    
+    async def force_disconnect(self, event):
+        await self.send(text_data=json.dumps({
+            "error": "Consent revoked. This conversation has been deactivated."
+        }))
+        await self.close(code=4003)
 
     @database_sync_to_async
     def get_assignment(self, user_id, other_user_id):
@@ -75,9 +95,34 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return None
 
     @database_sync_to_async
-    def save_message(self, content):
-        return ChatMessage.objects.create(
-            conversation=self.assignment.conversations,
-            sender=self.user,
-            content=content
-        )
+    def save_message(self, content, client_message_id=None):
+        #Idempotency
+        if client_message_id:
+            existing = ChatMessage.objects.filter(
+                client_message_id=client_message_id
+            ).first()
+            if existing:
+                return None
+        with transaction.atomic():
+            #Select for update locks the row to prevent concurrent messages
+            #from updating the sequence number
+            conversation = Conversation.objects.select_for_update().get(
+                pk=self.assignment.conversations.pk
+            )
+            #Get next sequence messsage
+            last_seq = ChatMessage.objects.filter(
+                conversation=conversation
+            ).order_by('-server_seq').values_list('server_seq', flat=True).first() or 0
+
+            return ChatMessage.objects.create(
+                conversation=conversation,
+                sender=self.user,
+                content=content,
+                server_seq=last_seq + 1,
+                client_message_id=client_message_id,
+            )
+    @database_sync_to_async
+    def check_assignment_active(self):
+        return CounselorStudentAssignment.objects.filter(
+            pk=self.assignment.id, is_active=True
+        ).exists()

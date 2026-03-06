@@ -81,6 +81,9 @@ def survey_view(request, hash_link=None):
     # Check if a valid user is submitting the response
     if not request.user.is_authenticated:
         return JsonResponse({"success": False, "message": "Please login to the application to submit a survey response"})
+    # Only students can submit surveys
+    if request.user.role != User.Role.STUDENT:
+        return JsonResponse({"success": False, "message": "Only students can submit surveys"}, status=403)
     # Get the survey template - either from request or use a default
     survey_template_id = request.data.get('survey_template_id')
     if not survey_template_id:
@@ -158,6 +161,13 @@ def _handle_student_responses(request, survey_template, questions, hashed=False)
                 "message": "Please use your institution email. Normally should end with .edu"
             })
         student = User.objects.filter(role=User.Role.STUDENT, email=school_email).first()
+        # Check if email belongs to a non-student (counselor/admin)
+        non_student = User.objects.filter(email=school_email).exclude(role=User.Role.STUDENT).first()
+        if non_student:
+            return JsonResponse({
+                "success": False,
+                "message": "Only students can submit surveys."
+            }, status=403)
         if not student:
             no_student_user=True
             ano_student, created = AnonymousStudent.objects.get_or_create(

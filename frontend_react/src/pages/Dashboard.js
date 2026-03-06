@@ -227,6 +227,12 @@ function Dashboard() {
                 >
                     Copy Survey Link
                 </button>
+                <button 
+                    onClick={() => window.location.href = '/admin/assignments/'}
+                    className="link-btn"
+                >
+                    Manage Assignments
+                </button>
             </div>
 
             {/* Metric Cards */}

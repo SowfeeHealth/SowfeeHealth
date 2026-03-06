@@ -165,6 +165,9 @@ function Header() {
                       </div>
                      )}
                     {isAuthenticated && (!isSuperUser && !isInstitutionAdmin) && (<a href="/survey/" id="survey-button">New Survey</a>)}
+                    {isAuthenticated && !isSuperUser && (
+                      <a href="/chat/" id="chat-button">Chat</a>
+                    )}
                 </div>
             </div>
         </nav>

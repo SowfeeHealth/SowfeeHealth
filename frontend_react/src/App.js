@@ -8,6 +8,8 @@ import Survey from './pages/Survey';
 import DemoSurvey from './pages/Demo_survey';
 import SurveyTemplates from './pages/Survey_templates';
 import ScheduleSurvey from './pages/Schedule_survey';
+import Chat from './pages/Chat';
+import Assignments from './pages/Assignments';
 
 import './assets/index.css';
 import './assets/login.css';
@@ -27,8 +29,10 @@ function App() {
           <Route path="/survey" element={<Survey />} />
           <Route path="/demo-survey" element={<DemoSurvey />} />
           <Route path="/admin/survey-templates" element={<SurveyTemplates />} />
+          <Route path="/admin/assignments" element={<Assignments />} />
           <Route path="/survey/link/:hashLink" element={<Survey />} />
           <Route path="/schedule-survey" element={<ScheduleSurvey />} />
+          <Route path="/chat" element={<Chat />} />
         </Routes>
       </Router>
   );

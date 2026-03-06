@@ -26,9 +26,11 @@ class ChatMessage(models.Model):
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)
+    server_seq = models.IntegerField()                         
+    client_message_id = models.CharField(max_length=64, null=True, unique=True) 
 
     class Meta:
-        ordering = ['timestamp']
+        ordering = ['server_seq']
 
     def __str__(self):
         return f"{self.sender.email}: {self.content[:50]}"

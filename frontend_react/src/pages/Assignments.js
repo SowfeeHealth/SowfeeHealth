@@ -32,6 +32,20 @@ function Assignments() {
 
   useEffect(() => { fetchData(); }, []);
 
+  const promoteStudent = async (studentId, studentEmail) => {
+    if (!window.confirm(`Promote ${studentEmail} to Counselor? This cannot be undone.`)) return;
+    setError(null);
+    setSuccess(null);
+    try {
+      await api.patch(`/api/chat/users/${studentId}/promote/`);
+      setSuccess(`${studentEmail} promoted to Counselor.`);
+      fetchData();
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Failed to promote user.';
+      setError(msg);
+    }
+  };
+  
   const createAssignment = async (e) => {
     e.preventDefault();
     setError(null);
@@ -117,7 +131,7 @@ function Assignments() {
           )}
         </div>
       </div>
-      
+
       <div className="assignments-form-card">
         <h3>Create New Assignment</h3>
         <form onSubmit={createAssignment} className="assignments-form">

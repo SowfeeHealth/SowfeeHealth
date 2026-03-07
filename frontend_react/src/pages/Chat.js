@@ -16,8 +16,7 @@ function Chat() {
   const currentUserEmail = document.cookie
     .split('; ')
     .find(row => row.startsWith('user_email='))
-    ?.split('=')[1]
-    ?.replace(/"/g, '');
+    ?.split('=')[1];
 
   // Load assignments
   useEffect(() => {
@@ -43,8 +42,11 @@ function Chat() {
     setConnected(false);
 
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const host = window.location.hostname;
-    ws.current = new WebSocket(`${protocol}://${host}:8001/ws/chat/${selectedUser.id}/`);
+    const isLocalhost = window.location.hostname === 'localhost' || 
+                        window.location.hostname === '127.0.0.1' ||
+                        window.location.hostname === '0.0.0.0';
+    const wsHost = isLocalhost ? 'localhost:8001' : window.location.host;
+    ws.current = new WebSocket(`${protocol}://${wsHost}/ws/chat/${selectedUser.id}/`);
 
     ws.current.onopen = async () => {
       setConnected(true);

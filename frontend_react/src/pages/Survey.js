@@ -104,6 +104,7 @@ function SurveyQuestions() {
                 setStudentName(userData.name);
                 setIsAdmin(userData.role === 'institution_admin' || false);
                 setIsAuthenticated(true);
+                setIsCounselor(userData.role === 'counselor' || false);
                 
                 const responseData = await fetchSurveyQuestions();
                 if (responseData.success) {

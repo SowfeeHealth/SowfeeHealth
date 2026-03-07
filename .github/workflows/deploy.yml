@@ -99,7 +99,7 @@ jobs:
           DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
           DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
           DEBUG=False
-          ALLOWED_HOSTS=${{ secrets.EC2_HOST }}
+          ALLOWED_HOSTS=${{ secrets.ALLOWED_HOSTS }}
           ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}
           ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
           EC2_HOST=${{secrets.EC2_HOST}}

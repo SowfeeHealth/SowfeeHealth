@@ -41,4 +41,5 @@ urlpatterns = [
     path("api/logout/", logout_view, name="logout"),
     path("api/demo-survey/", demo_survey_view, name="demo-survey"),
     path('api/chat/', include('chat.urls')),
+    path('users/<int:pk>/promote/', views.promote_to_counselor, name='promote-to-counselor'),
 ]

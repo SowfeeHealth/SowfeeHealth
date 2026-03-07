@@ -163,3 +163,26 @@ def assignment_detail(request, pk):
         })
         assignment.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def promote_to_counselor(request, pk):
+    if request.user.role != User.Role.INSTITUTION_ADMIN:
+        return Response({'error': 'Admin only'}, status=status.HTTP_403_FORBIDDEN)
+    
+    user = get_object_or_404(User, pk=pk)
+    
+    if user.institution_details != request.user.institution_details:
+        return Response({'error': 'Not your institution'}, status=status.HTTP_403_FORBIDDEN)
+    
+    if user.role == User.Role.COUNSELOR:
+        return Response({'error': 'Already a counselor'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    user.role = User.Role.COUNSELOR
+    user.save()
+    
+    log_audit(request, AuditLog.Action.UPDATE, user, {
+        "role": {"old": "student", "new": "counselor"}
+    })
+    
+    return Response({'success': True, 'email': user.email, 'role': user.role})

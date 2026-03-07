@@ -100,6 +100,24 @@ function Assignments() {
       {error && <div className="assignments-error">{error}</div>}
       {success && <div className="assignments-success">{success}</div>}
 
+      {/* Promote Section */}
+      <div className="assignments-form-card">
+        <h3>Promote Student to Counselor</h3>
+        <p className="assignments-hint">Select a student to give them counselor privileges. This allows them to chat with assigned students.</p>
+        <div className="assignments-promote-list">
+          {students.length === 0 ? (
+            <p className="assignments-empty-inline">No students available.</p>
+          ) : (
+            students.map(s => (
+              <div key={s.id} className="assignments-promote-row">
+                <span>{s.email} {s.name ? `(${s.name})` : ''}</span>
+                <button onClick={() => promoteStudent(s.id, s.email)} className="promote-btn">Promote to Counselor</button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+      
       <div className="assignments-form-card">
         <h3>Create New Assignment</h3>
         <form onSubmit={createAssignment} className="assignments-form">

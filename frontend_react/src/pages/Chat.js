@@ -90,7 +90,8 @@ function Chat() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
+  
+  //@todo: improve frontend user logic, do not check by eamil, check my id
   const getOtherUser = (assignment) => {
     if (assignment.counselor_email === currentUserEmail) {
       return { id: assignment.student, email: assignment.student_email, role: 'Student' };

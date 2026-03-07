@@ -29,7 +29,8 @@ elif IS_PRODUCTION:
 else:
     DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'  # Fallback to env variable
 
-ALLOWED_HOSTS = ["*"]
+#ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = ["sowfeehealth.live", "www.sowfeehealth.live", "localhost", "127.0.0.1", "web"]
 # Application definition
 
 INSTALLED_APPS = [

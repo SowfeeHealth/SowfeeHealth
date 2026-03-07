@@ -13,10 +13,12 @@ function Chat() {
   const ws = useRef(null);
   const messagesEndRef = useRef(null);
 
-  const currentUserEmail = document.cookie
+  const currentUserEmail = decodeURIComponent(
+  document.cookie
     .split('; ')
     .find(row => row.startsWith('user_email='))
-    ?.split('=')[1];
+    ?.split('=')[1] || ''
+).replace(/^"|"$/g, '');
 
   // Load assignments
   useEffect(() => {

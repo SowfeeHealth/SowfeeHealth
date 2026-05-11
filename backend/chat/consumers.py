@@ -1,7 +1,8 @@
 import json
-from django.db import models,transaction
+from django.db import models, transaction
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
+from django_tenants.utils import schema_context
 from .models import CounselorStudentAssignment, ChatMessage, Conversation
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -10,12 +11,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.user = self.scope["user"]
         self.other_user_id = self.scope["url_route"]["kwargs"]["user_id"]
 
-        # Reject unauthenticated users
         if not self.user.is_authenticated:
             await self.close(code=4001)
             return
 
-        # Verify a valid assignment exists between the two users
+        # Resolve tenant schema from session (set during login)
+        self.schema_name = self.scope.get("session", {}).get("_tenant_schema", "public")
+
         self.assignment = await self.get_assignment(self.user.id, self.other_user_id)
         if not self.assignment:
             await self.close(code=4003)
@@ -85,44 +87,44 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_assignment(self, user_id, other_user_id):
-        try:
-            return CounselorStudentAssignment.objects.get(
-                models.Q(counselor_id=user_id, student_id=other_user_id) |
-                models.Q(counselor_id=other_user_id, student_id=user_id),
-                is_active=True
-            )
-        except CounselorStudentAssignment.DoesNotExist:
-            return None
+        with schema_context(self.schema_name):
+            try:
+                return CounselorStudentAssignment.objects.get(
+                    models.Q(counselor_id=user_id, student_id=other_user_id) |
+                    models.Q(counselor_id=other_user_id, student_id=user_id),
+                    is_active=True
+                )
+            except CounselorStudentAssignment.DoesNotExist:
+                return None
 
     @database_sync_to_async
     def save_message(self, content, client_message_id=None):
-        #Idempotency
-        if client_message_id:
-            existing = ChatMessage.objects.filter(
-                client_message_id=client_message_id
-            ).first()
-            if existing:
-                return None
-        with transaction.atomic():
-            #Select for update locks the row to prevent concurrent messages
-            #from updating the sequence number
-            conversation = Conversation.objects.select_for_update().get(
-                pk=self.assignment.conversations.pk
-            )
-            #Get next sequence messsage
-            last_seq = ChatMessage.objects.filter(
-                conversation=conversation
-            ).order_by('-server_seq').values_list('server_seq', flat=True).first() or 0
+        with schema_context(self.schema_name):
+            if client_message_id:
+                existing = ChatMessage.objects.filter(
+                    client_message_id=client_message_id
+                ).first()
+                if existing:
+                    return None
+            with transaction.atomic():
+                conversation = Conversation.objects.select_for_update().get(
+                    pk=self.assignment.conversations.pk
+                )
+                last_seq = ChatMessage.objects.filter(
+                    conversation=conversation
+                ).order_by('-server_seq').values_list('server_seq', flat=True).first() or 0
 
-            return ChatMessage.objects.create(
-                conversation=conversation,
-                sender=self.user,
-                content=content,
-                server_seq=last_seq + 1,
-                client_message_id=client_message_id,
-            )
+                return ChatMessage.objects.create(
+                    conversation=conversation,
+                    sender=self.user,
+                    content=content,
+                    server_seq=last_seq + 1,
+                    client_message_id=client_message_id,
+                )
+
     @database_sync_to_async
     def check_assignment_active(self):
-        return CounselorStudentAssignment.objects.filter(
-            pk=self.assignment.id, is_active=True
-        ).exists()
+        with schema_context(self.schema_name):
+            return CounselorStudentAssignment.objects.filter(
+                pk=self.assignment.id, is_active=True
+            ).exists()

@@ -27,10 +27,7 @@ def assignments(request):
         if request.user.is_superuser:
             return Response({'error': 'Superuser does not have access to assignments'}, status=status.HTTP_403_FORBIDDEN)
         elif request.user.role == User.Role.INSTITUTION_ADMIN:
-            qs = CounselorStudentAssignment.objects.select_related('counselor', 'student').filter(
-                Q(counselor__institution_details=request.user.institution_details) |
-                Q(student__institution_details=request.user.institution_details)
-            )
+            qs = CounselorStudentAssignment.objects.select_related('counselor', 'student').all()
         else:
             qs = CounselorStudentAssignment.objects.select_related('counselor', 'student').filter(
                 Q(counselor=request.user) | Q(student=request.user)
@@ -84,10 +81,7 @@ def counselors(request):
     if request.user.role != User.Role.INSTITUTION_ADMIN:
         return Response({'error': 'Admin only'}, status=status.HTTP_403_FORBIDDEN)
     
-    qs = User.objects.filter(
-        role=User.Role.COUNSELOR,
-        institution_details=request.user.institution_details
-    )
+    qs = User.objects.filter(role=User.Role.COUNSELOR)
     serializer = UserSerializer(qs, many=True)
     return Response(serializer.data)
 
@@ -104,11 +98,6 @@ def assignment_detail(request, pk):
         return Response({'error': 'Institution admin only'}, status=status.HTTP_403_FORBIDDEN)
 
     assignment = get_object_or_404(CounselorStudentAssignment, pk=pk)
-
-    # Institution admin can only modify their own institution's assignments
-    if (assignment.counselor.institution_details != request.user.institution_details and
-            assignment.student.institution_details != request.user.institution_details):
-        return Response({'error': 'Not your institution'}, status=status.HTTP_403_FORBIDDEN)
 
     if request.method == 'PATCH':
         # Optimistic locking: client must send the version they read
@@ -171,10 +160,7 @@ def promote_to_counselor(request, pk):
         return Response({'error': 'Admin only'}, status=status.HTTP_403_FORBIDDEN)
     
     user = get_object_or_404(User, pk=pk)
-    
-    if user.institution_details != request.user.institution_details:
-        return Response({'error': 'Not your institution'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     if user.role == User.Role.COUNSELOR:
         return Response({'error': 'Already a counselor'}, status=status.HTTP_400_BAD_REQUEST)
     

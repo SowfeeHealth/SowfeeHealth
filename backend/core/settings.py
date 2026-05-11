@@ -33,7 +33,10 @@ else:
 ALLOWED_HOSTS = ["sowfeehealth.live", "www.sowfeehealth.live", "localhost", "127.0.0.1", "web"]
 # Application definition
 
-INSTALLED_APPS = [
+SHARED_APPS = [
+    'django_tenants',
+    'tenants',
+    'accounts',
     'daphne',
     'django.contrib.admin',
     'corsheaders',
@@ -43,9 +46,20 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+]
+
+TENANT_APPS = [
+    'django.contrib.contenttypes',
+    'django.contrib.auth',
+    'accounts',
     'surveys',
     'chat',
 ]
+
+INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
+
+TENANT_MODEL = 'tenants.Institution'
+TENANT_DOMAIN_MODEL = 'tenants.Domain'
 
 # Add or update these settings
 REST_FRAMEWORK = {
@@ -67,11 +81,12 @@ REST_FRAMEWORK = {
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # 添加这行
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
+    'core.tenant_middleware.TenantSessionMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -152,7 +167,7 @@ load_dotenv()
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': 'django_tenants.postgresql_backend',
         'NAME': os.getenv('POSTGRES_DB'),  
         'USER': os.getenv('POSTGRES_USER'),
         'PASSWORD': os.getenv('POSTGRES_PASSWORD'),
@@ -224,7 +239,9 @@ STATICFILES_DIRS = [
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-AUTH_USER_MODEL = 'surveys.User'
+DATABASE_ROUTERS = ['django_tenants.routers.TenantSyncRouter']
+
+AUTH_USER_MODEL = 'accounts.User'
 
 
 # Add logging configuration

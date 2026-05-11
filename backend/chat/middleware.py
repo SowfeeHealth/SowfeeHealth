@@ -1,20 +1,29 @@
+import logging
+
 from channels.middleware import BaseMiddleware
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth import get_user_model
+from django.db import connection
+from django_tenants.utils import schema_context
 from importlib import import_module
 from django.conf import settings
 
+from tenants.models import Institution
+
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 class SessionAuthMiddleware(BaseMiddleware):
     async def __call__(self, scope, receive, send):
-        scope['user'] = await self.get_user(scope)
+        user, session = await self.get_user_and_session(scope)
+        scope['user'] = user
+        scope['session'] = session
         return await super().__call__(scope, receive, send)
 
     @database_sync_to_async
-    def get_user(self, scope):
+    def get_user_and_session(self, scope):
         cookies = {}
         for header in scope.get('headers', []):
             if header[0] == b'cookie':
@@ -25,25 +34,28 @@ class SessionAuthMiddleware(BaseMiddleware):
                         cookies[k.strip()] = v.strip()
 
         session_key = cookies.get('auth_token')
-        print(f"[WS DEBUG] all cookies: {cookies}")
-        print(f"[WS DEBUG] auth_token: {session_key}")
-
         if not session_key:
-            return AnonymousUser()
+            return AnonymousUser(), {}
 
         try:
             engine = import_module(settings.SESSION_ENGINE)
             session = engine.SessionStore(session_key=session_key)
-            print(f"[WS DEBUG] SESSION_ENGINE: {settings.SESSION_ENGINE}")
-            print(f"[WS DEBUG] session exists: {session.exists(session_key)}")
-            print(f"[WS DEBUG] session data: {dict(session)}")
 
             user_id = session.get('_auth_user_id')
-            print(f"[WS DEBUG] user_id: {user_id}")
-
             if not user_id:
-                return AnonymousUser()
-            return User.objects.get(pk=user_id)
+                return AnonymousUser(), dict(session)
+
+            # Set tenant schema before loading User (User is per-tenant)
+            schema_name = session.get('_tenant_schema')
+            if schema_name:
+                try:
+                    tenant = Institution.objects.get(schema_name=schema_name)
+                    connection.set_tenant(tenant)
+                except Institution.DoesNotExist:
+                    pass
+
+            user = User.objects.get(pk=user_id)
+            return user, dict(session)
         except Exception as e:
-            print(f"[WS DEBUG] exception: {e}")
-            return AnonymousUser()
+            logger.exception("WebSocket auth error")
+            return AnonymousUser(), {}

@@ -20,8 +20,8 @@ from django.conf import settings
 from django.core.cache import cache
 from datetime import datetime
 from surveys.tasks import analyze_survey_responses_async
-from django.db import transaction, IntegrityError
-
+from django.db import connection, transaction, IntegrityError
+from tenants.models import EmailTenantMapping, Institution
 
 logger = logging.getLogger("surveys")
 
@@ -170,10 +170,19 @@ def login_view(request):
             if not email or not password:
                 return JsonResponse({'error': 'Email and password required'}, status=400)
             
+            # Resolve tenant before authenticating — User lives in tenant schema
+            try:
+                mapping = EmailTenantMapping.objects.get(email=email)
+                tenant = Institution.objects.get(schema_name=mapping.schema_name)
+                connection.set_tenant(tenant)
+            except (EmailTenantMapping.DoesNotExist, Institution.DoesNotExist):
+                connection.set_schema_to_public()
+
             user = authenticate(request, email=email, password=password)
-            
+
             if user is not None:
                 login(request, user)
+                request.session['_tenant_schema'] = connection.schema_name
                 
                 response = JsonResponse({
                     'success': True,
@@ -300,15 +309,14 @@ def register_view(request):
                 'message': "Email already registered."
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Check if the institution exists
+        # Institution lookup runs on public schema (Institution is SHARED)
         institution_details = Institution.objects.filter(institution_name=institution_name)
         if not institution_details.exists():
             return Response({
                 'success': False,
                 'message': "Institution does not exist"
             }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Check if the email address matches the institution's pattern
+
         institution_details = institution_details.first()
         match_object = re.fullmatch(institution_details.institution_regex_pattern, email, re.IGNORECASE)
         if not match_object:
@@ -316,18 +324,26 @@ def register_view(request):
                 'success': False,
                 'message': "Email does not match institution's format"
             }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Create a new student
+
+        # Set tenant schema before creating User (User lives per-tenant)
+        connection.set_tenant(institution_details)
+
         try:
             with transaction.atomic():
                 student = User.objects.create_student(
-                    email=email, 
-                    password=password, 
-                    institution_details=institution_details, 
+                    email=email,
+                    password=password,
+                    institution_details=institution_details,
                     name=name
                 )
-                #student.save()
-                
+
+                # Create public-schema mapping so login can find the tenant
+                connection.set_schema_to_public()
+                EmailTenantMapping.objects.create(
+                    email=email,
+                    schema_name=institution_details.schema_name
+                )
+
                 return Response({
                     'success': True,
                     'message': "Registration successful! Please log in."

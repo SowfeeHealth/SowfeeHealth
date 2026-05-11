@@ -1,7 +1,7 @@
 import logging
 import calendar
 import re
-from .models import SurveyResponse, User, Institution, AnonymousStudent, SurveyTemplate, SurveyQuestion, QuestionResponse, QuestionType, QuestionCategory
+from .models import SurveyResponse, User, AnonymousStudent, SurveyTemplate, SurveyQuestion, QuestionResponse, QuestionType, QuestionCategory
 from .serializers import SurveyResponseSerializer, UserSerializer, InstitutionSerializer, SurveyTemplateSerializer, SurveyQuestionSerializer, AnonymousStudentSerializer
 from django.shortcuts import render, redirect
 from django.utils import timezone
@@ -20,7 +20,9 @@ from django.conf import settings
 from django.core.cache import cache
 from datetime import datetime
 from surveys.tasks import analyze_survey_responses_async
-from django.db import transaction, IntegrityError
+from django.db import connection, transaction, IntegrityError
+from django_tenants.utils import schema_context
+from tenants.models import SurveyHashLookup, Institution
 
 logger = logging.getLogger("surveys")
 
@@ -87,24 +89,11 @@ def dashboard_api(request):
     if request.user.role != User.Role.INSTITUTION_ADMIN:
         return JsonResponse({"error": "Admin access required"}, status=403)
     
-    # Get the institution details of the admin
-    institution_details = request.user.institution_details
+    # Schema isolation: all queries below are scoped to the current tenant schema
+    num_registered_students = User.objects.filter(role=User.Role.STUDENT).count()
+    num_anonymous_students = AnonymousStudent.objects.count()
+    num_students = num_registered_students + num_anonymous_students
 
-    # Number of students registered in the university
-    num_registered_students = User.objects.filter(role=User.Role.STUDENT, institution_details=institution_details).count()
-
-    num_anonymous_students = AnonymousStudent.objects.filter(survey_template__institution=institution_details).count()
-
-    num_students = num_registered_students+num_anonymous_students
-
-    #responded_students = 0
-    # Get all students in the institution
-    institution_students = User.objects.filter(role=User.Role.STUDENT, institution_details=institution_details)
-    
-    anonymous_students = AnonymousStudent.objects.filter(survey_template__institution=institution_details)
-
-    # Initialize list for flagged students
-    school_flagged_responses = []
     # ── Latest response per registered student (1 query using Subquery) ──
     latest_registered_response = SurveyResponse.objects.filter(
         student=OuterRef('pk')
@@ -112,7 +101,6 @@ def dashboard_api(request):
 
     registered_with_status = User.objects.filter(
         role=User.Role.STUDENT,
-        institution_details=institution_details
     ).annotate(
         has_response=Subquery(latest_registered_response.values('id')[:1]),
         latest_flagged=Subquery(latest_registered_response.values('flagged')[:1])
@@ -133,9 +121,7 @@ def dashboard_api(request):
         anonymous_student=OuterRef('pk')
     ).order_by('-created')
 
-    anon_with_status = AnonymousStudent.objects.filter(
-        survey_template__institution=institution_details
-    ).annotate(
+    anon_with_status = AnonymousStudent.objects.annotate(
         has_response=Subquery(latest_anon_response.values('id')[:1]),
         latest_flagged=Subquery(latest_anon_response.values('flagged')[:1])
     )
@@ -159,30 +145,27 @@ def dashboard_api(request):
     #all_registered_responses = SurveyResponse.objects.filter(student__institution_details=institution_details)
     #all_anonymous_responses = SurveyResponse.objects.filter(anonymous_student__survey_template__institution=institution_details)
     #num_responses = len(all_registered_responses)+len(all_anonymous_responses)
-    all_responses = SurveyResponse.objects.filter(
-    Q(student__institution_details=institution_details) | 
-    Q(anonymous_student__survey_template__institution=institution_details)
-    )
+    all_responses = SurveyResponse.objects.all()
     num_responses = all_responses.count()
     
     # Number of students registered in the university and marked as flagged
     num_flagged_students = len(school_flagged_responses)
     
     # Get all survey templates for this institution
-    survey_templates = SurveyTemplate.objects.filter(institution=institution_details)
-    
+    survey_templates = SurveyTemplate.objects.all()
+
     # Check if there are sleep quality questions
     has_sleep_questions = SurveyQuestion.objects.filter(
         survey_template__in=survey_templates,
         category=QuestionCategory.SLEEP
     ).exists()
-    
+
     # Check if there are stress level questions
     has_stress_questions = SurveyQuestion.objects.filter(
         survey_template__in=survey_templates,
         category=QuestionCategory.STRESS
     ).exists()
-    
+
     # Check if there are support perception questions
     has_support_questions = SurveyQuestion.objects.filter(
         survey_template__in=survey_templates,
@@ -323,23 +306,16 @@ def student_response_view(request):
         - Uses Q objects to query across student and anonymous_student relationships
         - Returns serialized data using SurveyResponseSerializer
     """
-    if request.method == "GET" and request.user.is_authenticated and (request.user.is_superuser or request.user.role == User.Role.INSTITUTION_ADMIN):
-        if request.user.is_superuser:
-            # Superuser sees all responses
-            survey_responses = SurveyResponse.objects.all()
-        else:
-            # Institution admin sees only responses from their institution
-            # This includes both registered students and anonymous students from their institution
-            survey_responses = SurveyResponse.objects.filter(
-                Q(student__institution_details=request.user.institution_details) |
-                Q(anonymous_student__survey_template__institution=request.user.institution_details)
-            )
-        
-        survey_response_serializer = SurveyResponseSerializer(survey_responses, many=True)
-        return Response(survey_response_serializer.data)
-    
-    else:
-        return HttpResponseBadRequest("Request method not allowed")
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+    if request.user.is_superuser:
+        return JsonResponse({"error": "Superuser access not allowed"}, status=403)
+    if request.user.role != User.Role.INSTITUTION_ADMIN:
+        return JsonResponse({"error": "Admin access required"}, status=403)
+
+    survey_responses = SurveyResponse.objects.all()
+    survey_response_serializer = SurveyResponseSerializer(survey_responses, many=True)
+    return Response(survey_response_serializer.data)
 
 @api_view(["GET"])
 def flagged_responses_view(request):
@@ -380,24 +356,16 @@ def flagged_responses_view(request):
         - Institution admins see only flagged responses from their institution
         - Includes both registered and anonymous student flagged responses
     """
-    if request.method == "GET" and request.user.is_authenticated and (request.user.is_superuser or request.user.role == User.Role.INSTITUTION_ADMIN):
-        if request.user.is_superuser:
-            # Superuser sees all flagged responses
-            flagged_students = SurveyResponse.objects.filter(flagged=True)
-        else:
-            # Institution admin sees only flagged responses from their institution
-            flagged_students = SurveyResponse.objects.filter(
-                flagged=True
-            ).filter(
-                Q(student__institution_details=request.user.institution_details) |
-                Q(anonymous_student__survey_template__institution=request.user.institution_details)
-            )
-        
-        flagged_students_serializer = SurveyResponseSerializer(flagged_students, many=True)
-        return Response(flagged_students_serializer.data)
-    
-    else:
-        return HttpResponseBadRequest("Request method not allowed")
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+    if request.user.is_superuser:
+        return JsonResponse({"error": "Superuser access not allowed"}, status=403)
+    if request.user.role != User.Role.INSTITUTION_ADMIN:
+        return JsonResponse({"error": "Admin access required"}, status=403)
+
+    flagged_responses = SurveyResponse.objects.filter(flagged=True)
+    flagged_responses_serializer = SurveyResponseSerializer(flagged_responses, many=True)
+    return Response(flagged_responses_serializer.data)
 
 @api_view(["GET"])
 def students_view(request):
@@ -452,34 +420,25 @@ def students_view(request):
         - Uses separate serializers for different student types
         - Anonymous students are linked to institutions through survey templates
     """
-    if request.method == "GET" and request.user.is_authenticated and (request.user.is_superuser or request.user.role == User.Role.INSTITUTION_ADMIN):
-        if request.user.is_superuser:
-            # Superuser sees all students
-            all_students = User.objects.filter(role=User.Role.STUDENT)
-            all_anonymous_students = AnonymousStudent.objects.all()
-        else:
-            # Institution admin sees only students from their institution
-            all_students = User.objects.filter(
-                role=User.Role.STUDENT,
-                institution_details=request.user.institution_details
-            )
-            all_anonymous_students = AnonymousStudent.objects.filter(
-                survey_template__institution=request.user.institution_details
-            )
-        
-        user_serializer = UserSerializer(all_students, many=True)
-        anonymous_serializer = AnonymousStudentSerializer(all_anonymous_students, many=True)
-        
-        # Combine the data with type indicators
-        response_data = {
-            "registered_students": user_serializer.data,
-            "anonymous_students": anonymous_serializer.data
-        }
-        
-        return Response(response_data)
-    
-    else:
-        return HttpResponseBadRequest("Request method not allowed")
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+    if request.user.is_superuser:
+        return JsonResponse({"error": "Superuser access not allowed"}, status=403)
+    if request.user.role != User.Role.INSTITUTION_ADMIN:
+        return JsonResponse({"error": "Admin access required"}, status=403)
+
+    all_students = User.objects.filter(role=User.Role.STUDENT)
+    all_anonymous_students = AnonymousStudent.objects.all()
+
+    user_serializer = UserSerializer(all_students, many=True)
+    anonymous_serializer = AnonymousStudentSerializer(all_anonymous_students, many=True)
+
+    response_data = {
+        "registered_students": user_serializer.data,
+        "anonymous_students": anonymous_serializer.data
+    }
+
+    return Response(response_data)
 
 @api_view(["GET"])
 def flagged_students_view(request):
@@ -491,26 +450,21 @@ def flagged_students_view(request):
     """
     if not request.user.is_authenticated:
         return JsonResponse({"error": "Authentication required"}, status=401)
-    
-    if not (request.user.is_superuser or request.user.role == User.Role.INSTITUTION_ADMIN):
+    if request.user.is_superuser:
+        return JsonResponse({"error": "Superuser access not allowed"}, status=403)
+    if request.user.role != User.Role.INSTITUTION_ADMIN:
         return JsonResponse({"error": "Admin access required"}, status=403)
-    
+
     try:
         flagged_registered_students = []
         flagged_anonymous_students = []
-        
+
         # ── Registered students ──
         latest_response = SurveyResponse.objects.filter(
             student=OuterRef('pk')
         ).order_by('-created')
 
-        students_qs = User.objects.filter(role=User.Role.STUDENT)
-        if not request.user.is_superuser:
-            students_qs = students_qs.filter(
-                institution_details=request.user.institution_details
-            )
-
-        flagged_registered = students_qs.annotate(
+        flagged_registered = User.objects.filter(role=User.Role.STUDENT).annotate(
             latest_flagged=Subquery(latest_response.values('flagged')[:1]),
             latest_response_date=Subquery(latest_response.values('created')[:1]),
             latest_response_id=Subquery(latest_response.values('id')[:1])
@@ -533,13 +487,7 @@ def flagged_students_view(request):
             anonymous_student=OuterRef('pk')
         ).order_by('-created')
 
-        anon_qs = AnonymousStudent.objects.all()
-        if not request.user.is_superuser:
-            anon_qs = anon_qs.filter(
-                survey_template__institution=request.user.institution_details
-            )
-
-        flagged_anon = anon_qs.annotate(
+        flagged_anon = AnonymousStudent.objects.annotate(
             latest_flagged=Subquery(latest_anon_response.values('flagged')[:1]),
             latest_response_date=Subquery(latest_anon_response.values('created')[:1]),
             latest_response_id=Subquery(latest_anon_response.values('id')[:1])
@@ -682,7 +630,7 @@ def survey_templates_view(request):
     
     if request.method == "GET":
         # List all survey templates for the admin's institution
-        templates = SurveyTemplate.objects.filter(institution=request.user.institution_details)
+        templates = SurveyTemplate.objects.all()
         serializer = SurveyTemplateSerializer(templates, many=True)
         return JsonResponse({"success": True, "templates": serializer.data})
     
@@ -692,6 +640,12 @@ def survey_templates_view(request):
             new_template = SurveyTemplate.objects.create(
                 institution=request.user.institution_details
             )
+            with schema_context('public'):
+                tenant = Institution.objects.get(schema_name=connection.schema_name)
+                SurveyHashLookup.objects.create(
+                    hash_link=new_template.hash_link,
+                    tenant=tenant,
+                )
             return JsonResponse({
                 "success": True,
                 "message": "Survey template created",
@@ -711,14 +665,10 @@ def survey_templates_view(request):
                 return JsonResponse({"success": False, "error": "Template ID is required"})
             
             template = get_object_or_404(SurveyTemplate, id=template_id)
-            
-            # Check if the template belongs to the admin's institution
-            if template.institution != request.user.institution_details:
-                return JsonResponse({"success": False, "error": "You can only delete your institution's templates"})
-            
-            # Delete the template (this will cascade delete all associated questions)
+            with schema_context('public'):
+                SurveyHashLookup.objects.filter(hash_link=template.hash_link).delete()
             template.delete()
-            
+
             return JsonResponse({
                 "success": True,
                 "message": "Template deleted"
@@ -803,12 +753,7 @@ def survey_questions_view(request, template_id):
     if not request.user.is_authenticated or request.user.role != User.Role.INSTITUTION_ADMIN:
         return JsonResponse({"success": False, "error": "Permission denied"})
     
-    # Get the survey template
     template = get_object_or_404(SurveyTemplate, id=template_id)
-    
-    # Check if the template belongs to the admin's institution
-    if template.institution != request.user.institution_details:
-        return JsonResponse({"success": False, "error": "You can only manage your institution's surveys"})
     
     if request.method == "GET":
         # List all questions for this template
@@ -921,12 +866,9 @@ def use_template(request, template_id):
 
     try:
         with transaction.atomic():
-            SurveyTemplate.objects.filter(
-            institution=request.user.institution_details
-            ).select_for_update().update(used=False)
+            SurveyTemplate.objects.select_for_update().update(used=False)
 
-            # Get the template to activate
-            template = get_object_or_404(SurveyTemplate.objects.select_for_update(), id=template_id, institution=request.user.institution_details)
+            template = get_object_or_404(SurveyTemplate.objects.select_for_update(), id=template_id)
             
             # Activate the selected template
             template.used = True
@@ -958,11 +900,10 @@ def get_active_template(institution):
     """
     with transaction.atomic():
         # Try to get the used template first
-        template = SurveyTemplate.objects.select_for_update().filter(institution=institution, used=True).first()
-        
-        # If no template is marked as used, get the one with minimal ID
+        template = SurveyTemplate.objects.select_for_update().filter(used=True).first()
+
         if not template:
-            template = SurveyTemplate.objects.select_for_update().filter(institution=institution).order_by('id').first()
+            template = SurveyTemplate.objects.select_for_update().order_by('id').first()
             if template:
                 # Automatically mark this template as used
                 template.used = True

@@ -21,7 +21,7 @@ from django.conf import settings
 from django.core.cache import cache
 from datetime import datetime
 from surveys.tasks import analyze_survey_responses_async
-from django.db import transaction, IntegrityError
+from django.db import connection, transaction, IntegrityError
 
 logger = logging.getLogger("surveys")
 
@@ -81,37 +81,26 @@ def survey_view(request, hash_link=None):
     # Check if a valid user is submitting the response
     if not request.user.is_authenticated:
         return JsonResponse({"success": False, "message": "Please login to the application to submit a survey response"})
-    # Only students can submit surveys
+    if request.user.is_superuser:
+        return JsonResponse({"success": False, "message": "Superuser access not allowed"}, status=403)
     if request.user.role != User.Role.STUDENT:
         return JsonResponse({"success": False, "message": "Only students can submit surveys"}, status=403)
-    # Get the survey template - either from request or use a default
+
     survey_template_id = request.data.get('survey_template_id')
     if not survey_template_id:
-        # Try to get the used template first
-        if request.user.institution_details:
-            try:
-                survey_template = SurveyTemplate.objects.filter(
-                    institution=request.user.institution_details,
-                    used=True
-                ).first()
-                
-                # If no used template exists, fall back to the one with minimal ID
-                if not survey_template:
-                    survey_template = SurveyTemplate.objects.filter(
-                        institution=request.user.institution_details
-                    ).order_by('id').first()
-                    
-                    # If we found a template, mark it as used
-                    if survey_template:
-                        survey_template.used = True
-                        survey_template.save()
-                
-                if not survey_template:
-                    return JsonResponse({"success": False, "message": "No survey template found for your institution"})
-            except Exception as e:
-                return JsonResponse({"success": False, "message": f"Error finding survey template: {str(e)}"})
-        else:
-            return JsonResponse({"success": False, "message": "No institution associated with user and no survey template specified"})
+        try:
+            survey_template = SurveyTemplate.objects.filter(used=True).first()
+
+            if not survey_template:
+                survey_template = SurveyTemplate.objects.order_by('id').first()
+                if survey_template:
+                    survey_template.used = True
+                    survey_template.save()
+
+            if not survey_template:
+                return JsonResponse({"success": False, "message": "No survey template found for your institution"})
+        except Exception as e:
+            return JsonResponse({"success": False, "message": f"Error finding survey template: {str(e)}"})
     else:
         try:
             survey_template = SurveyTemplate.objects.get(id=survey_template_id)
@@ -268,10 +257,10 @@ def _handle_student_responses(request, survey_template, questions, hashed=False)
                 survey_response.flagged = True
                 survey_response.save()
             
-            # Pass question IDs instead of model objects
             question_ids = [q.id for q in questions]
+            schema_name = connection.schema_name
             transaction.on_commit(
-                lambda: analyze_survey_responses_async.delay(survey_response.id, question_ids)
+                lambda: analyze_survey_responses_async.delay(survey_response.id, question_ids, schema_name)
             )
         # Return success response
         response_data = {
@@ -344,25 +333,13 @@ def get_user_survey_questions(request, hash_link=None):
 
     if not request.user.is_authenticated:
         return JsonResponse({"success": False, "error": "Authentication required"})
+    if request.user.is_superuser:
+        return JsonResponse({"success": False, "error": "Superuser access not allowed"}, status=403)
     try:
-        survey_template = None
-        
-        # If user is a student, get template by institution
-        if not request.user.is_superuser:
-            if request.user.institution_details:
-                survey_template = SurveyTemplate.objects.filter(
-                    institution=request.user.institution_details,
-                    used=True
-                ).first()
-                
-            if not survey_template:
-                survey_template = SurveyTemplate.objects.filter(
-                    institution=request.user.institution_details,
-                ).order_by('id').first()
-        
-        # If user is a superuser, get any template (for testing)
-        elif request.user.is_superuser:
-            survey_template = SurveyTemplate.objects.first()
+        survey_template = SurveyTemplate.objects.filter(used=True).first()
+
+        if not survey_template:
+            survey_template = SurveyTemplate.objects.order_by('id').first()
         
         if not survey_template:
             return JsonResponse({
@@ -476,7 +453,8 @@ def survey_autosave(request):
             "last_saved": datetime.now().isoformat(),
             "answers": answers, 
         }
-        cache.set(f"survey_autosave_{school_email}_{template_id}", json.dumps(cache_data), timeout=1800)
+        schema = connection.schema_name
+        cache.set(f"{schema}:survey_autosave_{school_email}_{template_id}", json.dumps(cache_data), timeout=1800)
         return JsonResponse({"success": True, "message": "Progress saved"})
     except Exception as e:
         logger.error(f"Autosave error: {str(e)}")
@@ -528,13 +506,13 @@ def survey_autosave_load(request, template_id):
         if not request.user.is_authenticated:
             return JsonResponse({"success": False, "message": "User not authorized"}, status=200)
         school_email = request.user.email
-        cache_key = f"survey_autosave_{school_email}_{template_id}"
+        schema = connection.schema_name
+        cache_key = f"{schema}:survey_autosave_{school_email}_{template_id}"
         cached_data = cache.get(cache_key)
         if cached_data:
             try:
                 return JsonResponse({"success": True, "saved_data": json.loads(cached_data)}, status=200)
             except json.JSONDecodeError:
-                # Corrupted data
                 cache.delete(cache_key)
                 return JsonResponse({"success": False, "message": "Corrupted save data. Please press the clear button"}, status=200)
         else:
@@ -580,8 +558,9 @@ def survey_autosave_clear(request, template_id):
         if not request.user.is_authenticated:
             return JsonResponse({"success": False, "message": "User not authorized"}, status=200)
         school_email = request.user.email
-        cache_key = f"survey_autosave_{school_email}_{template_id}"
-        
+        schema = connection.schema_name
+        cache_key = f"{schema}:survey_autosave_{school_email}_{template_id}"
+
         cache.delete(cache_key)
 
         return JsonResponse({"success": True, "message": "Autosave data cleared"})

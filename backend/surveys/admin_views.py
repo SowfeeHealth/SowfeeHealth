@@ -20,6 +20,7 @@ from django.conf import settings
 from django.core.cache import cache
 from datetime import datetime
 from surveys.tasks import analyze_survey_responses_async
+from django.core.exceptions import ValidationError
 from django.db import connection, transaction, IntegrityError
 from django_tenants.utils import schema_context
 from tenants.models import SurveyHashLookup, Institution
@@ -670,11 +671,19 @@ def survey_templates_view(request):
         try:
             data = request.data
             template_id = data.get('template_id')
-            
+
             if not template_id:
                 return JsonResponse({"success": False, "error": "Template ID is required"})
-            
+
             template = get_object_or_404(SurveyTemplate, id=template_id)
+            response_count = SurveyResponse.objects.filter(survey_template=template).count()
+            if response_count > 0 and not data.get('confirm_delete'):
+                return JsonResponse({
+                    "success": False,
+                    "has_responses": True,
+                    "response_count": response_count,
+                    "error": f"This template has {response_count} student response(s). Deleting it will permanently remove all associated data."
+                })
             with schema_context('public'):
                 SurveyHashLookup.objects.filter(hash_link=template.hash_link).delete()
             template.delete()
@@ -686,7 +695,7 @@ def survey_templates_view(request):
         except Exception as e:
             return JsonResponse({"success": False, "error": str(e)})
 
-@api_view(["GET", "POST", "DELETE"])
+@api_view(["GET", "POST", "PUT", "DELETE"])
 def survey_questions_view(request, template_id):
     """
     Manages survey questions for a specific template with full CRUD operations.
@@ -807,7 +816,39 @@ def survey_questions_view(request, template_id):
             })
         except Exception as e:
             return JsonResponse({"success": False, "error": str(e)})
-    
+
+    elif request.method == "PUT":
+        try:
+            data = request.data
+            question_id = data.get('question_id')
+            if not question_id:
+                return JsonResponse({"success": False, "error": "Question ID is required"})
+
+            question = get_object_or_404(SurveyQuestion, id=question_id, survey_template=template)
+
+            if 'question_text' in data:
+                question.question_text = data['question_text']
+            if 'question_type' in data:
+                question.question_type = data['question_type']
+            if 'question_category' in data:
+                question.category = data['question_category']
+            if 'answer_choices' in data:
+                question.answer_choices = data['answer_choices'] if data['answer_choices'] else None
+
+            question.full_clean()
+            question.save()
+
+            serializer = SurveyQuestionSerializer(question)
+            return JsonResponse({
+                "success": True,
+                "message": "Question updated",
+                "question": serializer.data
+            })
+        except ValidationError as e:
+            return JsonResponse({"success": False, "error": str(e.message_dict)})
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)})
+
     elif request.method == "DELETE":
         # Delete a question from the template
         try:

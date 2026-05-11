@@ -186,7 +186,8 @@ input:focus, select:focus, textarea:focus {
     outline: none;
 }
 
-#answer-choices-section {
+#answer-choices-section,
+.answer-choices-section {
     margin-top: 1.5rem;
     padding: 1.5rem;
     background: rgba(105, 54, 245, 0.03);

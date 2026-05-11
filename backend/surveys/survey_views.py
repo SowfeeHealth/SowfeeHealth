@@ -143,7 +143,7 @@ def _handle_student_responses(request, survey_template, questions, hashed=False)
     if hashed:
         student_name = request.data.get('student_name')
         school_email = request.data.get('school_email')
-        institution_email_regex = survey_template.institution.institution_regex_pattern
+        institution_email_regex = connection.tenant.institution_regex_pattern
         if not re.fullmatch(institution_email_regex, school_email, re.IGNORECASE):
             return JsonResponse({
                 "success": False,

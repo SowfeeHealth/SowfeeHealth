@@ -74,7 +74,7 @@ services:
         echo '=== Files copied to shared volume ===' &&
         ls -la /shared_static/ &&
         echo '=== Starting Django ===' &&
-        python manage.py migrate &&   
+        python manage.py migrate_schemas &&
         python manage.py shell -c \"from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.filter(email='${ADMIN_EMAIL}').exists() or User.objects.create_superuser(email='${ADMIN_EMAIL}', password='${ADMIN_PASSWORD}')\" && 
         daphne --proxy-headers -b 0.0.0.0 -p 8000 core.asgi:application
         "

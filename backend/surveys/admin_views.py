@@ -141,6 +141,16 @@ def dashboard_api(request):
     school_flagged_responses = registered_flagged + anon_flagged
     num_flagged_students = len(school_flagged_responses)
 
+    # ── Latest responses only (for sleep/stress per-student metrics) ──
+    latest_response_ids = list(
+        registered_with_status.filter(has_response__isnull=False)
+        .values_list('has_response', flat=True)
+    ) + list(
+        anon_with_status.filter(has_response__isnull=False)
+        .values_list('has_response', flat=True)
+    )
+    latest_responses = SurveyResponse.objects.filter(id__in=latest_response_ids)
+
     # Number of responses for students registered in the university
     #all_registered_responses = SurveyResponse.objects.filter(student__institution_details=institution_details)
     #all_anonymous_responses = SurveyResponse.objects.filter(anonymous_student__survey_template__institution=institution_details)
@@ -183,11 +193,11 @@ def dashboard_api(request):
         sleep_stats = QuestionResponse.objects.filter(
             question__survey_template__in=survey_templates,
             question__category=QuestionCategory.SLEEP,
-            survey_response__in=all_responses,
+            survey_response__in=latest_responses,
             likert_value__isnull=False
         ).aggregate(
             good=Count('id', filter=Q(likert_value__lte=2)),
-            bad=Count('id', filter=Q(likert_value__gte=4))
+            bad=Count('id', filter=Q(likert_value__gte=3))
         )
         num_good_sleep_quality = sleep_stats['good']
         num_bad_sleep_quality = sleep_stats['bad']
@@ -196,7 +206,7 @@ def dashboard_api(request):
         stress_stats = QuestionResponse.objects.filter(
             question__survey_template__in=survey_templates,
             question__category=QuestionCategory.STRESS,
-            survey_response__in=all_responses,
+            survey_response__in=latest_responses,
             likert_value__isnull=False
         ).aggregate(
             low=Count('id', filter=Q(likert_value__lte=2)),
@@ -493,13 +503,14 @@ def flagged_students_view(request):
             latest_response_id=Subquery(latest_anon_response.values('id')[:1])
         ).filter(
             latest_flagged=True
-        ).select_related('survey_template__institution')
+        )
 
+        tenant = connection.tenant
         flagged_anonymous_students = [{
             "email": s.email,
             "name": s.name,
-            "institution_id": s.survey_template.institution.id if s.survey_template else None,
-            "institution_name": s.survey_template.institution.institution_name if s.survey_template else None,
+            "institution_id": tenant.id,
+            "institution_name": tenant.institution_name,
             "survey_template_id": s.survey_template.id if s.survey_template else None,
             "latest_response_date": s.latest_response_date,
             "latest_response_id": s.latest_response_id,
@@ -637,9 +648,7 @@ def survey_templates_view(request):
     elif request.method == "POST":
         # Create a new survey template
         try:
-            new_template = SurveyTemplate.objects.create(
-                institution=request.user.institution_details
-            )
+            new_template = SurveyTemplate.objects.create()
             with schema_context('public'):
                 tenant = Institution.objects.get(schema_name=connection.schema_name)
                 SurveyHashLookup.objects.create(

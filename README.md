@@ -21,7 +21,7 @@ This platform enables healthcare institutions to create customized survey templa
 
 **Backend:**
 - Django (Python web framework)
-- MySQL (Database)
+- PostgresSQL (Database)
 - Django REST Framework (API development)
 - AWS EC2 (Deployment)
 

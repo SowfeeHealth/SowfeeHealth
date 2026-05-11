@@ -11,16 +11,12 @@ from tenants.models import Institution
 
 # In SurveyTemplate class
 class SurveyTemplate(models.Model):
-    """
-    SurveyTemplate represents a survey configuration for a specific institution
-    """
     id = models.AutoField(primary_key=True)
-    institution = models.ForeignKey(Institution, on_delete=models.CASCADE)
     hash_link = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     used = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"Survey for {self.institution.institution_name}"
+        return f"Survey Template {self.id}"
 
 class AnonymousStudent(models.Model):
     email = models.EmailField(primary_key=True)

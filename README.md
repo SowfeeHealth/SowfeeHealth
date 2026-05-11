@@ -70,3 +70,39 @@ The application is fully containerized using Docker and deployed on AWS EC2:
 - Efficient database schemas for scalability
 - Real-time response tracking
 - Data export capabilities
+
+### In progress: Crisis Detection Pipeline
+┌─────────────────────────────────────────────┐
+│           Chat Service (WebSocket)          │
+│  - Real-time message delivery               │
+│  - 1K concurrent connections                 │
+└─────┬───────────────────────────────────────┘
+      │
+      │ Persist + publish
+      ▼
+┌─────────────────────────────────────────────┐
+│         PostgreSQL (message storage)         │
+│         + publish to SQS                     │
+└─────┬───────────────────────────────────────┘
+      │
+      ▼
+┌─────────────────────────────────────────────┐
+│           AWS SQS (or Redis Stream)          │
+│  - Decouples chat from analysis              │
+│  - Buffers traffic spikes                    │
+│  - Enables retries                           │
+└─────┬───────────────────────────────────────┘
+      │
+      ▼
+┌─────────────────────────────────────────────┐
+│      Crisis Detection Worker(s)              │
+│  Stage 1: Keyword filter (fast)              │
+│  Stage 2: LLM analysis (only if Stage 1 hit) │
+└─────┬───────────────────────────────────────┘
+      │
+      ▼
+┌──────────────────────┬──────────────────────┐
+│  Tier 1: Page MD     │  User UI: 988 popup  │
+│  Tier 2: Queue MD    │  via WebSocket push  │
+│  Tier 3: Log         │                      │
+└──────────────────────┴──────────────────────┘

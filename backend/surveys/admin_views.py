@@ -649,8 +649,9 @@ def survey_templates_view(request):
         # Create a new survey template
         try:
             new_template = SurveyTemplate.objects.create()
+            tenant_schema = connection.schema_name
             with schema_context('public'):
-                tenant = Institution.objects.get(schema_name=connection.schema_name)
+                tenant = Institution.objects.get(schema_name=tenant_schema)
                 SurveyHashLookup.objects.create(
                     hash_link=new_template.hash_link,
                     tenant=tenant,

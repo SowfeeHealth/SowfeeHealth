@@ -42,6 +42,11 @@ class TenantSessionMiddleware:
 
         tenant = None
 
+        # 0. Django admin always uses public schema
+        from django.conf import settings
+        if request.path.startswith(f'/{settings.ADMIN_URL}'):
+            return self.get_response(request)
+
         # 1. Hash link URLs take priority (both registered and anonymous students)
         tenant = self._resolve_from_hash_link(request.path)
 

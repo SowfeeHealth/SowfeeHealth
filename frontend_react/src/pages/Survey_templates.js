@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import '../assets/survey_templates.css';
-import { copyHashLink, showMessage } from '../utils/surveyUtils';
 
 function SurveyTemplates() {
     const [templates, setTemplates] = useState([]);
@@ -32,7 +31,7 @@ function SurveyTemplates() {
         setTimeout(() => setMessage({ text: '', type: '' }), 2500);
     };
 
-    const fetchTemplates = async () => {
+    const fetchTemplates = useCallback(async () => {
         try {
             setLoading(true);
             const response = await api.get('/api/survey-templates/');
@@ -46,7 +45,7 @@ function SurveyTemplates() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     const createTemplate = async () => {
         try {
@@ -226,11 +225,16 @@ function SurveyTemplates() {
 
     const startEditing = (question) => {
         setEditingQuestionId(question.id);
+        const rawChoices = question.answer_choices ?? {};
+        const choices = {};
+        for (let i = 1; i <= 5; i++) {
+            choices[i] = rawChoices[i] ?? rawChoices[String(i)] ?? '';
+        }
         setEditForm({
             question_text: question.question_text,
             question_type: question.question_type,
             question_category: question.category,
-            answer_choices: question.answer_choices || { 1: '', 2: '', 3: '', 4: '', 5: '' }
+            answer_choices: choices
         });
     };
 
@@ -256,17 +260,19 @@ function SurveyTemplates() {
             } else {
                 payload.answer_choices = null;
             }
-
+            console.log("Payload:", JSON.stringify(payload, null, 2));
             const response = await api.put(`/api/survey-templates/${currentTemplateId}/questions/`, payload);
+            console.log("Saved response:", JSON.stringify(response));
             if (response.data.success) {
                 showMessage('Question updated!');
-                setEditingQuestionId(null);
+                cancelEditing();
                 fetchQuestions(currentTemplateId);
             } else {
                 showMessage(response.data.error || 'Failed to update question.', 'error');
             }
         } catch (error) {
-            showMessage('Error updating question.', 'error');
+            console.error('Error updating question:', error.response?.data || error);
+            showMessage(error.response?.data?.error || 'Error updating question.', 'error');
         }
     };
 
@@ -301,7 +307,7 @@ function SurveyTemplates() {
 
     useEffect(() => {
         fetchTemplates();
-    }, []);
+    }, [fetchTemplates]);
 
     // Reset category when question type changes
     useEffect(() => {
@@ -317,12 +323,6 @@ function SurveyTemplates() {
             
             <div className="container">
                 <h1>Survey Template Management</h1>
-                
-                {message.text && (
-                    <div id="messages">
-                        <div className={`${message.type}-message`}>{message.text}</div>
-                    </div>
-                )}
                 
                 <div className="template-list">
                     <h2>Your Survey Templates</h2>
@@ -440,7 +440,13 @@ function SurveyTemplates() {
                                                     Type
                                                     <select
                                                         value={editForm.question_type}
-                                                        onChange={(e) => handleEditFormChange('question_type', e.target.value)}
+                                                        onChange={(e) => {
+                                                            const newType = e.target.value;
+                                                            handleEditFormChange('question_type', newType);
+                                                            if (newType === 'text') {
+                                                                handleEditFormChange('question_category', 'general');
+                                                            }
+                                                        }}
                                                     >
                                                         <option value="likert">Likert</option>
                                                         <option value="text">Text</option>
@@ -584,6 +590,12 @@ function SurveyTemplates() {
                     </div>
                 )}
             </div>
+
+            {message.text && (
+                <div className={`toast-message ${message.type}-message`}>
+                    {message.text}
+                </div>
+            )}
         </>
     );
 }

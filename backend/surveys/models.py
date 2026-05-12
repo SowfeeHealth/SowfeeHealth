@@ -72,9 +72,21 @@ class SurveyQuestion(models.Model):
                 'category': 'Category can only be set for Likert scale questions. Text questions must use General category.'
             })
 
+    DEFAULT_LIKERT_CHOICES = {
+        "1": "Excellent",
+        "2": "Good",
+        "3": "Neutral",
+        "4": "Poor",
+        "5": "Very Poor",
+    }
+
     def save(self, *args, **kwargs):
         if self.question_type == QuestionType.TEXT:
             self.category = QuestionCategory.GENERAL
+        if self.question_type == QuestionType.LIKERT and self.answer_choices:
+            merged = dict(self.DEFAULT_LIKERT_CHOICES)
+            merged.update(self.answer_choices)
+            self.answer_choices = merged
         self.full_clean()
         super().save(*args, **kwargs)
 

@@ -98,6 +98,7 @@ jobs:
           REDIS_PORT=${{ secrets.REDIS_PORT }}
           DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
           DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
+          DJANGO_ADMIN_URL=${{ secrets.DJANGO_ADMIN_URL }}
           DEBUG=False
           ALLOWED_HOSTS=${{ secrets.ALLOWED_HOSTS }}
           ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}

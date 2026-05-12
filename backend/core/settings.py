@@ -29,7 +29,7 @@ elif IS_PRODUCTION:
 else:
     DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'  # Fallback to env variable
 
-ADMIN_URL = os.getenv('DJANGO_ADMIN_URL', 'admin/')
+ADMIN_URL = os.getenv('DJANGO_ADMIN_URL', 'adminpanel/')
 
 #ALLOWED_HOSTS = ["*"]
 ALLOWED_HOSTS = ["sowfeehealth.live", "www.sowfeehealth.live", "localhost", "127.0.0.1", "web"]

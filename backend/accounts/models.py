@@ -84,6 +84,4 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     @property
     def is_staff(self):
-        if self.is_superuser:
-            return True
-        return self.role == self.Role.INSTITUTION_ADMIN
+        return self.is_superuser

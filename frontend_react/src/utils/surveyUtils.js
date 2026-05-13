@@ -1,5 +1,5 @@
 export const copyHashLink = (hashLink, showMessage) => {
-    const fullUrl = `https://sowfeehealth.com/survey/link/${hashLink}`;
+    const fullUrl = `https://sowfeehealth.live/survey/link/${hashLink}`;
     navigator.clipboard.writeText(fullUrl).then(() => {
         showMessage('Survey template link copied to clipboard!', 'success');
     }).catch(() => {

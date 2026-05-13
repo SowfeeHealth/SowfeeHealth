@@ -1,15 +1,17 @@
 services:
   db:
-    image: mysql:8
-    container_name: my-mysql-container
+    image: pgvector/pgvector:pg16
+    container_name: my-postgres-container
     restart: always
     env_file: .env
+    environment: 
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - mysql_data:/var/lib/mysql
-      - ./mysql/my.cnf:/etc/mysql/conf.d/my.cnf
-      - ./mysql/create_health_user.sql:/docker-entrypoint-initdb.d/create_health_user.sql
+       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u health_user -p$MYSQL_HEALTH_USER_PASSWORD"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 8s
       retries: 8
@@ -72,9 +74,9 @@ services:
         echo '=== Files copied to shared volume ===' &&
         ls -la /shared_static/ &&
         echo '=== Starting Django ===' &&
-        python manage.py migrate &&   
+        python manage.py migrate_schemas &&
         python manage.py shell -c \"from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.filter(email='${ADMIN_EMAIL}').exists() or User.objects.create_superuser(email='${ADMIN_EMAIL}', password='${ADMIN_PASSWORD}')\" && 
-        gunicorn core.wsgi:application --bind 0.0.0.0:8000
+        daphne --proxy-headers -b 0.0.0.0 -p 8000 core.asgi:application
         "
     volumes:
       - static_volume:/shared_static
@@ -117,9 +119,11 @@ services:
     image: nginx:1.24
     container_name: nginx
     restart: on-failure
+    environment:
+      - DJANGO_ADMIN_URL=${DJANGO_ADMIN_URL:-admin/}
     volumes:
       - static_volume:/usr/share/nginx/html:ro
-      - /home/ec2-user/app/default.conf:/etc/nginx/conf.d/default.conf
+      - /home/ec2-user/app/default.conf:/etc/nginx/templates/default.conf.template:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - /var/www/certbot:/var/www/certbot:ro
     ports:
@@ -129,6 +133,6 @@ services:
       - web
 
 volumes:
-  mysql_data:
+  postgres_data:
   static_volume:
   redis_data:

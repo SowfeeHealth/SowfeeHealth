@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import '../assets/survey_templates.css';
-import { copyHashLink, showMessage } from '../utils/surveyUtils';
 
 function SurveyTemplates() {
     const [templates, setTemplates] = useState([]);
@@ -22,21 +21,17 @@ function SurveyTemplates() {
         question_type: 'likert',
         question_category: 'general',
         order: 1,
-        answer_choices: {
-            1: '',
-            2: '',
-            3: '',
-            4: '',
-            5: ''
-        }
+        answer_choices: { 1: '', 2: '', 3: '', 4: '', 5: '' }
     });
+    const [editingQuestionId, setEditingQuestionId] = useState(null);
+    const [editForm, setEditForm] = useState({});
 
     const showMessage = (msg, type = 'success') => {
         setMessage({ text: msg, type });
         setTimeout(() => setMessage({ text: '', type: '' }), 2500);
     };
 
-    const fetchTemplates = async () => {
+    const fetchTemplates = useCallback(async () => {
         try {
             setLoading(true);
             const response = await api.get('/api/survey-templates/');
@@ -50,7 +45,7 @@ function SurveyTemplates() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     const createTemplate = async () => {
         try {
@@ -91,7 +86,7 @@ function SurveyTemplates() {
         if (!window.confirm('Are you sure you want to delete this template? This will also delete all questions in this template.')) {
             return;
         }
-        
+
         try {
             const response = await api.delete('/api/survey-templates/', {
                 data: { template_id: templateId }
@@ -99,11 +94,26 @@ function SurveyTemplates() {
             if (response.data.success) {
                 showMessage('Template deleted!');
                 fetchTemplates();
-                
-                // If the deleted template was the current one, hide the questions section
+
                 if (currentTemplateId === templateId) {
                     setCurrentTemplateId(null);
                     setShowQuestionsSection(false);
+                }
+            } else if (response.data.has_responses) {
+                if (window.confirm(`WARNING: This template has ${response.data.response_count} student response(s). Deleting it will permanently remove ALL associated student data. Are you absolutely sure?`)) {
+                    const confirmResponse = await api.delete('/api/survey-templates/', {
+                        data: { template_id: templateId, confirm_delete: true }
+                    });
+                    if (confirmResponse.data.success) {
+                        showMessage('Template and all responses deleted.');
+                        fetchTemplates();
+                        if (currentTemplateId === templateId) {
+                            setCurrentTemplateId(null);
+                            setShowQuestionsSection(false);
+                        }
+                    } else {
+                        showMessage(confirmResponse.data.error || 'Failed to delete template.', 'error');
+                    }
                 }
             } else {
                 showMessage(response.data.error || 'Failed to delete template.', 'error');
@@ -199,18 +209,70 @@ function SurveyTemplates() {
         }
     };
 
-    const handleQuestionFormChange = (field, value) => {
+    const makeFormHandler = (setter) => (field, value) => {
         if (field.startsWith('answer_choice_')) {
             const choiceNumber = field.split('_')[2];
-            setQuestionForm(prev => ({
+            setter(prev => ({
                 ...prev,
-                answer_choices: {
-                    ...prev.answer_choices,
-                    [choiceNumber]: value
-                }
+                answer_choices: { ...prev.answer_choices, [choiceNumber]: value }
             }));
         } else {
-            setQuestionForm(prev => ({ ...prev, [field]: value }));
+            setter(prev => ({ ...prev, [field]: value }));
+        }
+    };
+    const handleQuestionFormChange = makeFormHandler(setQuestionForm);
+    const handleEditFormChange = makeFormHandler(setEditForm);
+
+    const startEditing = (question) => {
+        setEditingQuestionId(question.id);
+        const rawChoices = question.answer_choices ?? {};
+        const choices = {};
+        for (let i = 1; i <= 5; i++) {
+            choices[i] = rawChoices[i] ?? rawChoices[String(i)] ?? '';
+        }
+        setEditForm({
+            question_text: question.question_text,
+            question_type: question.question_type,
+            question_category: question.category,
+            answer_choices: choices
+        });
+    };
+
+    const cancelEditing = () => {
+        setEditingQuestionId(null);
+        setEditForm({});
+    };
+
+    const saveQuestion = async (questionId) => {
+        try {
+            const payload = {
+                question_id: questionId,
+                question_text: editForm.question_text,
+                question_type: editForm.question_type,
+                question_category: editForm.question_category,
+            };
+            if (editForm.question_type === 'likert') {
+                const answerChoices = {};
+                for (let i = 1; i <= 5; i++) {
+                    if (editForm.answer_choices[i]) answerChoices[i] = editForm.answer_choices[i];
+                }
+                payload.answer_choices = Object.keys(answerChoices).length > 0 ? answerChoices : null;
+            } else {
+                payload.answer_choices = null;
+            }
+            console.log("Payload:", JSON.stringify(payload, null, 2));
+            const response = await api.put(`/api/survey-templates/${currentTemplateId}/questions/`, payload);
+            console.log("Saved response:", JSON.stringify(response));
+            if (response.data.success) {
+                showMessage('Question updated!');
+                cancelEditing();
+                fetchQuestions(currentTemplateId);
+            } else {
+                showMessage(response.data.error || 'Failed to update question.', 'error');
+            }
+        } catch (error) {
+            console.error('Error updating question:', error.response?.data || error);
+            showMessage(error.response?.data?.error || 'Error updating question.', 'error');
         }
     };
 
@@ -222,7 +284,7 @@ function SurveyTemplates() {
 
     // Add this function to copy hash link
     const copyHashLink = (hashLink) => {
-        const fullUrl = `https://sowfeehealth.com/survey/link/${hashLink}`;
+        const fullUrl = `https://sowfeehealth.live/survey/link/${hashLink}`;
         navigator.clipboard.writeText(fullUrl).then(() => {
             showMessage('Hash link copied to clipboard!', 'success');
         }).catch(() => {
@@ -245,7 +307,7 @@ function SurveyTemplates() {
 
     useEffect(() => {
         fetchTemplates();
-    }, []);
+    }, [fetchTemplates]);
 
     // Reset category when question type changes
     useEffect(() => {
@@ -261,12 +323,6 @@ function SurveyTemplates() {
             
             <div className="container">
                 <h1>Survey Template Management</h1>
-                
-                {message.text && (
-                    <div id="messages">
-                        <div className={`${message.type}-message`}>{message.text}</div>
-                    </div>
-                )}
                 
                 <div className="template-list">
                     <h2>Your Survey Templates</h2>
@@ -296,7 +352,7 @@ function SurveyTemplates() {
                                                     <strong>Survey Link:</strong> 
                                                     <br />
                                                     <code style={{ wordBreak: 'break-all', backgroundColor: '#e9ecef', padding: '2px 4px', borderRadius: '2px' }}>
-                                                        https://sowfeehealth.com/survey/link/{template.hash_link}
+                                                        https://sowfeehealth.live/survey/link/{template.hash_link}
                                                     </code>
                                                     <button 
                                                         className="btn"
@@ -370,20 +426,92 @@ function SurveyTemplates() {
                             ) : (
                                 questions.map(question => (
                                     <div key={question.id} className="question-item">
-                                        <strong>Q{question.order}:</strong> {question.question_text} <em>({question.question_type})</em>
-                                        <div><small>Category: {question.category}</small></div>
-                                        {question.question_type === 'likert' && question.answer_choices && (
-                                            <div className="answer-choices-display">
-                                                <small>Custom answers: 
-                                                    {Object.entries(question.answer_choices).map(([key, value]) => 
-                                                        `${key}: ${value} `
-                                                    ).join('')}
-                                                </small>
+                                        {editingQuestionId === question.id ? (
+                                            <div className="edit-question-form">
+                                                <label>
+                                                    Question Text
+                                                    <input
+                                                        type="text"
+                                                        value={editForm.question_text}
+                                                        onChange={(e) => handleEditFormChange('question_text', e.target.value)}
+                                                    />
+                                                </label>
+                                                <label>
+                                                    Type
+                                                    <select
+                                                        value={editForm.question_type}
+                                                        onChange={(e) => {
+                                                            const newType = e.target.value;
+                                                            handleEditFormChange('question_type', newType);
+                                                            if (newType === 'text') {
+                                                                handleEditFormChange('question_category', 'general');
+                                                            }
+                                                        }}
+                                                    >
+                                                        <option value="likert">Likert</option>
+                                                        <option value="text">Text</option>
+                                                    </select>
+                                                </label>
+                                                <label>
+                                                    Category
+                                                    <select
+                                                        value={editForm.question_category}
+                                                        onChange={(e) => handleEditFormChange('question_category', e.target.value)}
+                                                    >
+                                                        {editForm.question_type === 'text' ? (
+                                                            <option value="general">General</option>
+                                                        ) : (
+                                                            <>
+                                                                <option value="general">General</option>
+                                                                <option value="sleep">Sleep</option>
+                                                                <option value="stress">Stress</option>
+                                                                <option value="support">Support</option>
+                                                            </>
+                                                        )}
+                                                    </select>
+                                                </label>
+                                                {editForm.question_type === 'likert' && (
+                                                    <div className="answer-choices-section">
+                                                        <h4>Custom Answer Choices</h4>
+                                                        <div className="answer-choice-inputs">
+                                                            {[1, 2, 3, 4, 5].map(num => (
+                                                                <label key={num}>
+                                                                    {num} ({['😊', '🙂', '😐', '😕', '😞'][num - 1]})
+                                                                    <input
+                                                                        type="text"
+                                                                        value={editForm.answer_choices[num] || ''}
+                                                                        onChange={(e) => handleEditFormChange(`answer_choice_${num}`, e.target.value)}
+                                                                        placeholder={['Excellent', 'Good', 'Neutral', 'Poor', 'Very Poor'][num - 1]}
+                                                                    />
+                                                                </label>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
+                                                    <button className="btn" type="button" onClick={() => saveQuestion(question.id)}>Save</button>
+                                                    <button className="btn btn-delete" type="button" onClick={cancelEditing}>Cancel</button>
+                                                </div>
                                             </div>
+                                        ) : (
+                                            <>
+                                                <strong>Q{question.order}:</strong> {question.question_text} <em>({question.question_type})</em>
+                                                <div><small>Category: {question.category}</small></div>
+                                                {question.question_type === 'likert' && question.answer_choices && (
+                                                    <div className="answer-choices-display">
+                                                        <small>Custom answers:
+                                                            {Object.entries(question.answer_choices).map(([key, value]) =>
+                                                                `${key}: ${value} `
+                                                            ).join('')}
+                                                        </small>
+                                                    </div>
+                                                )}
+                                                <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
+                                                    <button className="btn" onClick={() => startEditing(question)}>Edit</button>
+                                                    <button className="btn btn-delete" onClick={() => deleteQuestion(question.id)}>Delete</button>
+                                                </div>
+                                            </>
                                         )}
-                                        <button className="btn btn-delete" onClick={() => deleteQuestion(question.id)}>
-                                            Delete
-                                        </button>
                                     </div>
                                 ))
                             )}
@@ -462,6 +590,12 @@ function SurveyTemplates() {
                     </div>
                 )}
             </div>
+
+            {message.text && (
+                <div className={`toast-message ${message.type}-message`}>
+                    {message.text}
+                </div>
+            )}
         </>
     );
 }

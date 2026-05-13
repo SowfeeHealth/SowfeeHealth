@@ -52,7 +52,7 @@ function Dashboard() {
             }
             
             // Check if user is admin
-            if (!userData.is_institution_admin) {
+            if (userData.role !== 'institution_admin') {
                 setError('Admin access required');
                 return;
             }
@@ -226,6 +226,12 @@ function Dashboard() {
                     disabled={!currentTemplate}
                 >
                     Copy Survey Link
+                </button>
+                <button 
+                    onClick={() => window.location.href = '/admin/assignments/'}
+                    className="link-btn"
+                >
+                    Manage Assignments
                 </button>
             </div>
 

@@ -1,72 +1,151 @@
 # Sowfee Health Survey Platform
 
-A full-stack web application built for healthcare institutions to create, customize, and manage student health surveys with advanced templating and analytics capabilities.
+A multi-tenant web application for educational institutions to create, distribute, and analyze student mental health surveys with schema-level data isolation.
 
-🌐 **Live Demo:** [sowfeehealth.com](https://sowfeehealth.com)
+🌐 **Live Demo:** [sowfeehealth.live](https://sowfeehealth.live)
 
 ## Overview
 
-This platform enables healthcare institutions to create customized survey templates for students, with features including admin dashboards, secure authentication, and real-time data management. Each survey template generates unique hashed URLs for secure distribution.
+Sowfee Health enables institutions to run independent mental health survey programs on a shared platform. Each institution gets its own isolated PostgreSQL schema — students, surveys, responses, and chat data are physically separated at the database level. Admins manage survey templates, view analytics dashboards, and monitor flagged students within their institution's data boundary.
 
 ## Key Features
 
-- **Custom Survey Builder**: Institution admins can create and customize survey templates through an intuitive interface
-- **Secure Authentication**: Comprehensive user authentication system using Django's built-in framework
-- **Unique Survey URLs**: Each survey template generates a unique hashed URL for secure access
-- **Admin Dashboard**: Full administrative control over survey templates and user management
-- **RESTful API**: Scalable backend API for efficient data handling
-- **Real-time Data**: Student responses are stored and processed in real-time
+- **Multi-Tenant Architecture**: Schema-per-institution isolation using django-tenants — each institution's data lives in its own PostgreSQL schema
+- **Custom Survey Builder**: Create and edit survey templates with Likert scale and text questions, custom answer choices, and category tagging (sleep, stress, support)
+- **Analytics Dashboard**: Sleep quality distribution, stress level breakdown, flagged student tracking, monthly response rates — all scoped to the latest response per student
+- **Secure Survey Distribution**: Each template generates a unique UUID hash link for anonymous or authenticated survey access
+- **Session-Based Tenant Routing**: Custom middleware resolves tenant from session (login) or hash link (survey URLs) — no subdomain configuration required
+- **Real-Time Chat**: WebSocket-based counselor-student messaging with per-tenant isolation
+- **Role-Based Access Control**: Institution admin, counselor, and student roles with superuser lockout from all application views
 
 ## Tech Stack
 
 **Backend:**
-- Django (Python web framework)
-- MySQL (Database)
-- Django REST Framework (API development)
-- AWS EC2 (Deployment)
+- Django + Django REST Framework
+- PostgreSQL with django-tenants (schema-per-tenant)
+- pgvector (PostgreSQL 16)
+- Daphne (ASGI server for WebSocket support)
+- Celery + Redis (async task processing and caching)
 
 **Frontend:**
-- React.js (User interface)
-- Modern JavaScript/ES6+
+- React.js
 
 **DevOps:**
+- Docker Compose (development and production)
 - GitHub Actions (CI/CD)
-- AWS EC2 (Production deployment)
+- AWS EC2 (production deployment)
+- Nginx (reverse proxy + static files)
+- Let's Encrypt (TLS)
 
-## Architecture
+## Multi-Tenant Architecture
 
-- **Backend API**: Django REST framework handling user authentication, survey management, and data processing
-- **Database**: MySQL schemas optimized for student data and survey responses
-- **Frontend**: React.js application providing admin dashboard and survey interfaces
-- **Deployment**: Automated CI/CD pipeline deploying to AWS EC2
+```
+┌─────────────────────────────────────────────────┐
+│                 Public Schema                    │
+│  tenants_institution    (tenant registry)        │
+│  tenants_domain         (domain routing)         │
+│  tenants_surveyhashlookup (hash → tenant map)    │
+│  tenants_emailtenantmapping (email → schema)     │
+│  accounts_user          (shared user table)       │
+└─────────────────────────────────────────────────┘
+┌──────────────────────┐  ┌──────────────────────┐
+│  college_university   │  │  university_of_wash  │
+│  ─────────────────── │  │  ─────────────────── │
+│  accounts_user        │  │  accounts_user        │
+│  surveys_*            │  │  surveys_*            │
+│  chat_*               │  │  chat_*               │
+│  (fully isolated)     │  │  (fully isolated)     │
+└──────────────────────┘  └──────────────────────┘
+```
+
+- **Tenant creation**: Via Django admin — creates PostgreSQL schema and runs migrations automatically
+- **Tenant routing**: `TenantSessionMiddleware` resolves tenant from session (`_tenant_schema`) or survey hash link UUID
+- **Login flow**: `EmailTenantMapping` (public schema) maps user email to tenant schema before authentication
+- **Data isolation**: Verified by 16 automated cross-tenant isolation tests
 
 ## Code Structure
 
-- `main` branch: Backend Django application
-- `nextjs-frontend` branch: React.js frontend application
+```
+backend/
+├── core/               # Settings, ASGI, tenant middleware
+├── tenants/            # Institution, Domain, SurveyHashLookup, EmailTenantMapping
+├── accounts/           # User model (SHARED_APPS + TENANT_APPS)
+├── surveys/            # Templates, questions, responses, admin views, analytics
+├── chat/               # WebSocket messaging, counselor-student assignments
+├── tests/              # Cross-tenant isolation test suite
+└── utils/              # Docker ops, env encryption
+frontend_react/
+└── src/
+    ├── pages/          # Survey, Dashboard, Templates, Chat
+    └── assets/         # CSS
+```
 
 ## Deployment
 
-The application is fully containerized using Docker and deployed on AWS EC2:
+Fully containerized with Docker Compose on AWS EC2:
 
-- **Backend**: Django application running in Docker container
-- **Database**: MySQL database containerized with Docker
-- **Frontend**: React.js application served from production build
-- **CI/CD**: Automated deployment pipeline via GitHub Actions
+- **web**: Django + Daphne (ASGI)
+- **db**: pgvector/pgvector:pg16
+- **redis**: Redis 7 Alpine (caching + Celery broker)
+- **celery**: Async survey analysis worker
+- **nginx**: Reverse proxy, static file serving, TLS termination
+
+Startup runs `migrate_schemas` to apply migrations across all tenant schemas. CI/CD via GitHub Actions builds and pushes Docker images, then deploys to EC2.
 
 ## Features in Detail
 
 ### Survey Template Management
-- Drag-and-drop survey builder
-- Customizable question types and layouts
-- Template versioning and revision history
+- Create, edit, and delete survey templates
+- Add/edit/delete questions with Likert scale or text response types
+- Category tagging: sleep quality, stress level, support perception, general
+- Custom Likert answer labels per question
+- Delete safeguard: warns when template has existing student responses
 
 ### Security & Authentication
-- Role-based access control (Admin/Student)
-- Secure session management
-- Protected API endpoints
+- Role-based access: institution admin, counselor, student
+- Superusers blocked from all application API views (403)
+- Session-based tenant isolation — no cross-tenant data leakage
+- CSRF protection on all endpoints
 
-### Data Management
-- Efficient database schemas for scalability
-- Real-time response tracking
-- Data export capabilities
+### Analytics Dashboard
+- Sleep quality distribution (good/bad based on latest response per student)
+- Stress level breakdown (low/moderate/high)
+- Flagged student tracking (any Likert response >= 3)
+- Monthly response rates and trends
+- Support perception metrics
+
+### In progress: Crisis Detection Pipeline
+┌─────────────────────────────────────────────┐
+│           Chat Service (WebSocket)          │
+│  - Real-time message delivery               │
+│  - 1K concurrent connections                 │
+└─────┬───────────────────────────────────────┘
+      │
+      │ Persist + publish
+      ▼
+┌─────────────────────────────────────────────┐
+│         PostgreSQL (message storage)         │
+│         + publish to SQS                     │
+└─────┬───────────────────────────────────────┘
+      │
+      ▼
+┌─────────────────────────────────────────────┐
+│           AWS SQS (or Redis Stream)          │
+│  - Decouples chat from analysis              │
+│  - Buffers traffic spikes                    │
+│  - Enables retries                           │
+└─────┬───────────────────────────────────────┘
+      │
+      ▼
+┌─────────────────────────────────────────────┐
+│      Crisis Detection Worker(s)              │
+│  Stage 1: Keyword filter (fast)              │
+│  Stage 2: LLM analysis (only if Stage 1 hit) │
+└─────┬───────────────────────────────────────┘
+      │
+      ▼
+┌──────────────────────┬──────────────────────┐
+│  Tier 1: Page MD     │  User UI: 988 popup  │
+│  Tier 2: Queue MD    │  via WebSocket push  │
+│  Tier 3: Log         │                      │
+└──────────────────────┴──────────────────────┘

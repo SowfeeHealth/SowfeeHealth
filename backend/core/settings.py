@@ -29,10 +29,17 @@ elif IS_PRODUCTION:
 else:
     DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'  # Fallback to env variable
 
-ALLOWED_HOSTS = ["*"]
+ADMIN_URL = os.getenv('DJANGO_ADMIN_URL', 'adminpanel/')
+
+#ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = ["sowfeehealth.live", "www.sowfeehealth.live", "localhost", "127.0.0.1", "web"]
 # Application definition
 
-INSTALLED_APPS = [
+SHARED_APPS = [
+    'django_tenants',
+    'tenants',
+    'accounts',
+    'daphne',
     'django.contrib.admin',
     'corsheaders',
     'django.contrib.auth',
@@ -41,8 +48,20 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'surveys',
 ]
+
+TENANT_APPS = [
+    'django.contrib.contenttypes',
+    'django.contrib.auth',
+    'accounts',
+    'surveys',
+    'chat',
+]
+
+INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
+
+TENANT_MODEL = 'tenants.Institution'
+TENANT_DOMAIN_MODEL = 'tenants.Domain'
 
 # Add or update these settings
 REST_FRAMEWORK = {
@@ -64,11 +83,12 @@ REST_FRAMEWORK = {
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # 添加这行
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
+    'core.tenant_middleware.TenantSessionMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -93,13 +113,12 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:3000', 
     'http://localhost:8000',
     'http://127.0.0.1:8000', 
-    'https://sowfeehealth.com',
-    'https://www.sowfeehealth.com',
+    'https://sowfeehealth.live',
+    'https://www.sowfeehealth.live',
     f'http://{os.getenv("EC2_HOST")}',
     f'https://{os.getenv("EC2_HOST")}',
 ]
 CORS_ALLOW_CREDENTIALS = True
-
 # 添加 CSRF 配置
 CSRF_TRUSTED_ORIGINS = [
     'https://localhost',
@@ -112,13 +131,13 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:8000',
     'http://localhost:3000',
     'http://127.0.0.1:3000',
-    'http://sowfeehealth.com',        
-    'http://www.sowfeehealth.com', 
-    'https://sowfeehealth.com',
-    'http://www.sowfeehealth.com',
-    'https://www.sowfeehealth.com',
-    'https://sowfeehealth.com/',
-    'https://www.sowfeehealth.com/'      
+    'http://sowfeehealth.live',        
+    'http://www.sowfeehealth.live', 
+    'https://sowfeehealth.live',
+    'http://www.sowfeehealth.live',
+    'https://www.sowfeehealth.live',
+    'https://sowfeehealth.live/',
+    'https://www.sowfeehealth.live/'      
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -150,19 +169,14 @@ load_dotenv()
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('MYSQL_DATABASE'),  
-        'USER': os.getenv('MYSQL_USER'),
-        'PASSWORD': os.getenv('MYSQL_PASSWORD'),
-        'HOST': os.getenv('MYSQL_HOST', 'db'),  # 'db' is the service name in Docker
-        'PORT': os.getenv('MYSQL_PORT', '3306'),
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-            'charset': 'utf8mb4',  # 使用utf8mb4字符集，支持所有Unicode字符
-            'isolation_level': 'read committed',  # 设置事务隔离级别
-        },
-        'CONN_MAX_AGE': 60,  # 连接池持久化时间（秒）
-        'ATOMIC_REQUESTS': True,  # 每个HTTP请求在一个事务中执行
+        'ENGINE': 'django_tenants.postgresql_backend',
+        'NAME': os.getenv('POSTGRES_DB'),  
+        'USER': os.getenv('POSTGRES_USER'),
+        'PASSWORD': os.getenv('POSTGRES_PASSWORD'),
+        'HOST': os.getenv('POSTGRES_HOST', 'db'),  # 'db' is the service name in Docker
+        'PORT': os.getenv('POSTGRES_PORT', '5432'),
+        'CONN_MAX_AGE': 60,  # Connection age
+        'ATOMIC_REQUESTS': True,  # Every HTTP request in a transaction
     }
 }
 
@@ -227,7 +241,9 @@ STATICFILES_DIRS = [
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-AUTH_USER_MODEL = 'surveys.User'
+DATABASE_ROUTERS = ['django_tenants.routers.TenantSyncRouter']
+
+AUTH_USER_MODEL = 'accounts.User'
 
 
 # Add logging configuration
@@ -254,12 +270,13 @@ LOGGING = {
 
 
 # Cookie settings based on environment
-COOKIE_DOMAIN = '.sowfeehealth.com' if IS_PRODUCTION else None
+COOKIE_DOMAIN = '.sowfeehealth.live' if IS_PRODUCTION else None
 COOKIE_SECURE = IS_PRODUCTION
 
 # Session cookie settings
 SESSION_COOKIE_DOMAIN = COOKIE_DOMAIN
 SESSION_COOKIE_SECURE = COOKIE_SECURE
+#SESSION_COOKIE_NAME = 'auth_token'
 
 REDIS_HOST = os.getenv('REDIS_HOST', 'redis')  # Default to your container name
 REDIS_PORT = os.getenv('REDIS_PORT', '6379')
@@ -294,3 +311,15 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+
+ASGI_APPLICATION = "core.asgi.application"
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [(os.environ.get("REDIS_HOST", "127.0.0.1"), 
+                       int(os.environ.get("REDIS_PORT", 6379)))],
+        },
+    }
+}

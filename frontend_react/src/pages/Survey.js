@@ -43,6 +43,7 @@ function SurveyQuestions() {
     const [isAdmin, setIsAdmin] = useState(false);
     const [isHashLinkSurvey, setIsHashLinkSurvey] = useState(false);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isCounselor, setIsCounselor] = useState(false);
 
     const closeMessage = () => {
         setMessage(null);
@@ -69,8 +70,9 @@ function SurveyQuestions() {
                         if (userData && userData.email) {
                             setStudentEmail(userData.email);
                             setStudentName(userData.name);
-                            setIsAdmin(userData.is_institution_admin || false);
+                            setIsAdmin(userData.role === 'institution_admin' || false);
                             setIsAuthenticated(true);
+                            setIsCounselor(userData.role === 'counselor' || false);
                         }
                     } catch (error) {
                         // User not authenticated - that's okay for hash link surveys
@@ -100,8 +102,9 @@ function SurveyQuestions() {
 
                 setStudentEmail(userData.email);
                 setStudentName(userData.name);
-                setIsAdmin(userData.is_institution_admin || false);
+                setIsAdmin(userData.role === 'institution_admin' || false);
                 setIsAuthenticated(true);
+                setIsCounselor(userData.role === 'counselor' || false);
                 
                 const responseData = await fetchSurveyQuestions();
                 if (responseData.success) {
@@ -486,9 +489,9 @@ function SurveyQuestions() {
                 
                 {/* Submit button logic */}
                 {hasQuestions ? (
-                    isAdmin ? (
+                    isAdmin || isCounselor ? (
                         <div className="submit-btn disabled-submit">
-                            Admins cannot submit surveys
+                            {isAdmin ? 'Admins' : 'Counselors'} cannot submit surveys
                         </div>
                     ) : (
                         <button type="submit" className="submit-btn">

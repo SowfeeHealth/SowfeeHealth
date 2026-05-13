@@ -85,7 +85,7 @@ function Header() {
         setIsAuthenticated(data.is_authenticated || data.is_superuser);
         setIsSuperUser(data.is_superuser);
         setUserEmail(data.email);
-        setIsInstitutionAdmin(data.is_institution_admin);
+        setIsInstitutionAdmin(data.role === 'institution_admin');
       }
       catch (error) {
         console.error('Error fetching user status:', error);
@@ -165,6 +165,9 @@ function Header() {
                       </div>
                      )}
                     {isAuthenticated && (!isSuperUser && !isInstitutionAdmin) && (<a href="/survey/" id="survey-button">New Survey</a>)}
+                    {isAuthenticated && !isSuperUser && (
+                      <a href="/chat/" id="chat-button">Chat</a>
+                    )}
                 </div>
             </div>
         </nav>

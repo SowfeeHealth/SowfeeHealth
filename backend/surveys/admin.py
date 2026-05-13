@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import SurveyResponse, User, Institution, SurveyTemplate, SurveyQuestion, QuestionResponse
+from accounts.models import User
+from .models import SurveyResponse, SurveyTemplate, SurveyQuestion, QuestionResponse
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
 # Configure admin interface for SurveyQuestion model
@@ -9,8 +10,8 @@ class SurveyQuestionInline(admin.TabularInline):
 
 # Configure admin interface for SurveyTemplate model
 class SurveyTemplateAdmin(admin.ModelAdmin):
-    list_display = ('id', 'institution')  # removed 'created'
-    list_filter = ('institution',)
+    list_display = ('id', 'hash_link', 'used')
+    list_filter = ('used',)
     inlines = [SurveyQuestionInline]
 
 # Configure admin interface for QuestionResponse model
@@ -28,23 +29,18 @@ class SurveyResponseAdmin(admin.ModelAdmin):
 
 # Configure admin interface for User model
 class UserAdmin(BaseUserAdmin):
-    list_display = ('email', 'name', 'is_admin', 'is_superuser', 'date_joined', 'institution_details')
+    list_display = ('email', 'name', 'role', 'is_superuser', 'date_joined', 'institution_details')
     fieldsets = (
-        (None, {"fields": ("email", "name", "password", "institution_details")}),
-        ('Permissions', {"fields": ("is_institution_admin", "is_superuser", "groups", "user_permissions")}),
+        (None, {"fields": ("email", "name", "password", "institution_details", "role")}),
+        ('Permissions', {"fields": ("is_superuser", "groups", "user_permissions")}),
         ('Important dates', {"fields": ("last_login", "date_joined")}),
     )
     add_fieldsets = (
-        (None, {"fields": ("email", "name", "password1", "password2", "is_institution_admin", "institution_details")}),
+        (None, {"fields": ("email", "name", "password1", "password2", "role", "institution_details")}),
     )
     search_fields = ('email', "name")
-    list_filter = ('is_admin', 'is_institution_admin', "date_joined")
+    list_filter = ('role', "date_joined")
     ordering = ('email',)
-
-# Configure admin interface for Institution model
-class InstitutionAdmin(admin.ModelAdmin):
-    list_display = ('institution_name', 'institution_regex_pattern')
-    search_fields = ('institution_name',)
 
 # Configure admin interface for SurveyQuestion model
 class SurveyQuestionAdmin(admin.ModelAdmin):
@@ -65,11 +61,8 @@ class SurveyQuestionAdmin(admin.ModelAdmin):
             form.base_fields['category'].disabled = True
         return form
 
-# Keep all existing registrations
 admin.site.register(SurveyResponse, SurveyResponseAdmin)
 admin.site.register(User, UserAdmin)
-admin.site.register(Institution, InstitutionAdmin)
 admin.site.register(SurveyTemplate, SurveyTemplateAdmin)
-# Replace the simple SurveyQuestion registration with our custom admin
 admin.site.register(SurveyQuestion, SurveyQuestionAdmin)
 admin.site.register(QuestionResponse)

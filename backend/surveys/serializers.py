@@ -1,4 +1,4 @@
-
+from django.core.exceptions import ValidationError
 from rest_framework import serializers
 from .models import SurveyResponse, User, Institution, SurveyTemplate, SurveyQuestion, QuestionResponse, QuestionType, AnonymousStudent
 
@@ -24,12 +24,19 @@ class SurveyTemplateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = SurveyTemplate
-        fields = ['id', 'institution', 'hash_link', 'questions', 'used']  # Added 'used' field
+        fields = ['id', 'hash_link', 'questions', 'used']
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = "__all__"
+    def validate(self, data):
+        instance = User(**data)
+        try:
+            instance.clean()
+        except ValidationError as e:
+            raise serializers.ValidationError(e.message_dict)
+        return data
 
 class InstitutionSerializer(serializers.ModelSerializer):
     class Meta:

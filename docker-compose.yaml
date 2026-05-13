@@ -1,20 +1,19 @@
 services:
   db:
-    image: mysql:8
-    container_name: my-mysql-container
+    image: pgvector/pgvector:pg16
+    container_name: my-postgres-container
     restart: always
     env_file: .env
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "3307:3306"
+      - "3307:5432"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -48,17 +47,16 @@ services:
         condition: service_healthy
     env_file: .env
     environment:
-      - MYSQL_HOST=db
-      - MYSQL_PORT=3306
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - IS_DOCKER_DEV=true
     ports:
-      - "8000:8000"
+      - "8001:8000"
     volumes:
       - ./backend:/app
-      - ./frontend:/frontend
-    command: bash -c "python manage.py makemigrations surveys && python manage.py migrate && python manage.py collectstatic --noinput && python manage.py runserver 0.0.0.0:8000"
+    command: bash -c "python manage.py makemigrations tenants accounts surveys chat && python manage.py migrate_schemas && python manage.py collectstatic --noinput && daphne -b 0.0.0.0 -p 8000 core.asgi:application"
 
   celery:
     build: .
@@ -72,5 +70,5 @@ services:
     working_dir: /app  # Add this line
 
 volumes:
-  mysql_data:
+  postgres_data:
   redis_data:

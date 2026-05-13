@@ -26,7 +26,7 @@ const getBaseURL = () => {
     
     if (isLocalhost) {
         // Development mode - point to local backend
-        return 'http://localhost:8000';
+        return 'http://localhost:8001';
     } else {
         // Production mode - use relative URLs (served from same domain)
         return '';

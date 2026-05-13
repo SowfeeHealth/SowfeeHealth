@@ -76,7 +76,6 @@ Survey response submitted
 - **Hosting:** Local Python package, runs in Celery worker
 - **Entities redacted:** PERSON, PHONE_NUMBER, EMAIL_ADDRESS, US_SSN, CREDIT_CARD, IP_ADDRESS, URL, LOCATION
 - **Placeholders:** Typed (e.g., `[PERSON_NAME]`, `[PHONE]`) — preserves semantic class for LLM
-- **Custom recognizer stub:** Institution-specific student IDs (regex per tenant)
 - **Output:** redacted text + audit log
 - **Latency target:** <50ms
 - **Always runs**, regardless of strategy
@@ -91,7 +90,6 @@ Pure Python evaluation against `FlaggingRule` config. No external calls.
    - Modes: `disabled`, `conservative` (only 5/5), `standard` (4+), `aggressive` (3+, deprecated)
 2. **Category sum thresholds:** Flag if sum of Likert values within a category (stress, sleep, support, general) exceeds the per-category threshold
    - Default: `{"stress": 12, "sleep": 10, "support": 8, "general": 14}`
-3. **Validated instrument scoring (future):** PHQ-9, GAD-7 cutoffs — toggles, off by default
 
 **Severity when rules alone flag:** configurable, default `medium`
 
@@ -100,12 +98,11 @@ Pure Python evaluation against `FlaggingRule` config. No external calls.
 | Mode | Backend | Model |
 |---|---|---|
 | API (default) | Together.ai | `meta-llama/Llama-Guard-4-12B` |
-| Hybrid | Together.ai | Same |
-| Self-hosted | Local Ollama | `llama-guard3:8b` |
+| Self-hosted (stubbed in v1) | Local Ollama | `llama-guard3:8b` |
 
 - **Output:** safe/unsafe + violated MLCommons hazard categories (S1-S13)
 - **Relevant categories for Sowfee:** S11 (Suicide & Self-Harm), S1 (Violent Crimes)
-- **Latency target:** <2s (API), <5s (self-hosted CPU)
+- **Latency target:** <2s (API)
 - **Resilience:** Tenacity retry (3x exponential backoff), pybreaker circuit breaker
 
 ### Stage 2 — LLM Assessment
@@ -117,54 +114,15 @@ Runs only when Stage 1a OR Stage 1b flagged AND strategy includes LLM.
 | Mode | Primary | Failover |
 |---|---|---|
 | API | Anthropic `claude-haiku-4-5` | OpenAI `gpt-4o-mini` |
-| Self-hosted | Ollama `qwen3:8b` | (none) |
-
-**Rationale for Claude Haiku as primary:**
-- Slight edge on nuanced clinical-adjacent reasoning (Anthropic safety optimization)
-- Schema-enforced structured output via tool use (equivalent to OpenAI's `response_format`)
-- Vendor diversity from Together.ai (Stage 1) — different infrastructure than OpenAI
-
-**Rationale for gpt-4o-mini as failover:**
-- Different vendor for resilience (uncorrelated outages)
-- Faster, cheaper, equally capable on this task
-- Same Pydantic schema works with `response_format` — easy to maintain
-
-**Additional experimental candidate** (Phase 6 eval only, not in production pipeline yet):
-- DeepSeek V4-Flash via Together.ai (`deepseek-ai/DeepSeek-V4-Flash`)
-- Trade-off: no native schema enforcement (JSON via prompting), but capable model and cheap
-- If it outperforms Haiku/gpt-4o-mini on eval, consider promoting to production with retry-on-schema-drift wrapper
+| Self-hosted (stubbed in v1) | Ollama `qwen3:8b` | (none) |
 
 #### Schema enforcement patterns
 
-**Claude Haiku 4.5 (Anthropic):** tool use
-```python
-ASSESSMENT_TOOL = {
-    "name": "submit_assessment",
-    "description": "Submit the crisis assessment",
-    "input_schema": CrisisAssessment.model_json_schema(),
-}
+**Claude Haiku 4.5 (Anthropic):** tool use with `tool_choice={"type": "tool", "name": "submit_assessment"}` forcing the model to call the tool. Tool's `input_schema` is `CrisisAssessment.model_json_schema()`.
 
-response = await client.messages.create(
-    model="claude-haiku-4-5",
-    tools=[ASSESSMENT_TOOL],
-    tool_choice={"type": "tool", "name": "submit_assessment"},
-    messages=[{"role": "user", "content": prompt}],
-)
-tool_use = next(b for b in response.content if b.type == "tool_use")
-assessment = CrisisAssessment(**tool_use.input)
-```
+**gpt-4o-mini (OpenAI):** `response_format=CrisisAssessment` directly on `client.beta.chat.completions.parse`.
 
-**gpt-4o-mini (OpenAI):** response_format
-```python
-response = await client.beta.chat.completions.parse(
-    model="gpt-4o-mini",
-    response_format=CrisisAssessment,
-    messages=[{"role": "user", "content": prompt}],
-)
-assessment = response.choices[0].message.parsed
-```
-
-Both equivalently reliable. Abstracted behind the `AssessmentBackend` protocol so the pipeline doesn't care which is in use.
+Both equivalently reliable. Abstracted behind the `AssessmentBackend` protocol.
 
 - **Context passed in:** redacted text, rule scores by category, Likert summary, question text
 - **Evidence grounding:** Required — every `evidence_phrase` must appear verbatim in source. Validated post-hoc; rejected assessments retry once with stronger prompt.
@@ -188,10 +146,12 @@ When both signals run, the final severity is determined by:
 
 ### Tier Assignment
 
-```
-if severity == "high" or cssrs_level >= 4:
+Simple severity-driven mapping:
+
+```python
+if severity == "high":
     tier = 1  # Page on-call (Tier 1: immediate intervention)
-elif severity == "medium" or agreement == "both":
+elif severity == "medium":
     tier = 2  # Counselor queue (Tier 2: review within 24h)
 elif severity == "low":
     tier = 3  # Log + dashboard monitor (Tier 3: trend tracking)
@@ -241,7 +201,9 @@ class Institution(TenantMixin):
     )
 ```
 
-**Note:** `flagging_strategy` (WHAT signals) and `inference_mode` (WHERE AI runs) are orthogonal. Some combinations are no-ops (e.g., `rule_only` + `self_hosted` doesn't use AI infrastructure even if provisioned).
+**v1 scope note:** Only `inference_mode="api"` is fully implemented in v1. `hybrid` and `self_hosted` route to Ollama backends that raise `NotImplementedError`. Admin UI should hide non-`api` options until those backends are implemented.
+
+**Note:** `flagging_strategy` (WHAT signals) and `inference_mode` (WHERE AI runs) are orthogonal.
 
 ### Advanced: `FlaggingRule` (one-to-one with Institution)
 
@@ -266,8 +228,6 @@ class FlaggingRule(models.Model):
     )
     single_question_threshold = models.IntegerField(default=4)
     category_sum_thresholds = models.JSONField(default=dict)
-    use_phq9 = models.BooleanField(default=False)
-    use_gad7 = models.BooleanField(default=False)
     rule_severity = models.CharField(
         max_length=10,
         choices=[("low", "Low"), ("medium", "Medium"), ("high", "High")],
@@ -298,6 +258,8 @@ class FlaggingRule(models.Model):
     )
 ```
 
+**Note:** PHQ-9 and GAD-7 scoring fields were considered but deferred until needed. The `FlaggingRule` model can be extended later without breaking changes.
+
 ### Defaults at institution creation
 
 A `FlaggingRule` is auto-created (via signal) with conservative defaults:
@@ -312,8 +274,6 @@ A `FlaggingRule` is auto-created (via signal) with conservative defaults:
         "support": 8,
         "general": 14,
     },
-    "use_phq9": False,
-    "use_gad7": False,
     "rule_severity": "medium",
     "evidence_grounding": "strict",
     "on_disagreement": "higher",
@@ -356,15 +316,13 @@ class RuleResult(BaseModel):
     latency_ms: int
 
 class CrisisAssessment(BaseModel):
-    severity: Severity
-    cssrs_level: int = Field(ge=0, le=5)
+    """Stage 2 LLM output. Kept intentionally minimal."""
+    severity: Severity                         # drives tier assignment
     evidence_phrases: list[str]                # must each appear verbatim in source
-    needs_support: bool
-    primary_concern: str
-    risk_factors: list[str]
-    counselor_brief: str
-    confidence: float = Field(ge=0.0, le=1.0)
-    provider: str
+    primary_concern: str                       # one-line summary
+    counselor_brief: str                       # 2-3 sentences for human review
+    confidence: float = Field(ge=0.0, le=1.0)  # LLM self-reported
+    provider: str                              # e.g. "anthropic/claude-haiku-4-5"
     latency_ms: int
 
 class TierAssignment(BaseModel):
@@ -395,11 +353,8 @@ class Assessment(models.Model):
 
     # Stage 2 result (nullable; only when LLM ran and flagged)
     severity = models.CharField(max_length=10, null=True, blank=True)
-    cssrs_level = models.IntegerField(null=True, blank=True)
     evidence_phrases = models.JSONField(default=list)
-    needs_support = models.BooleanField(null=True)
     primary_concern = models.CharField(max_length=200, blank=True)
-    risk_factors = models.JSONField(default=list)
     counselor_brief = models.TextField(blank=True)
     confidence = models.FloatField(null=True, blank=True)
 
@@ -445,7 +400,7 @@ class Assessment(models.Model):
         ]
 ```
 
-**Note on `SurveyResponse.flagged`:** the existing boolean field stays as a denormalized cache, updated from `Assessment.tier != None`. New code reads `Assessment` as source of truth; legacy queries on `flagged` continue to work.
+**Note on `SurveyResponse.flagged`:** the existing boolean field stays as a denormalized cache, updated from `Assessment.tier != None`.
 
 ---
 
@@ -453,28 +408,27 @@ class Assessment(models.Model):
 
 ### AI/ML Models Used
 
-| Stage | Role | Hosting | Quantization | Size |
-|---|---|---|---|---|
-| 0 | PII redaction | Local Python pkg | N/A | ~200MB |
-| 1b API | Classifier | Together.ai | Provider's | ~12B params (Llama Guard 4) |
-| 1b self-hosted | Classifier | Ollama EC2 | Q4_K_M | 4.7GB disk, ~5.5GB RAM (Llama Guard 3 8B) |
-| 2 API primary | Assessment | Anthropic | Provider's | Claude Haiku 4.5 (small/fast tier) |
-| 2 API failover | Assessment | OpenAI | Provider's | gpt-4o-mini (~8B-class rumored) |
-| 2 self-hosted | Assessment | Ollama EC2 | Q4_K_M | Qwen 3 8B — 4.9GB disk, ~5.8GB RAM |
-| Eval-only candidate | Assessment | Together.ai | Provider's | DeepSeek V4-Flash (284B/13B activated MoE) |
+| Stage | Role | Hosting | Model |
+|---|---|---|---|
+| 0 | PII redaction | Local Python pkg | Presidio (~200MB) |
+| 1b API | Classifier | Together.ai | `meta-llama/Llama-Guard-4-12B` |
+| 1b self-hosted (stubbed) | Classifier | Ollama EC2 | `llama-guard3:8b` |
+| 2 API primary | Assessment | Anthropic | `claude-haiku-4-5` |
+| 2 API failover | Assessment | OpenAI | `gpt-4o-mini` |
+| 2 self-hosted (stubbed) | Assessment | Ollama EC2 | `qwen3:8b` |
+| Eval-only candidate | Assessment | Together.ai | `deepseek-ai/DeepSeek-V4-Flash` |
 
-### Self-hosted Infrastructure (when needed)
+### v1 Build Scope: API-only
 
-**Recommended instance:** `m7g.2xlarge` (8 vCPU ARM Graviton, 32 GB RAM)
-- Runs both Stage 1b (Llama Guard 3 8B) and Stage 2 (Qwen 3 8B) via Ollama
-- Both models always resident (`OLLAMA_KEEP_ALIVE=-1`)
-- Peak RAM usage: ~16 GB; comfortable 8 GB headroom
-- 24/7 cost: ~$236/mo + $3 EBS
-- Shared across all `self_hosted` institutions (model is stateless inference)
+For the 2-day MVP build:
+- Only `inference_mode="api"` is fully implemented
+- Ollama backends exist as classes but raise `NotImplementedError`
+- Self-hosted EC2 infrastructure (m7g.2xlarge) is documented but not provisioned
+- When the first FERPA-strict institution requires self-hosted, implement Ollama backends and spin up EC2 — estimated 3-4 hour task
 
-**Demo-only setup:** `t3.xlarge` with stop/start AMI, ~$7/mo
+### Self-hosted infrastructure (future)
 
-**Local dev:** Run Ollama on local machine, expose via cloudflared if needed
+When triggered: `m7g.2xlarge` (8 vCPU ARM Graviton, 32 GB RAM), shared across all `self_hosted` tenants, ~$236/mo + $3 EBS.
 
 ---
 
@@ -484,31 +438,21 @@ class Assessment(models.Model):
 
 **Scenario:** Admin switches `flagging_strategy` while a student's response is being processed by Celery.
 
-**Race window:** ~5-30 seconds (Celery latency between enqueue and execution)
-
-**Impact:** Single response analyzed under new strategy instead of strategy active at submission. Bounded to surveys in flight during the change.
+**Impact:** Single response analyzed under new strategy. Bounded to surveys in flight during the change.
 
 **Status:** Documented, not fixed.
 
-**Reasoning to defer:**
-- Probability is extremely low (admin changes are rare, ~1/year)
-- Impact ceiling is one response per change event
-- Engineering cost (snapshot field + migration + task signature change + tests) > expected value at current scale
+**Future fix:** Snapshot `flagging_strategy` and config on `SurveyResponse` at submission; Celery task reads from snapshot.
 
-**Future fix when justified:**
-1. Add `flagging_strategy_at_submission` and `flagging_config_snapshot` fields to `SurveyResponse`
-2. Set them at submission time in `_handle_student_responses`
-3. Celery task reads from snapshot, not current `Institution.flagging_strategy`
-4. Bonus: permanent audit trail of "which strategy was used for this response"
+**Trigger to revisit:** Volume >1000 surveys/day, audit trail request, or automated config rotation.
 
-**Trigger to revisit:**
-- Volume exceeds 1000 surveys/day, OR
-- Institution explicitly requests auditability, OR
-- Automated strategy changes are introduced (scheduled config rotations)
+### 8.2 Ollama backends not implemented
 
-### 8.2 Advanced settings changes during in-flight analysis
+**Scenario:** Admin sets `inference_mode="self_hosted"` before implementation.
 
-Same race applies to `FlaggingRule` field changes. Same deferral. Fix is also via snapshotting.
+**Behavior:** `OllamaClassifierBackend.classify()` raises `NotImplementedError` with message pointing to fix.
+
+**Mitigation:** Admin UI in v1 only exposes `inference_mode="api"`. Database accepts other values for future-compatibility.
 
 ---
 
@@ -520,27 +464,23 @@ Same race applies to `FlaggingRule` field changes. Same deferral. Fix is also vi
 | `llm_only` | ~$0.10 | Llama Guard 4 ($0.04) + Claude Haiku on ~10% flagged ($0.06) |
 | `hybrid` | ~$0.10 | Same as `llm_only` (rules are free) |
 
-Self-hosted institutions add ~$236/mo for shared `m7g.2xlarge` (regardless of how many self-hosted tenants share it, up to ~5000 surveys/day total).
-
-**Cost note:** Claude Haiku is ~5x more expensive per output token than gpt-4o-mini. At 20 surveys/day this is negligible (cents/month difference). At 10K+ surveys/day, the gap becomes ~$100-300/month — worth re-evaluating primary at that scale, especially if eval shows the models are functionally tied.
-
 ---
 
-## 10. Default Flagging Strategy Selection Logic
+## 10. Default Flagging Strategy
 
 When a new institution is created:
 
-1. `flagging_strategy = "hybrid"` (the recommended default)
-2. `inference_mode = "api"` (cheapest deployment)
+1. `flagging_strategy = "hybrid"` (recommended default)
+2. `inference_mode = "api"` (only fully supported mode in v1)
 3. `FlaggingRule` auto-created with conservative defaults (see §5)
 
-Admins can change any of these via the Django admin interface or a dedicated settings page (Phase 7 deliverable).
+Admins can change `flagging_strategy` and `FlaggingRule` settings via Django admin. `inference_mode` is gated to `api` in admin UI until Ollama backends ship.
 
 ---
 
 ## 11. Model Selection: Eval-Driven Decision
 
-**Stage 2 primary model selection is provisional** and will be confirmed by Phase 6 eval data.
+**Stage 2 primary model selection is provisional**, confirmed by Phase 6 eval data.
 
 ### Provisional choice
 - **Primary:** Anthropic Claude Haiku 4.5
@@ -561,56 +501,57 @@ For each example in the eval set, run all three candidates and compute:
 
 Re-designate primary if:
 - Candidate exceeds current primary on high-severity recall by >5 points, OR
-- Candidate matches primary on recall but produces materially better `counselor_brief` output (qualitative), OR
-- Cost-adjusted value (recall/cost) decisively favors a different candidate at projected scale
+- Candidate produces materially better `counselor_brief` output (qualitative), OR
+- Cost-adjusted value decisively favors a different candidate at projected scale
 
-If models are within ~5 points on all metrics, **stick with provisional choice** (Haiku). Vendor diversification (Anthropic for Stage 2, Together for Stage 1) and slight clinical-nuance edge are tiebreakers.
+If models are within ~5 points on all metrics, **stick with provisional choice** (Haiku).
 
 ### DeepSeek V4-Flash specific consideration
 
-If DeepSeek V4-Flash performs competitively but lacks schema-enforced output, the path to production includes a retry-on-schema-drift wrapper:
-
-```python
-async def assess_with_retry(text, max_attempts=2):
-    for attempt in range(max_attempts):
-        raw = await deepseek_client.chat.completions.create(...)
-        try:
-            return CrisisAssessment.model_validate_json(raw)
-        except ValidationError as e:
-            if attempt + 1 == max_attempts:
-                raise
-            # Re-prompt with error context for next attempt
-            continue
-```
-
-Acceptable trade-off if recall numbers justify it.
+DeepSeek V4-Flash lacks schema-enforced output. If it performs competitively, production use requires a retry-on-schema-drift wrapper.
 
 ---
 
 ## 12. Open Questions & Future Work
 
-- [ ] Memory / risk score with exponential decay (longitudinal trajectory analysis)
-- [ ] Counselor review queue UI (frontend, separate from this build)
-- [ ] Real-time chat moderation pipeline (separate design, see README diagram)
-- [ ] Triage agent for tier routing decisions (when caseload variability justifies)
-- [ ] Fine-tuning Llama Guard on Sowfee-specific labeled data (when 500+ labels collected)
-- [ ] Admin "preview" tool to test threshold changes against sample responses
-- [ ] Snapshot strategy at submission (race fix when volume justifies — see §8.1)
-- [ ] Cross-tenant isolation tests for `Assessment` model (Phase 9 deliverable)
-- [ ] Per-question category tagging UI for admins (for rule scoring)
-- [ ] Re-evaluate Stage 2 primary based on eval data (see §11)
+- [ ] Implement Ollama backends when first self-hosted institution signs
+- [ ] Memory / risk score with exponential decay (longitudinal trajectory)
+- [ ] Counselor review queue UI (frontend)
+- [ ] Real-time chat moderation pipeline (separate design)
+- [ ] Triage agent for tier routing decisions
+- [ ] Fine-tuning Llama Guard on Sowfee-specific labeled data
+- [ ] Admin "preview" tool to test threshold changes
+- [ ] Snapshot strategy at submission (race fix when volume justifies)
+- [ ] Cross-tenant isolation tests for `Assessment` model
+- [ ] Re-evaluate Stage 2 primary based on eval data
 
 ---
 
 ## 13. References
 
 - [Llama Guard 4 Model Card](https://huggingface.co/meta-llama/Llama-Guard-4-12B)
-- [Llama Guard 3 8B Model Card](https://huggingface.co/meta-llama/Meta-Llama-Guard-3-8B)
 - [Anthropic Claude Haiku docs](https://docs.anthropic.com/)
 - [OpenAI gpt-4o-mini docs](https://platform.openai.com/docs/models)
-- [DeepSeek V4 Model Card](https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro)
-- [C-SSRS (Columbia Suicide Severity Rating Scale)](https://cssrs.columbia.edu/)
-- [PHQ-9 Patient Health Questionnaire](https://www.apa.org/depression-guideline/patient-health-questionnaire.pdf)
-- [GAD-7 Generalized Anxiety Disorder Scale](https://www.apa.org/depression-guideline/anxiety-disorder.pdf)
 - [Microsoft Presidio Documentation](https://microsoft.github.io/presidio/)
 - [MLCommons Safety Taxonomy](https://arxiv.org/abs/2503.05731)
+
+---
+
+## Changelog
+
+**2026-05-12 (v3):**
+- Simplified `CrisisAssessment` from 10 fields to 7. Removed: `cssrs_level` (no clinician validation in MVP), `needs_support` (redundant with `severity`), `risk_factors` (no consumer yet).
+- Simplified `tier` mapping: purely severity-driven, no `cssrs_level` branch.
+- Simplified `FlaggingRule`: removed `use_phq9` and `use_gad7` toggles (not needed in MVP).
+- Removed `Assessment` model fields: `cssrs_level`, `needs_support`, `risk_factors`.
+- Added §7 "v1 Build Scope: API-only" — explicit acknowledgment that Ollama backends are stubs.
+- Added §8.2 — Ollama not implemented as documented edge case.
+
+**2026-05-12 (v2):**
+- Stage 2 primary: `gpt-4o-mini` → `claude-haiku-4-5`
+- Stage 2 failover: `claude-haiku` → `gpt-4o-mini` (flipped)
+- Added §11 (Model Selection: Eval-Driven Decision)
+- Added DeepSeek V4-Flash as eval-only experimental candidate
+- Cost summary updated.
+
+**Initial:** Design locked.

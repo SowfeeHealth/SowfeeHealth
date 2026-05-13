@@ -42,3 +42,25 @@ class RuleResult(BaseModel):
     category_scores: dict[str, int]
     severity: Severity
     latency_ms: int
+
+
+class CrisisAssessment(BaseModel):
+    severity: Severity
+    evidence_phrases: list[str]
+    primary_concern: str
+    counselor_brief: str
+    confidence: float = Field(ge=0.0, le=1.0)
+    provider: str
+    latency_ms: int
+
+
+class TierAssignment(BaseModel):
+    tier: int = Field(ge=1, le=3)
+    urgency_window: str
+    notification_channels: list[str]
+    reasoning: str
+
+
+def validate_evidence_phrases(source_text: str, phrases: list[str]) -> list[str]:
+    lowered = source_text.lower()
+    return [p for p in phrases if p.lower() in lowered]

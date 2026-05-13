@@ -10,9 +10,19 @@ class AssessmentContext(TypedDict, total=False):
 
 
 class ClassifierBackend(Protocol):
-    """Stage 1b: takes redacted text, returns ClassifierResult."""
+    """Stage 1b: takes redacted text + context, returns ClassifierResult.
 
-    async def classify(self, text: str) -> ClassifierResult: ...
+    context dict recognised keys (all optional):
+      question_text (str): original question the student answered
+      rule_scores (dict[str, int]): category_scores from Stage 1a
+      likert_summary (dict): Likert score summary
+    """
+
+    async def classify(
+        self,
+        text: str,
+        context: AssessmentContext,
+    ) -> ClassifierResult: ...
 
 
 class AssessmentBackend(Protocol):
@@ -40,7 +50,11 @@ class BackendUnavailable(BackendError):
 class BackendInvalidOutput(BackendError):
     """Backend returned data that failed validation.
 
-    Raised for: Pydantic schema mismatch, evidence_phrase not found verbatim
-    in source text after one retry with a stronger prompt.
-    Only raised by AssessmentBackend.
+    Raised for:
+    - AssessmentBackend: Pydantic schema mismatch, evidence_phrase not
+      found verbatim in source text after one retry with stronger prompt.
+    - ClassifierBackend: model returned output that doesn't match the
+      expected 'safe' / 'unsafe\\nCategories' format.
+
+    Not retryable in pipeline (data issue, not transient).
     """

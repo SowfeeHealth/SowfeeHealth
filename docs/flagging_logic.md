@@ -78,6 +78,7 @@ Survey response submitted
 - **Placeholders:** Typed (e.g., `[PERSON_NAME]`, `[PHONE]`) — preserves semantic class for LLM
 - **Output:** redacted text + audit log
 - **Latency target:** <50ms
+- **NLP model:** en_core_web_sm (11 MB on disk, ~100 MB RAM). See docs/known-deferred.md if upgrade to lg becomes needed.
 - **Always runs**, regardless of strategy
 
 ### Stage 1a — Rule-based Likert Scoring

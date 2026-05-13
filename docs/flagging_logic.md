@@ -81,6 +81,25 @@ Survey response submitted
 - **NLP model:** en_core_web_sm (11 MB on disk, ~100 MB RAM). See docs/known-deferred.md if upgrade to lg becomes needed.
 - **Always runs**, regardless of strategy
 
+### Non-English input handling
+
+`redact_pii(text, language="en")` raises ValueError for non-English input.
+Pipeline catches this and degrades gracefully:
+
+- Stage 1a (rules) still runs — Likert scores are language-independent
+- Stage 1b (LLM classifier) and Stage 2 (LLM assessment) skip —
+  cannot send un-redacted text to external LLM (PII leak)
+- If Stage 1a flags: create Assessment with
+  llm_status="skipped_non_english"
+- Counselor sees rule-based severity + original text for manual review;
+  no AI-generated counselor_brief
+
+Rationale: empirical testing showed langdetect misclassifies
+informal English (mental-health-typical input) ~69% of the time,
+including misclassifying "I want to die" as Afrikaans. Blocking
+non-English at API would reject genuine English crisis signals.
+Pipeline-level handling is safer and language-agnostic.
+
 ### Stage 1a — Rule-based Likert Scoring
 
 Pure Python evaluation against `FlaggingRule` config. No external calls.
@@ -370,6 +389,7 @@ class Assessment(models.Model):
     LLM_STATUS_CHOICES = [
         ("complete", "Complete"),
         ("degraded", "LLM unavailable, Stage 1 only"),
+        ("skipped_non_english", "Non-English input, LLM skipped"),
         ("pending_retry", "Queued for retry"),
         ("failed", "Failed permanently"),
     ]

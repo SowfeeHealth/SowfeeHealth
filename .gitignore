@@ -1,4 +1,4 @@
-# Python
+﻿# Python
 __pycache__/
 backend/surveys/__pycache__/
 *.py[cod]
@@ -37,3 +37,5 @@ db_security_guide.md
 
 *.sql
 migrate.py
+
+docs/unverified-tests.md

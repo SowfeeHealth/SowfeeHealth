@@ -1,12 +1,13 @@
 from typing import Protocol, TypedDict
 
-from ..schemas import ClassifierResult, CrisisAssessment
+from ..schemas import ClassifierResult, CrisisAssessment, LikertResponse, LikertSummary
 
 
 class AssessmentContext(TypedDict, total=False):
-    rule_scores: dict[str, int]
     question_text: str
-    likert_summary: dict[str, object]
+    rule_scores: dict[str, int]
+    likert_responses: list[LikertResponse]
+    likert_summary: LikertSummary
 
 
 class ClassifierBackend(Protocol):

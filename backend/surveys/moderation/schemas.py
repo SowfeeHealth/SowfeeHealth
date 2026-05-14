@@ -44,6 +44,28 @@ class RuleResult(BaseModel):
     latency_ms: int
 
 
+class LikertResponse(BaseModel):
+    """Single Likert question + student's answer. Built by pipeline from DB."""
+    question: str = Field(..., description="The question text as asked.")
+    answer_choices: dict[int, str] = Field(
+        ...,
+        description="Mapping of numeric values to text labels.",
+    )
+    category: str = Field(
+        ...,
+        description="Institution-tagged category (e.g. 'sleep', 'depression').",
+    )
+    answer: int = Field(..., description="The numeric value the student chose.")
+
+
+class LikertSummary(BaseModel):
+    """Institution-level scoring rubric or instrument indicator."""
+    scale: str = Field(
+        ...,
+        description="Instrument name ('PHQ-9') or custom scoring rule.",
+    )
+
+
 class CrisisAssessment(BaseModel):
     severity: Severity
     evidence_phrases: list[str]

@@ -39,9 +39,9 @@ class ClassifierResult(BaseModel):
 
 class RuleResult(BaseModel):
     flagged: bool
-    triggers: list[str]
     category_scores: dict[str, int]
-    severity: Severity
+    triggered_rules: list[str]
+    suggested_severity: Severity
     latency_ms: int
 
 
@@ -57,6 +57,57 @@ class LikertResponse(BaseModel):
         description="Institution-tagged category (e.g. 'sleep', 'depression').",
     )
     answer: int = Field(..., description="The numeric value the student chose.")
+
+
+class FlaggingRule(BaseModel):
+    """Institution-level rule for Stage 1a flagging.
+
+    Supports three rule types covering main clinical screening patterns:
+    - any_question: any individual answer vs threshold
+        (e.g. PHQ-9 Q9 suicide override: any answer >= 1 → high)
+    - sum: category total sum vs threshold
+        (e.g. PHQ-9 total >= 15 → moderately severe)
+    - average: category mean vs threshold
+        (e.g. custom surveys with variable question count per category)
+    """
+    category: str = Field(
+        ...,
+        description=(
+            "Likert category this rule applies to. Sowfee defaults: "
+            "general / sleep / support / stress. Institutions can define "
+            "custom categories (e.g. 'depression', 'anxiety') as needed."
+        ),
+    )
+    rule_type: Literal["any_question", "sum", "average"] = Field(
+        ...,
+        description=(
+            "'any_question': any individual answer in category vs threshold. "
+            "'sum': sum of all answers in category vs threshold. "
+            "'average': mean of all answers in category vs threshold."
+        ),
+    )
+    threshold: float = Field(
+        ...,
+        description=(
+            "Score threshold. Integer for any_question/sum, "
+            "can be non-integer for average."
+        ),
+    )
+    comparison: Literal["gte", "lte"] = Field(
+        ...,
+        description=(
+            "'gte' = score >= threshold triggers. "
+            "'lte' = score <= threshold triggers (e.g. low sleep is bad)."
+        ),
+    )
+    severity: Severity = Field(
+        ...,
+        description="Severity assigned when this rule triggers."
+    )
+    description: str | None = Field(
+        default=None,
+        description="Human-readable rule description for counselor / audit log."
+    )
 
 
 class LikertSummary(BaseModel):

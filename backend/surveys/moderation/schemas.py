@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -63,6 +64,43 @@ class LikertSummary(BaseModel):
     scale: str = Field(
         ...,
         description="Instrument name ('PHQ-9') or custom scoring rule.",
+    )
+
+
+class AssessmentOutput(BaseModel):
+    """LLM-facing schema for Stage 2 structured output.
+
+    Shared between Anthropic backend (via .model_json_schema() →
+    tool input_schema) and OpenAI backend (via response_format).
+    Backend wraps this in CrisisAssessment after validation by adding
+    latency_ms and provider.
+    """
+    severity: Literal["none", "low", "medium", "high"] = Field(
+        description="Overall clinical severity. Use 'high' for explicit self-harm."
+    )
+    evidence_phrases: list[str] = Field(
+        max_length=5,
+        description=(
+            "Verbatim phrases from student_response that justify the severity. "
+            "MUST appear word-for-word in student_response. Do not paraphrase. "
+            "Empty list if severity is 'none'."
+        ),
+    )
+    primary_concern: Literal[
+        "suicide_self_harm", "depression", "anxiety", "trauma",
+        "substance_use", "interpersonal", "academic_stress",
+        "other", "none",
+    ] = Field(description="The primary clinical category of concern.")
+    counselor_brief: str = Field(
+        max_length=600,
+        description=(
+            "One-paragraph clinical summary for counselor. "
+            "Focus on clinically actionable info. Non-jargon language."
+        ),
+    )
+    confidence: float = Field(
+        ge=0.0, le=1.0,
+        description="Confidence in this assessment, 0.0-1.0."
     )
 
 

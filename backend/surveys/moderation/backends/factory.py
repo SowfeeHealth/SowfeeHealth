@@ -7,19 +7,35 @@ def get_classifier(tenant) -> ClassifierBackend:
         from .together import TogetherClassifierBackend
         return TogetherClassifierBackend()
     elif tenant.inference_mode == "self_hosted":
-        from .ollama_backend import OllamaClassifierBackend
-        return OllamaClassifierBackend()
+        raise NotImplementedError(
+            "Self-hosted inference (Ollama) is not implemented in v1. "
+            "Tenants requiring self-hosted must use inference_mode='api' "
+            "until Ollama backends are added. See docs/known-deferred.md."
+        )
     else:
         raise ValueError(f"Unknown inference_mode: {tenant.inference_mode!r}")
 
 
 def get_assessor(tenant) -> AssessmentBackend:
-    """Return the AssessmentBackend for tenant.inference_mode."""
+    """Return the AssessmentBackend for tenant.inference_mode.
+
+    For inference_mode='api', returns an AssessorWithFailover wrapping
+    Anthropic (primary) and OpenAI (failover) so transient outages on
+    the primary vendor transparently fall through to the secondary.
+    """
     if tenant.inference_mode == "api":
         from .anthropic_backend import AnthropicAssessmentBackend
-        return AnthropicAssessmentBackend()
+        from .failover import AssessorWithFailover
+        from .openai_backend import OpenAIAssessmentBackend
+        return AssessorWithFailover(
+            primary=AnthropicAssessmentBackend(),
+            failover=OpenAIAssessmentBackend(),
+        )
     elif tenant.inference_mode == "self_hosted":
-        from .ollama_backend import OllamaAssessmentBackend
-        return OllamaAssessmentBackend()
+        raise NotImplementedError(
+            "Self-hosted inference (Ollama) is not implemented in v1. "
+            "Tenants requiring self-hosted must use inference_mode='api' "
+            "until Ollama backends are added. See docs/known-deferred.md."
+        )
     else:
         raise ValueError(f"Unknown inference_mode: {tenant.inference_mode!r}")

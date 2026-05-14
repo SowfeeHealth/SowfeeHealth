@@ -27,6 +27,13 @@ Sowfee Health enables institutions to run independent mental health survey progr
 - Daphne (ASGI server for WebSocket support)
 - Celery + Redis (async task processing and caching)
 
+**AI / Moderation:**
+- Anthropic Claude Haiku 4.5 (Stage 2 clinical assessment, tool-use schema)
+- OpenAI GPT-4o-mini (Stage 2 failover, structured outputs via Pydantic)
+- Together.ai Llama Guard 4 12B (Stage 1b classifier)
+- Microsoft Presidio + spaCy NER (Stage 0 PII redaction)
+- Pydantic v2 (schema validation, LLM source-of-truth)
+
 **Frontend:**
 - React.js
 
@@ -62,6 +69,70 @@ Sowfee Health enables institutions to run independent mental health survey progr
 - **Tenant routing**: `TenantSessionMiddleware` resolves tenant from session (`_tenant_schema`) or survey hash link UUID
 - **Login flow**: `EmailTenantMapping` (public schema) maps user email to tenant schema before authentication
 - **Data isolation**: Verified by 16 automated cross-tenant isolation tests
+
+## Survey Moderation Pipeline
+
+A 4-stage pipeline that runs on every survey response. Stages 0, 1a, 1b, 1c, and 2 are implemented; full orchestration is the next milestone.
+
+```
+┌─────────────────────────────────────────────────┐
+│              SURVEY RESPONSE (text + Likert)    │
+└──────────────────────────┬──────────────────────┘
+                           │
+                           ▼
+                  ┌────────────────┐
+                  │ Stage 0: PII   │  Presidio + spaCy
+                  │ Redaction      │  fail-loud on non-English
+                  └────────┬───────┘
+                           │
+              ┌────────────┴────────────┐
+              ▼                         ▼
+     ┌─────────────────┐       ┌─────────────────┐
+     │ Stage 1a / 1c:  │       │ Stage 1b:       │
+     │ Rule Engine +   │       │ LLM Classifier  │
+     │ Keyword Filter  │       │ (Llama Guard 4) │
+     └────────┬────────┘       └────────┬────────┘
+              └────────────┬────────────┘
+                           │
+                           ▼
+                     ANY FLAGGED?
+                           │ yes
+                           ▼
+              ┌────────────────────┐
+              │ Stage 2:           │  Claude Haiku 4.5
+              │ Clinical           │  + tool use schema
+              │ Assessment         │  + evidence grounding
+              └────────┬───────────┘
+                       │ unavailable
+                       ▼
+              ┌────────────────────┐
+              │ Failover:          │  GPT-4o-mini
+              │ OpenAI structured  │  via Pydantic
+              └────────┬───────────┘
+                       │
+                       ▼
+              ┌────────────────────┐
+              │ CrisisAssessment   │  → DB
+              │ + counselor route  │  → counselor dashboard
+              └────────────────────┘
+```
+
+**Stage details:**
+- **Stage 0**: Microsoft Presidio + spaCy NER redact PII (PERSON, LOCATION, EMAIL, PHONE) before any external API call. Raises ValueError on non-English input rather than silently mis-tagging.
+- **Stage 1a**: Likert rule engine aggregates per-category scores (sleep, depression, support) against per-institution thresholds. Deterministic, no LLM cost.
+- **Stage 1b**: Llama Guard 4 (12B) via Together.ai. Q&A context-aware — catches single-word answers like "Yes" to clinical questions that classifiers without context would miss.
+- **Stage 1c**: Keyword filter (~50 clinical phrases) catches cases Stage 1b misses (e.g. "I want to give up" — empirically not flagged by Llama Guard alone).
+- **Stage 2**: Claude Haiku 4.5 via Anthropic tool use with structured assessment output (severity, evidence_phrases, primary_concern, counselor_brief, confidence). GPT-4o-mini failover via OpenAI `beta.chat.completions.parse` with Pydantic response_format.
+
+**Design highlights:**
+
+- **Pydantic source-of-truth schema**: A single `AssessmentOutput` class generates both Anthropic tool `input_schema` (via `.model_json_schema()`) and OpenAI `response_format` (passed directly). Pattern inspired by the [Instructor library](https://python.useinstructor.com), used in production at OpenAI, Google, Microsoft, and AWS. Schema changes touch one Python class; both vendors stay in sync.
+
+- **Semantic error taxonomy**: `BackendUnavailable` (transient infrastructure: timeout, rate limit, 5xx) vs `BackendInvalidOutput` (data/schema problem: hallucinated evidence, parse failure). The failover wrapper only catches the former; switching vendors won't fix a schema mismatch. Invalid output propagates to the pipeline, which degrades to rule-only assessment.
+
+- **Evidence grounding**: LLM evidence phrases are validated against source text after the API call via case-insensitive substring match. Any hallucinated phrase triggers one retry with a stronger nudge; second failure raises `BackendInvalidOutput` rather than silently using ungrounded data. Counselors can trust that every quoted phrase traces to the student's actual words.
+
+- **Failover transparency**: `AssessorWithFailover` implements the same `AssessmentBackend` protocol as a single backend. Pipeline code doesn't know failover exists — it just calls `assess()`. Provider attribution (`anthropic/claude-haiku-4-5` vs `openai/gpt-4o-mini`) is recorded on each `CrisisAssessment` for audit and observability.
 
 ## Code Structure
 
@@ -114,7 +185,14 @@ Startup runs `migrate_schemas` to apply migrations across all tenant schemas. CI
 - Monthly response rates and trends
 - Support perception metrics
 
-### In progress: Crisis Detection Pipeline
+## Roadmap
+
+- **v2 (current)**: Survey moderation pipeline — orchestration + DB integration + eval set
+- **v3 (planned)**: Real-time chat moderation with async queue (SQS / Redis Stream) decoupling, keyword pre-filter + LLM analysis, and tier-based counselor routing
+
+### Future improvement: Crisis Detection Pipeline (Chat)
+
+```
 ┌─────────────────────────────────────────────┐
 │           Chat Service (WebSocket)          │
 │  - Real-time message delivery               │
@@ -145,7 +223,8 @@ Startup runs `migrate_schemas` to apply migrations across all tenant schemas. CI
       │
       ▼
 ┌──────────────────────┬──────────────────────┐
-│  Tier 1: Page MD     │  User UI: 988 popup  │
-│  Tier 2: Queue MD    │  via WebSocket push  │
-│  Tier 3: Log         │                      │
-└──────────────────────┴──────────────────────┘
+│  Tier 1: Page counselor │ User UI: 988 popup  │
+│  Tier 2: Queue counselor│ via WebSocket push  │
+│  Tier 3: Log            │                     │
+└─────────────────────────┴─────────────────────┘
+```

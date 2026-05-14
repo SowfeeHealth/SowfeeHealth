@@ -38,9 +38,17 @@ _OPERATORS = {
     for entity, placeholder in _PLACEHOLDERS.items()
 }
 
+_SUPPORTED_LANGUAGES = {"en"}
 
-async def redact_pii(text: str) -> tuple[str, list[dict]]:
-    results = _analyzer.analyze(text=text, entities=_ENTITIES, language="en")
+
+async def redact_pii(text: str, language: str = "en") -> tuple[str, list[dict]]:
+    if language not in _SUPPORTED_LANGUAGES:
+        raise ValueError(
+            f"Language '{language}' not supported. "
+            f"Supported: {sorted(_SUPPORTED_LANGUAGES)}. "
+            f"See docs/known-deferred.md for adding languages."
+        )
+    results = _analyzer.analyze(text=text, entities=_ENTITIES, language=language)
 
     audit_log = [
         {

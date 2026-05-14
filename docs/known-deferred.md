@@ -29,3 +29,32 @@ Bounded to in-flight surveys. Fix when volume > 1K/day.
 ## Ollama backends
 inference_mode="self_hosted" raises NotImplementedError.
 Admin UI only shows "api" option. Fix when first self-hosted institution signs.
+
+## Ollama backends (Self-hosted inference)
+
+**Status**: Stubbed in v1. `factory.get_classifier/get_assessor` raise 
+NotImplementedError when `inference_mode="self_hosted"`.
+
+**Trigger to implement**: First institution requiring on-premise inference
+(FERPA-strict, HIPAA-strict, or institutional policy against cloud LLM).
+
+**Estimated effort**: 1-2 days
+- Implement OllamaClassifierBackend (Llama Guard 4 self-hosted)
+- Implement OllamaAssessmentBackend (Llama 3.1 70B or similar)
+- Add Ollama service to docker-compose
+- Smoke test on local hardware (4090 / H100 minimum for 70B)
+- Verify factory routing
+- Add deployment docs for institutional IT
+
+**Why not in v1**: 
+1. No prospective tenants currently require self-hosted
+2. Cloud API path (Anthropic + OpenAI failover) covers 99% of use cases  
+3. Self-hosted adds infra complexity (GPU provisioning, model versioning, 
+   uptime monitoring) without revenue justification at MVP stage
+4. Best implemented when first paying customer specifies requirement
+   (avoid speculative engineering)
+
+**Pre-requisites when triggered**: 
+- Tenant signs contract / pilot agreement
+- IT specs available (which GPU, network topology, retention policy)
+- Validate Ollama can serve concurrent requests at expected QPS

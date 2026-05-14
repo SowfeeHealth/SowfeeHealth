@@ -1,16 +1,15 @@
-import json
 import os
 import time
 
 import anthropic
 
 from ..schemas import (
+    AssessmentOutput,
     CrisisAssessment,
-    LikertResponse,
-    LikertSummary,
     Severity,
     validate_evidence_phrases,
 )
+from ._shared import _RETRY_NUDGE, build_assessment_input_content
 from .base import AssessmentContext, BackendInvalidOutput, BackendUnavailable
 
 _ASSESS_TOOL = {
@@ -19,53 +18,7 @@ _ASSESS_TOOL = {
         "Submit clinical assessment of a student's mental health survey response. "
         "Always call this tool with your assessment. Do not respond in plain text."
     ),
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "severity": {
-                "type": "string",
-                "enum": ["none", "low", "medium", "high"],
-                "description": "Overall clinical severity. Use 'high' for explicit self-harm.",
-            },
-            "evidence_phrases": {
-                "type": "array",
-                "items": {"type": "string"},
-                "maxItems": 5,
-                "description": (
-                    "Verbatim phrases from student_response that justify the severity. "
-                    "MUST appear word-for-word in student_response. Do not paraphrase. "
-                    "Empty list if severity is 'none'."
-                ),
-            },
-            "primary_concern": {
-                "type": "string",
-                "enum": [
-                    "suicide_self_harm", "depression", "anxiety", "trauma",
-                    "substance_use", "interpersonal", "academic_stress",
-                    "other", "none",
-                ],
-                "description": "The primary clinical category of concern.",
-            },
-            "counselor_brief": {
-                "type": "string",
-                "maxLength": 600,
-                "description": (
-                    "One-paragraph clinical summary for counselor. "
-                    "Focus on clinically actionable info. Non-jargon language."
-                ),
-            },
-            "confidence": {
-                "type": "number",
-                "minimum": 0.0,
-                "maximum": 1.0,
-                "description": "Confidence in this assessment, 0.0-1.0.",
-            },
-        },
-        "required": [
-            "severity", "evidence_phrases", "primary_concern",
-            "counselor_brief", "confidence",
-        ],
-    },
+    "input_schema": AssessmentOutput.model_json_schema(),
 }
 
 _SYSTEM_PROMPT = """\
@@ -94,24 +47,29 @@ paraphrase. PII tokens like [PERSON_REDACTED] are intentional.
 Always submit your assessment via the submit_crisis_assessment tool.
 """
 
-_RETRY_NUDGE = (
-    "\n\nIMPORTANT: evidence_phrases must appear WORD-FOR-WORD in "
-    "student_response. Re-extract phrases that literally exist in the text."
-)
-
 
 class AnthropicAssessmentBackend:
+    """Stage 2 assessment backend using Anthropic's Claude Haiku via tool-use.
+
+    Forces structured output by requiring a `submit_crisis_assessment` tool call
+    whose `input_schema` is generated from `AssessmentOutput`. Retries once with
+    a stronger prompt when evidence_phrases cannot be grounded verbatim in the
+    source text; raises `BackendInvalidOutput` on second failure.
+    """
+
     MODEL = "claude-haiku-4-5"
+    MAX_OUTPUT_TOKENS = 1024
+    REQUEST_TIMEOUT_SECONDS = 15.0
 
     def __init__(self, api_key: str | None = None) -> None:
         self._client = anthropic.AsyncAnthropic(
             api_key=api_key or os.environ["ANTHROPIC_API_KEY"],
-            timeout=15.0,
+            timeout=self.REQUEST_TIMEOUT_SECONDS,
         )
 
     async def assess(self, text: str, context: AssessmentContext) -> CrisisAssessment:
         t0 = time.monotonic()
-        user_content = self._build_input_content(text, context)
+        user_content = build_assessment_input_content(text, context)
 
         tool_input = await self._call_and_extract(user_content)
         valid_phrases = validate_evidence_phrases(text, tool_input["evidence_phrases"])
@@ -148,7 +106,7 @@ class AnthropicAssessmentBackend:
         try:
             response = await self._client.messages.create(
                 model=self.MODEL,
-                max_tokens=1024,
+                max_tokens=self.MAX_OUTPUT_TOKENS,
                 system=_SYSTEM_PROMPT,
                 tools=[_ASSESS_TOOL],
                 tool_choice={"type": "tool", "name": "submit_crisis_assessment"},
@@ -172,34 +130,3 @@ class AnthropicAssessmentBackend:
         raise BackendInvalidOutput(
             "No submit_crisis_assessment tool_use block in response"
         )
-
-    def _build_input_content(self, text: str, context: AssessmentContext) -> str:
-        """Build XML-tagged structured input. Simple strings go directly inside
-        tags; complex data (lists/dicts) is JSON-serialized inside tags."""
-        sections = [
-            "<task>Assess this student's mental health survey response.</task>"
-        ]
-
-        if question := context.get("question_text"):
-            sections.append(f"<question_asked>{question}</question_asked>")
-
-        sections.append(f"<student_response>{text}</student_response>")
-
-        if likert_summary := context.get("likert_summary"):
-            sections.append(
-                f"<likert_summary>\n{likert_summary.model_dump_json(indent=2)}\n</likert_summary>"
-            )
-
-        if rule_scores := context.get("rule_scores"):
-            sections.append(
-                f"<stage_1_rule_scores>\n{json.dumps(rule_scores, indent=2)}\n</stage_1_rule_scores>"
-            )
-
-        if likert_responses := context.get("likert_responses"):
-            items_json = json.dumps(
-                [r.model_dump() for r in likert_responses],
-                indent=2,
-            )
-            sections.append(f"<likert_responses>\n{items_json}\n</likert_responses>")
-
-        return "\n\n".join(sections)

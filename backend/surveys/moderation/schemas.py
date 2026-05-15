@@ -45,6 +45,29 @@ class RuleResult(BaseModel):
     latency_ms: int
 
 
+class KeywordResult(BaseModel):
+    """Stage 1c keyword filter result.
+
+    Substring match against ~50 clinical crisis phrases (suicide ideation,
+    self-harm, severe hopelessness). Case-insensitive.
+
+    Serves as backup for Stage 1b LLM classifier — catches phrases like
+    'want to give up' that Llama Guard 4 empirically misses.
+    """
+    matched: bool = Field(
+        ...,
+        description="Whether any keyword matched in the text."
+    )
+    matched_keywords: list[str] = Field(
+        default_factory=list,
+        description="Phrases that matched, for audit / debugging."
+    )
+    latency_ms: int = Field(
+        ...,
+        description="Wall-clock duration of the match operation."
+    )
+
+
 class LikertResponse(BaseModel):
     """Single Likert question + student's answer. Built by pipeline from DB."""
     question: str = Field(..., description="The question text as asked.")

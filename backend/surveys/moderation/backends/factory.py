@@ -1,4 +1,10 @@
+from typing import TYPE_CHECKING
+
+from ..schemas import FlaggingRule
 from .base import AssessmentBackend, ClassifierBackend
+
+if TYPE_CHECKING:
+    from ..pipeline import ModerationPipeline
 
 
 def get_classifier(tenant) -> ClassifierBackend:
@@ -39,3 +45,20 @@ def get_assessor(tenant) -> AssessmentBackend:
         )
     else:
         raise ValueError(f"Unknown inference_mode: {tenant.inference_mode!r}")
+
+
+def get_pipeline(
+    tenant,
+    rules: list[FlaggingRule],
+) -> "ModerationPipeline":
+    """Build full ModerationPipeline for tenant + rules.
+
+    Convenience wrapper around get_classifier + get_assessor.
+    """
+    from ..pipeline import ModerationPipeline
+
+    return ModerationPipeline(
+        classifier=get_classifier(tenant),
+        assessor=get_assessor(tenant),
+        rules=rules,
+    )

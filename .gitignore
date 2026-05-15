@@ -39,3 +39,5 @@ db_security_guide.md
 migrate.py
 
 docs/unverified-tests.md
+
+backend/smoke_tests/

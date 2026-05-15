@@ -195,6 +195,58 @@ class TierAssignment(BaseModel):
     reasoning: str
 
 
+class PipelineResult(BaseModel):
+    """Composite result of full moderation pipeline.
+
+    Contains all stage results + final decision. Pipeline returns this
+    to caller (Celery task / surveys/tasks.py).
+    """
+    redacted_text: str = Field(
+        ...,
+        description="Text after PII redaction."
+    )
+    redaction_succeeded: bool = Field(
+        ...,
+        description="False if non-English (Stage 0 fail-loud); pipeline ran degraded."
+    )
+    rule_result: RuleResult | None = Field(
+        default=None,
+        description="Stage 1a rule engine result."
+    )
+    classifier_result: ClassifierResult | None = Field(
+        default=None,
+        description="Stage 1b classifier result. None if skipped or failed."
+    )
+    keyword_result: KeywordResult | None = Field(
+        default=None,
+        description="Stage 1c keyword filter result."
+    )
+    assessment: CrisisAssessment | None = Field(
+        default=None,
+        description="Stage 2 assessment. None if not triggered or failed."
+    )
+    flagged: bool = Field(
+        ...,
+        description="Final flag decision."
+    )
+    final_severity: Severity = Field(
+        ...,
+        description="Final severity from Stage 2 if ran, else Stage 1a suggested."
+    )
+    pipeline_latency_ms: int = Field(
+        ...,
+        description="Total wall-clock duration of pipeline execution."
+    )
+    degraded_mode: bool = Field(
+        default=False,
+        description="True if pipeline ran in degraded mode."
+    )
+    degraded_reason: str | None = Field(
+        default=None,
+        description="Why degraded (for ops / audit)."
+    )
+
+
 def validate_evidence_phrases(source_text: str, phrases: list[str]) -> list[str]:
     lowered = source_text.lower()
     return [p for p in phrases if p.lower() in lowered]

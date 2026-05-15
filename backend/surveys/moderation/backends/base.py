@@ -4,10 +4,23 @@ from ..schemas import ClassifierResult, CrisisAssessment, LikertResponse, Likert
 
 
 class AssessmentContext(TypedDict, total=False):
+    """Context for Stage 2 clinical assessment (Claude / GPT).
+    
+    Includes question_text + structured Likert data + pre-computed
+    rule scores for LLM clinical priming.
+    """
     question_text: str
     rule_scores: dict[str, int]
     likert_responses: list[LikertResponse]
     likert_summary: LikertSummary
+
+class ClassifierContext(TypedDict, total=False):
+    """Context for Stage 1b classifier (Llama Guard).
+    
+    Currently only needs question_text for Q&A conversation format —
+    catches single-word answers like 'Yes' to clinical questions.
+    """
+    question_text: str
 
 
 class ClassifierBackend(Protocol):
@@ -15,14 +28,12 @@ class ClassifierBackend(Protocol):
 
     context dict recognised keys (all optional):
       question_text (str): original question the student answered
-      rule_scores (dict[str, int]): category_scores from Stage 1a
-      likert_summary (dict): Likert score summary
     """
 
     async def classify(
         self,
         text: str,
-        context: AssessmentContext,
+        context: ClassifierContext,
     ) -> ClassifierResult: ...
 
 

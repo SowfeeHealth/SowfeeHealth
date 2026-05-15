@@ -5,7 +5,7 @@ import openai
 from openai import AsyncOpenAI
 
 from ..schemas import ClassifierResult, HazardCategory
-from .base import AssessmentContext, BackendInvalidOutput, BackendUnavailable
+from .base import ClassifierContext, BackendInvalidOutput, BackendUnavailable
 
 # Maps "S1" → HazardCategory.VIOLENT_CRIMES, etc.
 _CATEGORY_MAP: dict[str, HazardCategory] = {cat.value: cat for cat in HazardCategory}
@@ -60,7 +60,7 @@ class TogetherClassifierBackend:
             timeout=10.0,
         )
 
-    async def classify(self, text: str, context: AssessmentContext) -> ClassifierResult:
+    async def classify(self, text: str, context: ClassifierContext) -> ClassifierResult:
         question = context.get("question_text", "")
         if question:
             conversation = f"Agent: {question}\nUser: {text}"

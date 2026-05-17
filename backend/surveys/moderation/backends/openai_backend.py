@@ -58,6 +58,7 @@ class OpenAIAssessmentBackend:
         self._client = AsyncOpenAI(
             api_key=api_key or os.environ["OPENAI_API_KEY"],
             timeout=self.REQUEST_TIMEOUT_SECONDS,
+            max_retries=2,
         )
 
     async def assess(self, text: str, context: AssessmentContext) -> CrisisAssessment:

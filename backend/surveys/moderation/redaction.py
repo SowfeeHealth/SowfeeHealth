@@ -1,3 +1,5 @@
+import asyncio
+
 from presidio_analyzer import AnalyzerEngine
 from presidio_analyzer.nlp_engine import NlpEngineProvider
 from presidio_anonymizer import AnonymizerEngine
@@ -41,13 +43,8 @@ _OPERATORS = {
 _SUPPORTED_LANGUAGES = {"en"}
 
 
-async def redact_pii(text: str, language: str = "en") -> tuple[str, list[dict]]:
-    if language not in _SUPPORTED_LANGUAGES:
-        raise ValueError(
-            f"Language '{language}' not supported. "
-            f"Supported: {sorted(_SUPPORTED_LANGUAGES)}. "
-            f"See docs/known-deferred.md for adding languages."
-        )
+def _redact_sync(text: str, language: str) -> tuple[str, list[dict]]:
+    """CPU-bound Presidio NER + anonymization. Called via asyncio.to_thread."""
     results = _analyzer.analyze(text=text, entities=_ENTITIES, language=language)
 
     audit_log = [
@@ -68,3 +65,14 @@ async def redact_pii(text: str, language: str = "en") -> tuple[str, list[dict]]:
     )
 
     return anonymized.text, audit_log
+
+
+async def redact_pii(text: str, language: str = "en") -> tuple[str, list[dict]]:
+    """Redact PII from text using Presidio. Async-safe (offloads to thread pool)."""
+    if language not in _SUPPORTED_LANGUAGES:
+        raise ValueError(
+            f"Language '{language}' not supported. "
+            f"Supported: {sorted(_SUPPORTED_LANGUAGES)}. "
+            f"See docs/known-deferred.md for adding languages."
+        )
+    return await asyncio.to_thread(_redact_sync, text, language)

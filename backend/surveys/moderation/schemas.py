@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class Severity(str, Enum):
@@ -9,6 +9,14 @@ class Severity(str, Enum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
+
+
+SEVERITY_ORDER = {
+    Severity.NONE: 0,
+    Severity.LOW: 1,
+    Severity.MEDIUM: 2,
+    Severity.HIGH: 3,
+}
 
 
 class HazardCategory(str, Enum):
@@ -86,8 +94,11 @@ class FlaggingRule(BaseModel):
     """Institution-level rule for Stage 1a flagging.
 
     Supports three rule types covering main clinical screening patterns:
-    - any_question: any individual answer vs threshold
-        (e.g. PHQ-9 Q9 suicide override: any answer >= 1 → high)
+    - any_question: WILDCARD - evaluates each Likert answer across ALL
+        categories (rule.category is ignored). Use for catching single
+        severe symptoms regardless of which category they're in.
+        (e.g. any answer >= 4 → medium, catching one Poor/Very Poor response
+        even when category averages are within normal range)
     - sum: category total sum vs threshold
         (e.g. PHQ-9 total >= 15 → moderately severe)
     - average: category mean vs threshold
@@ -98,15 +109,17 @@ class FlaggingRule(BaseModel):
         description=(
             "Likert category this rule applies to. Sowfee defaults: "
             "general / sleep / support / stress. Institutions can define "
-            "custom categories (e.g. 'depression', 'anxiety') as needed."
+            "custom categories (e.g. 'depression', 'anxiety') as needed. "
+            "Ignored for rule_type='any_question' (wildcard); normalized "
+            "to 'any' by validator for that rule type."
         ),
     )
     rule_type: Literal["any_question", "sum", "average"] = Field(
         ...,
         description=(
-            "'any_question': any individual answer in category vs threshold. "
-            "'sum': sum of all answers in category vs threshold. "
-            "'average': mean of all answers in category vs threshold."
+            "'any_question': wildcard, any answer across ALL categories vs threshold. "
+            "'sum': sum of answers in category vs threshold. "
+            "'average': mean of answers in category vs threshold."
         ),
     )
     threshold: float = Field(
@@ -131,6 +144,20 @@ class FlaggingRule(BaseModel):
         default=None,
         description="Human-readable rule description for counselor / audit log."
     )
+
+    @model_validator(mode='after')
+    def normalize_any_question_category(self):
+        """For any_question rule type, force category='any' for clarity.
+
+        The rule engine ignores rule.category for any_question (wildcard
+        semantics), but standardizing the stored value as 'any' makes
+        admin UI display unambiguous.
+        """
+        if self.rule_type == 'any_question' and self.category != 'any':
+            # Could raise here, but choosing to normalize silently —
+            # keeps Django model save() flexible
+            self.category = 'any'
+        return self
 
 
 class LikertSummary(BaseModel):
@@ -188,13 +215,6 @@ class CrisisAssessment(BaseModel):
     latency_ms: int
 
 
-class TierAssignment(BaseModel):
-    tier: int = Field(ge=1, le=3)
-    urgency_window: str
-    notification_channels: list[str]
-    reasoning: str
-
-
 class PipelineResult(BaseModel):
     """Composite result of full moderation pipeline.
 
@@ -245,6 +265,50 @@ class PipelineResult(BaseModel):
         default=None,
         description="Why degraded (for ops / audit)."
     )
+
+
+class QuestionAssessment(BaseModel):
+    """Per-text-question pipeline output."""
+    question_id: int
+    redacted_text: str
+    keyword_result: KeywordResult | None
+    classifier_result: ClassifierResult | None
+    assessment: CrisisAssessment | None
+    degraded_mode: bool = False
+    degraded_reason: str | None = None
+
+    def severity_max(self) -> Severity:
+        """Max severity from this question's judgmental sources.
+
+        Normal mode:
+          - assessment (Stage 2 LLM) is the only severity source.
+          - classifier and keyword are triggers, not severity judges.
+
+        Degraded mode safety net:
+          - If classifier or keyword caught a signal but LLM is unavailable,
+            escalate to HIGH so the crisis signal is preserved.
+        """
+        sevs = [Severity.NONE]
+        if self.assessment:
+            sevs.append(self.assessment.severity)
+
+        if self.degraded_mode:
+            if self.classifier_result and self.classifier_result.flagged:
+                sevs.append(Severity.HIGH)
+            if self.keyword_result and self.keyword_result.matched:
+                sevs.append(Severity.HIGH)
+
+        return max(sevs, key=lambda s: SEVERITY_ORDER[s])
+
+
+class SurveyAssessmentResult(BaseModel):
+    """Survey-level pipeline output."""
+    rule_result: RuleResult
+    per_question: list[QuestionAssessment]
+    final_severity: Severity
+    flagged: bool
+    inference_mode: str  # 'full' or 'rule_only'
+    pipeline_latency_ms: int
 
 
 def validate_evidence_phrases(source_text: str, phrases: list[str]) -> list[str]:

@@ -6,6 +6,20 @@ import uuid
 class Institution(TenantMixin):
     institution_name = models.CharField(max_length=250)
     institution_regex_pattern = models.CharField(max_length=250)
+    inference_mode = models.CharField(
+        max_length=20,
+        choices=[
+            ('full', 'Full Pipeline (LLM + Rules + Keyword)'),
+            ('rule_only', 'Rules + Keyword Only (No LLM)'),
+        ],
+        default='full',
+        help_text=(
+            "'full' runs all 4 pipeline stages including LLM. "
+            "'rule_only' skips Stage 1b (Llama Guard) and Stage 2 (clinical LLM) — "
+            "only rule engine + keyword filter run. Lower cost, better privacy "
+            "for FERPA-strict institutions."
+        ),
+    )
     auto_create_schema = True
 
     def __str__(self):

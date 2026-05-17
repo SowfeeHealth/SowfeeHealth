@@ -1,18 +1,19 @@
 from typing import Protocol, TypedDict
 
-from ..schemas import ClassifierResult, CrisisAssessment, LikertResponse, LikertSummary
+from ..schemas import ClassifierResult, CrisisAssessment
 
 
 class AssessmentContext(TypedDict, total=False):
-    """Context for Stage 2 clinical assessment (Claude / GPT).
-    
-    Includes question_text + structured Likert data + pre-computed
-    rule scores for LLM clinical priming.
+    """Stage 2 LLM input — text only.
+
+    Excludes Likert data and rule scores by design. Those are Stage 1a's
+    responsibility. Stage 2 LLM evaluates student text in isolation;
+    clinical context (Likert evaluation) lives in deterministic Stage 1a,
+    not in LLM reasoning. Including Likert data risks the LLM hallucinating
+    severity from numeric context the rule engine already evaluated.
     """
     question_text: str
-    rule_scores: dict[str, int]
-    likert_responses: list[LikertResponse]
-    likert_summary: LikertSummary
+
 
 class ClassifierContext(TypedDict, total=False):
     """Context for Stage 1b classifier (Llama Guard).

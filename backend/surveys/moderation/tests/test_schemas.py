@@ -6,7 +6,6 @@ from surveys.moderation.schemas import (
     HazardCategory,
     RuleResult,
     Severity,
-    TierAssignment,
     validate_evidence_phrases,
 )
 
@@ -57,37 +56,6 @@ def test_crisis_assessment_confidence_negative():
             confidence=-0.1,
             provider="test",
             latency_ms=100,
-        )
-
-
-@pytest.mark.parametrize("tier", [1, 2, 3])
-def test_tier_assignment_valid_tiers(tier):
-    t = TierAssignment(
-        tier=tier,
-        urgency_window="24h",
-        notification_channels=["email"],
-        reasoning="ok",
-    )
-    assert t.tier == tier
-
-
-def test_tier_assignment_too_low():
-    with pytest.raises(ValidationError):
-        TierAssignment(
-            tier=0,
-            urgency_window="24h",
-            notification_channels=[],
-            reasoning="ok",
-        )
-
-
-def test_tier_assignment_too_high():
-    with pytest.raises(ValidationError):
-        TierAssignment(
-            tier=4,
-            urgency_window="24h",
-            notification_channels=[],
-            reasoning="ok",
         )
 
 

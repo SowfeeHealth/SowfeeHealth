@@ -6,7 +6,8 @@ FlaggingRules. Returns a RuleResult indicating flag status and severity.
 No LLM, no external API. Pure deterministic Python.
 
 Rule types supported:
-- any_question: any individual answer in category vs threshold
+- any_question: wildcard — any individual answer across ALL categories
+    vs threshold (rule.category is ignored for this type).
 - sum: category total sum vs threshold
 - average: category mean vs threshold
 
@@ -66,11 +67,23 @@ def compute_rule_scores(
         cat: sum(answers) for cat, answers in by_category.items()
     }
 
+    # Wildcard pool for any_question rules: all Likert answers across categories.
+    # Built once outside the loop and reused per any_question rule.
+    all_answers: list[int] = [
+        ans for cat_answers in by_category.values()
+        for ans in cat_answers
+    ]
+
     triggered_rules: list[str] = []
     triggered_severities: list[Severity] = []
 
     for rule in rules:
-        answers = by_category.get(rule.category, [])
+        # any_question is wildcard across all categories; rule.category is ignored.
+        if rule.rule_type == "any_question":
+            answers = all_answers
+        else:
+            answers = by_category.get(rule.category, [])
+
         if not answers:
             continue
 
@@ -101,7 +114,11 @@ def compute_rule_scores(
 
 
 def _evaluate_rule(rule: FlaggingRule, answers: list[int]) -> bool:
-    """Evaluate a single rule against a category's answers. Returns True if triggered."""
+    """Evaluate a single rule against an answers list. Returns True if triggered.
+
+    For any_question rules, `answers` is the wildcard pool (all categories).
+    For sum/average rules, `answers` is the category-scoped list.
+    """
     if rule.rule_type == "any_question":
         if rule.comparison == "gte":
             return any(a >= rule.threshold for a in answers)

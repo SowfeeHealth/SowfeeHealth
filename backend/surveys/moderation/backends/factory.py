@@ -8,43 +8,39 @@ if TYPE_CHECKING:
 
 
 def get_classifier(tenant) -> ClassifierBackend:
-    """Return the ClassifierBackend for tenant.inference_mode."""
-    if tenant.inference_mode == "api":
-        from .together import TogetherClassifierBackend
-        return TogetherClassifierBackend()
-    elif tenant.inference_mode == "self_hosted":
-        raise NotImplementedError(
-            "Self-hosted inference (Ollama) is not implemented in v1. "
-            "Tenants requiring self-hosted must use inference_mode='api' "
-            "until Ollama backends are added. See docs/known-deferred.md."
-        )
-    else:
-        raise ValueError(f"Unknown inference_mode: {tenant.inference_mode!r}")
+    """Return the ClassifierBackend (Llama Guard 4 via Together.ai).
+
+    v1 always uses the API backend. Phase 9 will add
+    Institution.inference_backend ('api' / 'self_hosted') for institutions
+    requiring on-premise inference (FERPA-strict / HIPAA-strict / institutional
+    policy against cloud LLM). See docs/known-deferred.md.
+
+    tenant param is kept for forward compatibility with that future routing.
+    """
+    from .together import TogetherClassifierBackend
+    return TogetherClassifierBackend()
 
 
 def get_assessor(tenant) -> AssessmentBackend:
-    """Return the AssessmentBackend for tenant.inference_mode.
+    """Return the AssessmentBackend (Anthropic primary, OpenAI failover).
 
-    For inference_mode='api', returns an AssessorWithFailover wrapping
-    Anthropic (primary) and OpenAI (failover) so transient outages on
-    the primary vendor transparently fall through to the secondary.
+    Returns an AssessorWithFailover wrapping Anthropic (primary) and OpenAI
+    (failover) so transient outages on the primary vendor transparently
+    fall through to the secondary.
+
+    v1 always uses the API backends. Phase 9 will add
+    Institution.inference_backend ('api' / 'self_hosted') for institutions
+    requiring on-premise inference. See docs/known-deferred.md.
+
+    tenant param is kept for forward compatibility with that future routing.
     """
-    if tenant.inference_mode == "api":
-        from .anthropic_backend import AnthropicAssessmentBackend
-        from .failover import AssessorWithFailover
-        from .openai_backend import OpenAIAssessmentBackend
-        return AssessorWithFailover(
-            primary=AnthropicAssessmentBackend(),
-            failover=OpenAIAssessmentBackend(),
-        )
-    elif tenant.inference_mode == "self_hosted":
-        raise NotImplementedError(
-            "Self-hosted inference (Ollama) is not implemented in v1. "
-            "Tenants requiring self-hosted must use inference_mode='api' "
-            "until Ollama backends are added. See docs/known-deferred.md."
-        )
-    else:
-        raise ValueError(f"Unknown inference_mode: {tenant.inference_mode!r}")
+    from .anthropic_backend import AnthropicAssessmentBackend
+    from .failover import AssessorWithFailover
+    from .openai_backend import OpenAIAssessmentBackend
+    return AssessorWithFailover(
+        primary=AnthropicAssessmentBackend(),
+        failover=OpenAIAssessmentBackend(),
+    )
 
 
 def get_pipeline(

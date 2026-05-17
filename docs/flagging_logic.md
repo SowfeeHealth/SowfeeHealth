@@ -344,12 +344,6 @@ class CrisisAssessment(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)  # LLM self-reported
     provider: str                              # e.g. "anthropic/claude-haiku-4-5"
     latency_ms: int
-
-class TierAssignment(BaseModel):
-    tier: int = Field(ge=1, le=3)
-    urgency_window: str
-    notification_channels: list[str]
-    reasoning: str
 ```
 
 ### Django Storage Model: `Assessment`

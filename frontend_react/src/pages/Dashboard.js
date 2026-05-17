@@ -96,7 +96,17 @@ function Dashboard() {
             displayMessage('No active survey template found', 'error');
         }
     };
-    
+
+    const SEVERITY_DISPLAY = {
+        high:   { label: 'High Risk',          dotClass: 'status-dot--high'   },
+        medium: { label: 'Moderate Risk',      dotClass: 'status-dot--medium' },
+        low:    { label: 'Low Risk',           dotClass: 'status-dot--low'    },
+        none:   { label: 'Needs Intervention', dotClass: 'status-dot--none'   },
+    };
+
+    const getSeverityDisplay = (severity) =>
+        SEVERITY_DISPLAY[severity] || SEVERITY_DISPLAY.none;
+
     const responseChartData = {
         labels: dashboardData.months || [],
         datasets: [{
@@ -271,29 +281,25 @@ function Dashboard() {
                             </tr>
                         </thead>
                         <tbody>
-                            {!showMore ? dashboardData.flagged_students.slice(0, 3).map((student, index) => (
-                                <tr key={index}>
-                                    <td>{student[0]}</td>
-                                    <td>
-                                        <span className="status-indicator">
-                                            <span className="status-dot"></span>
-                                            Needs Intervention
-                                        </span>
-                                    </td>
-                                    <td>{student[1]}</td>
-                                </tr>
-                            )) : dashboardData.flagged_students.map((student, index) => (
-                                <tr key={index}>
-                                    <td>{student[0]}</td>
-                                    <td>
-                                        <span className="status-indicator">
-                                            <span className="status-dot"></span>
-                                            Needs Intervention
-                                        </span>
-                                    </td>
-                                    <td>{student[1]}</td>
-                                </tr>
-                            ))}
+                            {(showMore
+                                ? dashboardData.flagged_students
+                                : dashboardData.flagged_students.slice(0, 3)
+                            ).map((student, index) => {
+                                const [name, email, severity] = student;
+                                const { label, dotClass } = getSeverityDisplay(severity);
+                                return (
+                                    <tr key={index}>
+                                        <td>{name}</td>
+                                        <td>
+                                            <span className="status-indicator">
+                                                <span className={`status-dot ${dotClass}`}></span>
+                                                {label}
+                                            </span>
+                                        </td>
+                                        <td>{email}</td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                     {dashboardData.flagged_students.length > 3 && (

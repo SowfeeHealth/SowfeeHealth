@@ -6,6 +6,7 @@ on:
       - main
       - nextjs-frontend
       - v2
+      - feat/drop-stage1-classifiers
 
 jobs:
   build:

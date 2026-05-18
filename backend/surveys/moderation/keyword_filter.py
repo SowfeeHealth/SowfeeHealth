@@ -1,13 +1,20 @@
 """Stage 1c keyword filter.
 
-Substring-matches student text against a curated list of clinical
-crisis phrases. Runs in parallel with Stage 1a rule engine as backup
-for the Stage 1b LLM classifier.
+Substring-matches student text against a curated list of distress
+phrases. Runs in parallel with Stage 1a rule engine as backup for
+the Stage 1b LLM classifier.
+
+Scope: crisis signals (suicide / self-harm / hopelessness) AND broader
+distress signals (self-deprecation, academic distress, social isolation,
+emotional exhaustion) appropriate for college mental-health screening.
+Severity disambiguation is delegated to Stage 2 LLM assessment.
 
 Sources for keyword list:
 - C-SSRS (Columbia Suicide Severity Rating Scale) language patterns
 - PHQ-9 Q9 (suicide ideation) common phrasings
 - Empirical: phrases Llama Guard 4 missed in Round 10 smoke testing
+- Counselor / clinician input on common distress phrasings in
+  university student populations
 """
 import time
 
@@ -81,6 +88,66 @@ _CRISIS_KEYWORDS = [
     "have a plan",
     "made a plan to",
     "have the means",
+
+    # Self-deprecation
+    "stupid",
+    "worthless",
+    "loser",
+    "I'm a failure",
+    "such a failure",
+    "hate myself",
+    "disappoint everyone",
+    "let everyone down",
+    "I'm so dumb",
+    "I'm an idiot",
+    "I'm useless",
+
+    # Academic distress
+    "failed",
+    "failing classes",
+    "failing my classes",
+    "failed my classes",
+    "can't pass",
+    "cant pass",
+    "dropping out",
+    "drop out",
+    "behind in everything",
+    "can't keep up",
+    "cant keep up",
+    "falling apart at school",
+
+    # Social isolation
+    "no one cares",
+    "everyone hates me",
+    "have no friends",
+    "all alone",
+    "completely alone",
+    "nobody likes me",
+    "left out",
+
+    # Emotional exhaustion
+    "tired of everything",
+    "can't take it",
+    "cant take it",
+    "exhausted",
+    "burnt out",
+    "burned out",
+    "overwhelmed",
+    "drowning",
+    "suffocating",
+    "can't cope",
+    "cant cope",
+    "breaking down",
+
+    # Hopelessness (mild)
+    "no point",
+    "what's the point",
+    "whats the point",
+    "pointless",
+    "meaningless",
+    "no future",
+    "nothing matters",
+    "nothing helps",
 ]
 
 

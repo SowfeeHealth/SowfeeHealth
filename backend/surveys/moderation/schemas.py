@@ -56,11 +56,13 @@ class RuleResult(BaseModel):
 class KeywordResult(BaseModel):
     """Stage 1c keyword filter result.
 
-    Substring match against ~50 clinical crisis phrases (suicide ideation,
-    self-harm, severe hopelessness). Case-insensitive.
+    Substring match against ~100 distress phrases (suicide / self-harm /
+    hopelessness PLUS self-deprecation, academic distress, social
+    isolation, emotional exhaustion). Case-insensitive.
 
     Serves as backup for Stage 1b LLM classifier — catches phrases like
-    'want to give up' that Llama Guard 4 empirically misses.
+    'want to give up' that Llama Guard 4 empirically misses. Severity
+    disambiguation is delegated to Stage 2 LLM assessment.
     """
     matched: bool = Field(
         ...,

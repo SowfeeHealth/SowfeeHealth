@@ -14,10 +14,18 @@ class QuestionResponseSerializer(serializers.ModelSerializer):
 
 class SurveyResponseSerializer(serializers.ModelSerializer):
     question_responses = QuestionResponseSerializer(many=True, read_only=True)
-    
+
     class Meta:
         model = SurveyResponse
-        fields = ['id', 'student', 'anonymous_student', 'survey_template', 'created', 'flagged', 'question_responses']
+        fields = [
+            'id', 'student', 'anonymous_student', 'survey_template',
+            'created', 'flagged', 'question_responses',
+            # Phase 7a audit fields — populated by Celery moderation pipeline
+            'final_severity',
+            'final_severity_order',
+            'pipeline_latency_ms',
+            'inference_mode_used',
+        ]
 
 class SurveyTemplateSerializer(serializers.ModelSerializer):
     questions = SurveyQuestionSerializer(many=True, read_only=True)

@@ -1,6 +1,6 @@
 from typing import Protocol, TypedDict
 
-from ..schemas import ClassifierResult, CrisisAssessment
+from ..schemas import CrisisAssessment
 
 
 class AssessmentContext(TypedDict, total=False):
@@ -13,29 +13,6 @@ class AssessmentContext(TypedDict, total=False):
     severity from numeric context the rule engine already evaluated.
     """
     question_text: str
-
-
-class ClassifierContext(TypedDict, total=False):
-    """Context for Stage 1b classifier (Llama Guard).
-    
-    Currently only needs question_text for Q&A conversation format —
-    catches single-word answers like 'Yes' to clinical questions.
-    """
-    question_text: str
-
-
-class ClassifierBackend(Protocol):
-    """Stage 1b: takes redacted text + context, returns ClassifierResult.
-
-    context dict recognised keys (all optional):
-      question_text (str): original question the student answered
-    """
-
-    async def classify(
-        self,
-        text: str,
-        context: ClassifierContext,
-    ) -> ClassifierResult: ...
 
 
 class AssessmentBackend(Protocol):
@@ -63,11 +40,8 @@ class BackendUnavailable(BackendError):
 class BackendInvalidOutput(BackendError):
     """Backend returned data that failed validation.
 
-    Raised for:
-    - AssessmentBackend: Pydantic schema mismatch, evidence_phrase not
-      found verbatim in source text after one retry with stronger prompt.
-    - ClassifierBackend: model returned output that doesn't match the
-      expected 'safe' / 'unsafe\\nCategories' format.
+    Raised for AssessmentBackend: Pydantic schema mismatch, or evidence_phrase
+    not found verbatim in source text after one retry with stronger prompt.
 
     Not retryable in pipeline (data issue, not transient).
     """

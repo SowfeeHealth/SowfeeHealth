@@ -333,12 +333,8 @@ class CrisisAssessmentRecord(models.Model):
     confidence = models.FloatField(null=True, blank=True)
     evidence_phrases = models.JSONField(default=list)
 
-    # Stage 1c keyword filter
+    # Stage 1c keyword filter (audit + degraded-mode safety net)
     keyword_matches = models.JSONField(default=list)
-
-    # Stage 1b classifier
-    classifier_flagged = models.BooleanField(default=False)
-    classifier_categories = models.JSONField(default=list)
 
     # Metadata
     provider = models.CharField(
@@ -378,8 +374,8 @@ class CrisisAssessmentRecord(models.Model):
         Used by Phase 7b tasks.py after pipeline.process_survey() returns.
 
         Returns the created record, or None if the QuestionAssessment had
-        no notable signal (no keyword match, no classifier flag, no Stage 2
-        assessment, no degraded mode) — benign questions are not persisted.
+        no notable signal (no keyword match, no Stage 2 assessment, no
+        degraded mode) — benign questions are not persisted.
 
         Args:
             survey_response: SurveyResponse Django instance to link to.
@@ -392,18 +388,13 @@ class CrisisAssessmentRecord(models.Model):
             q_assessment.keyword_result is not None
             and q_assessment.keyword_result.matched
         )
-        has_classifier = (
-            q_assessment.classifier_result is not None
-            and q_assessment.classifier_result.flagged
-        )
         has_assessment = q_assessment.assessment is not None
         has_degraded = q_assessment.degraded_mode
 
-        if not (has_keyword or has_classifier or has_assessment or has_degraded):
+        if not (has_keyword or has_assessment or has_degraded):
             return None
 
         assessment = q_assessment.assessment
-        classifier = q_assessment.classifier_result
         keyword = q_assessment.keyword_result
 
         return cls.objects.create(
@@ -417,9 +408,6 @@ class CrisisAssessmentRecord(models.Model):
             evidence_phrases=assessment.evidence_phrases if assessment else [],
 
             keyword_matches=keyword.matched_keywords if keyword else [],
-
-            classifier_flagged=bool(classifier and classifier.flagged),
-            classifier_categories=[c.value for c in classifier.categories] if classifier else [],
 
             provider=assessment.provider if assessment else "",
             degraded_mode=q_assessment.degraded_mode,

@@ -3,10 +3,22 @@
 Survey-level pipeline:
 - Stage 1a: rule engine (1x per survey, Likert-based).
 - Per text question (parallel, Semaphore-bounded):
-    Stage 0: PII redaction
-    Stage 1b: Llama Guard classifier (skipped in rule_only mode)
-    Stage 1c: keyword filter (always)
-    Stage 2: LLM assessment (only if triggered; skipped in rule_only mode)
+    Stage 0: PII redaction (Microsoft Presidio)
+    Stage 1c: keyword filter (audit + degraded-mode safety net ONLY)
+    Stage 2: Claude assessment (sole content classifier; ALWAYS runs in
+             'full' mode; skipped in rule_only mode)
+
+Stage 1b (Llama Guard) was removed from the pipeline flow because it
+cannot detect implicit distress signals outside the MLCommons hazard
+taxonomy (academic failure, self-deprecation, social isolation) — a
+model knowledge gap, not a prompt/threshold tuning problem.
+backends/together.py is preserved as deprecated for reference; it is
+no longer imported from this module.
+
+Stage 1c (keyword filter) is kept but downgraded to audit + safety net:
+its matches are recorded on QuestionAssessment for audit, and only
+contribute to severity_max() when Stage 2 LLM both providers fail
+(degraded_mode). See severity_max() in schemas.py.
 
 Stage 2 input is strictly text + question_text — no Likert, no rule scores.
 """
@@ -18,7 +30,6 @@ from .backends.base import (
     AssessmentContext,
     BackendInvalidOutput,
     BackendUnavailable,
-    ClassifierContext,
 )
 from .keyword_filter import check_keywords
 from .redaction import redact_pii
@@ -43,15 +54,18 @@ class ModerationPipeline:
     Stage 1a: rule engine, 1x per survey (Likert-based).
     Per-question (parallel, Semaphore-bounded):
       Stage 0: PII redaction
-      Stage 1b: Llama Guard classifier (skipped in rule_only)
-      Stage 1c: keyword filter (always)
-      Stage 2: LLM assessment (only if triggered; skipped in rule_only)
+      Stage 1c: keyword filter (audit + degraded-mode safety net only)
+      Stage 2: Claude assessment (sole content classifier; ALWAYS runs
+               in 'full' mode; skipped in rule_only)
+
+    Stage 1b (Llama Guard) is no longer in the pipeline flow — Stage 2
+    Claude is the sole content severity judge. Stage 1c contributes to
+    severity only when Stage 2 fails (both providers unavailable).
 
     Stage 2 input: text + question_text only. No Likert, no rule scores.
     """
 
-    def __init__(self, classifier, assessor, rules=None):
-        self._classifier = classifier
+    def __init__(self, assessor, rules=None):
         self._assessor = assessor
         self._rules = rules or []
 
@@ -79,7 +93,7 @@ class ModerationPipeline:
         per_question = await asyncio.gather(*[
             self._process_question(
                 qid, text, qtext,
-                inference_mode, rule_flagged, sem,
+                inference_mode, sem,
             )
             for qid, text, qtext in text_responses
         ])
@@ -108,7 +122,6 @@ class ModerationPipeline:
         text: str,
         question_text: str,
         inference_mode: str,
-        survey_rule_flagged: bool,
         sem: asyncio.Semaphore,
     ) -> QuestionAssessment:
         """Process single text question."""
@@ -122,69 +135,48 @@ class ModerationPipeline:
                     question_id=question_id,
                     redacted_text=text,
                     keyword_result=None,
-                    classifier_result=None,
                     assessment=None,
                     degraded_mode=True,
                     degraded_reason=f"Stage 0 failed: {exc}",
                 )
 
-            # Stage 1c
+            # Stage 1c — audit + degraded-mode safety net only
             keyword_result = check_keywords(redacted)
 
-            # rule_only mode: skip 1b + 2
+            # rule_only mode: skip Stage 2 entirely (no LLM call)
             if inference_mode == "rule_only":
                 return QuestionAssessment(
                     question_id=question_id,
                     redacted_text=redacted,
                     keyword_result=keyword_result,
-                    classifier_result=None,
                     assessment=None,
                 )
 
-            # Stage 1b
-            classifier_result = None
-            classifier_context: ClassifierContext = {}
-            if question_text:
-                classifier_context["question_text"] = question_text
-            try:
-                classifier_result = await self._classifier.classify(
-                    redacted, classifier_context
-                )
-            except (BackendUnavailable, BackendInvalidOutput) as exc:
-                logger.warning("Stage 1b failed Q%d: %s", question_id, exc)
-
-            # Stage 2 trigger
-            stage2_needed = (
-                survey_rule_flagged
-                or keyword_result.matched
-                or (classifier_result is not None and classifier_result.flagged)
-            )
-
-            # Stage 2
+            # Stage 2 — sole content classifier; ALWAYS runs in 'full' mode.
+            # No trigger gate: Llama Guard removed because its training data
+            # misses implicit distress signals. Claude evaluates every text.
             assessment = None
             degraded = False
             degraded_reason = None
 
-            if stage2_needed:
-                ctx: AssessmentContext = {
-                    "question_text": question_text,
-                }
-                try:
-                    assessment = await self._assessor.assess(redacted, ctx)
-                except BackendUnavailable as exc:
-                    logger.error("Stage 2 unavailable Q%d: %s", question_id, exc)
-                    degraded = True
-                    degraded_reason = f"Stage 2 unavailable: {exc}"
-                except BackendInvalidOutput as exc:
-                    logger.error("Stage 2 invalid output Q%d: %s", question_id, exc)
-                    degraded = True
-                    degraded_reason = f"Stage 2 invalid output: {exc}"
+            ctx: AssessmentContext = {
+                "question_text": question_text,
+            }
+            try:
+                assessment = await self._assessor.assess(redacted, ctx)
+            except BackendUnavailable as exc:
+                logger.error("Stage 2 unavailable Q%d: %s", question_id, exc)
+                degraded = True
+                degraded_reason = f"Stage 2 unavailable: {exc}"
+            except BackendInvalidOutput as exc:
+                logger.error("Stage 2 invalid output Q%d: %s", question_id, exc)
+                degraded = True
+                degraded_reason = f"Stage 2 invalid output: {exc}"
 
             return QuestionAssessment(
                 question_id=question_id,
                 redacted_text=redacted,
                 keyword_result=keyword_result,
-                classifier_result=classifier_result,
                 assessment=assessment,
                 degraded_mode=degraded,
                 degraded_reason=degraded_reason,

@@ -19,32 +19,6 @@ SEVERITY_ORDER = {
 }
 
 
-class HazardCategory(str, Enum):
-    VIOLENT_CRIMES = "S1"
-    NON_VIOLENT_CRIMES = "S2"
-    SEX_CRIMES = "S3"
-    CHILD_SEXUAL_EXPLOITATION = "S4"
-    DEFAMATION = "S5"
-    SPECIALIZED_ADVICE = "S6"
-    PRIVACY = "S7"
-    INTELLECTUAL_PROPERTY = "S8"
-    INDISCRIMINATE_WEAPONS = "S9"
-    HATE = "S10"
-    SUICIDE_SELF_HARM = "S11"
-    SEXUAL_CONTENT = "S12"
-    ELECTIONS = "S13"
-    CODE_INTERPRETER_ABUSE = "S14"
-
-
-class ClassifierResult(BaseModel):
-    flagged: bool
-    categories: list[HazardCategory]
-    confidence: float = Field(ge=0.0, le=1.0)
-    raw_output: str
-    latency_ms: int
-    provider: str
-
-
 class RuleResult(BaseModel):
     flagged: bool
     category_scores: dict[str, int]
@@ -60,9 +34,10 @@ class KeywordResult(BaseModel):
     hopelessness PLUS self-deprecation, academic distress, social
     isolation, emotional exhaustion). Case-insensitive.
 
-    Serves as backup for Stage 1b LLM classifier — catches phrases like
-    'want to give up' that Llama Guard 4 empirically misses. Severity
-    disambiguation is delegated to Stage 2 LLM assessment.
+    Audit-only in normal operation; matches are recorded for clinical
+    review. Acts as a degraded-mode safety net: when Stage 2 LLM both
+    providers fail and a crisis keyword matched, QuestionAssessment.
+    severity_max() escalates to HIGH so the signal is preserved.
     """
     matched: bool = Field(
         ...,
@@ -217,90 +192,40 @@ class CrisisAssessment(BaseModel):
     latency_ms: int
 
 
-class PipelineResult(BaseModel):
-    """Composite result of full moderation pipeline.
-
-    Contains all stage results + final decision. Pipeline returns this
-    to caller (Celery task / surveys/tasks.py).
-    """
-    redacted_text: str = Field(
-        ...,
-        description="Text after PII redaction."
-    )
-    redaction_succeeded: bool = Field(
-        ...,
-        description="False if non-English (Stage 0 fail-loud); pipeline ran degraded."
-    )
-    rule_result: RuleResult | None = Field(
-        default=None,
-        description="Stage 1a rule engine result."
-    )
-    classifier_result: ClassifierResult | None = Field(
-        default=None,
-        description="Stage 1b classifier result. None if skipped or failed."
-    )
-    keyword_result: KeywordResult | None = Field(
-        default=None,
-        description="Stage 1c keyword filter result."
-    )
-    assessment: CrisisAssessment | None = Field(
-        default=None,
-        description="Stage 2 assessment. None if not triggered or failed."
-    )
-    flagged: bool = Field(
-        ...,
-        description="Final flag decision."
-    )
-    final_severity: Severity = Field(
-        ...,
-        description="Final severity from Stage 2 if ran, else Stage 1a suggested."
-    )
-    pipeline_latency_ms: int = Field(
-        ...,
-        description="Total wall-clock duration of pipeline execution."
-    )
-    degraded_mode: bool = Field(
-        default=False,
-        description="True if pipeline ran in degraded mode."
-    )
-    degraded_reason: str | None = Field(
-        default=None,
-        description="Why degraded (for ops / audit)."
-    )
-
-
 class QuestionAssessment(BaseModel):
     """Per-text-question pipeline output."""
     question_id: int
     redacted_text: str
     keyword_result: KeywordResult | None
-    classifier_result: ClassifierResult | None
     assessment: CrisisAssessment | None
     degraded_mode: bool = False
     degraded_reason: str | None = None
 
     def severity_max(self) -> Severity:
-        """Max severity from this question's judgmental sources.
+        """Resolve severity for this single text question.
+
+        Stage 1a (rule engine) is survey-level, not per-question, so it
+        is NOT considered here. Rule-driven severity is aggregated at the
+        SurveyAssessmentResult level via process_survey(), in parallel
+        with each question's severity_max(). Final survey severity =
+        max(rule_severity, *per_question_severities).
 
         Normal mode:
-          - assessment (Stage 2 LLM) is the only severity source.
-          - classifier and keyword are triggers, not severity judges.
+          - assessment (Stage 2 Claude) is the sole per-question severity
+            source.
 
-        Degraded mode safety net:
-          - If classifier or keyword caught a signal but LLM is unavailable,
-            escalate to HIGH so the crisis signal is preserved.
+        Degraded mode safety net (Stage 2 LLM both providers failed):
+          - If Stage 1c keyword matched, escalate to HIGH so the crisis
+            signal is preserved.
+          - Otherwise: NONE (LLM unavailable, no fallback signal).
         """
-        sevs = [Severity.NONE]
         if self.assessment:
-            sevs.append(self.assessment.severity)
+            return self.assessment.severity
 
-        if self.degraded_mode:
-            if self.classifier_result and self.classifier_result.flagged:
-                sevs.append(Severity.HIGH)
-            if self.keyword_result and self.keyword_result.matched:
-                sevs.append(Severity.HIGH)
+        if self.degraded_mode and self.keyword_result and self.keyword_result.matched:
+            return Severity.HIGH
 
-        return max(sevs, key=lambda s: SEVERITY_ORDER[s])
+        return Severity.NONE
 
 
 class SurveyAssessmentResult(BaseModel):

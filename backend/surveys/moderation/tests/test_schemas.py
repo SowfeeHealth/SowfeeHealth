@@ -3,8 +3,6 @@ from pydantic import ValidationError
 
 from surveys.moderation.schemas import (
     CrisisAssessment,
-    HazardCategory,
-    RuleResult,
     Severity,
     validate_evidence_phrases,
 )
@@ -13,11 +11,6 @@ from surveys.moderation.schemas import (
 def test_severity_is_str_enum():
     assert Severity.HIGH == "high"
     assert Severity.NONE != Severity.HIGH
-
-
-def test_hazard_category_values():
-    assert HazardCategory.SUICIDE_SELF_HARM.value == "S11"
-    assert HazardCategory.VIOLENT_CRIMES.value == "S1"
 
 
 def test_crisis_assessment_confidence_valid():

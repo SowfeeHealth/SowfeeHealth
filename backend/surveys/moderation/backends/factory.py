@@ -1,24 +1,10 @@
 from typing import TYPE_CHECKING
 
 from ..schemas import FlaggingRule
-from .base import AssessmentBackend, ClassifierBackend
+from .base import AssessmentBackend
 
 if TYPE_CHECKING:
     from ..pipeline import ModerationPipeline
-
-
-def get_classifier(tenant) -> ClassifierBackend:
-    """Return the ClassifierBackend (Llama Guard 4 via Together.ai).
-
-    v1 always uses the API backend. Phase 9 will add
-    Institution.inference_backend ('api' / 'self_hosted') for institutions
-    requiring on-premise inference (FERPA-strict / HIPAA-strict / institutional
-    policy against cloud LLM). See docs/known-deferred.md.
-
-    tenant param is kept for forward compatibility with that future routing.
-    """
-    from .together import TogetherClassifierBackend
-    return TogetherClassifierBackend()
 
 
 def get_assessor(tenant) -> AssessmentBackend:
@@ -47,14 +33,14 @@ def get_pipeline(
     tenant,
     rules: list[FlaggingRule],
 ) -> "ModerationPipeline":
-    """Build full ModerationPipeline for tenant + rules.
+    """Build ModerationPipeline for tenant + rules.
 
-    Convenience wrapper around get_classifier + get_assessor.
+    Stage 1b classifier was removed from the pipeline (see commit history
+    for backends/together.py deletion). Only Stage 2 assessor is needed.
     """
     from ..pipeline import ModerationPipeline
 
     return ModerationPipeline(
-        classifier=get_classifier(tenant),
         assessor=get_assessor(tenant),
         rules=rules,
     )

@@ -1,18 +1,21 @@
 """Stage 1c keyword filter.
 
 Substring-matches student text against a curated list of distress
-phrases. Runs in parallel with Stage 1a rule engine as backup for
-the Stage 1b LLM classifier.
+phrases. Runs in parallel with Stage 1a rule engine.
+
+Role: audit + degraded-mode safety net. Matches are recorded on
+QuestionAssessment for clinical review. Stage 2 Claude is the sole
+content severity classifier; keyword matches only contribute to
+severity_max() when Stage 2 both providers fail (see
+QuestionAssessment.severity_max() in schemas.py).
 
 Scope: crisis signals (suicide / self-harm / hopelessness) AND broader
 distress signals (self-deprecation, academic distress, social isolation,
 emotional exhaustion) appropriate for college mental-health screening.
-Severity disambiguation is delegated to Stage 2 LLM assessment.
 
 Sources for keyword list:
 - C-SSRS (Columbia Suicide Severity Rating Scale) language patterns
 - PHQ-9 Q9 (suicide ideation) common phrasings
-- Empirical: phrases Llama Guard 4 missed in Round 10 smoke testing
 - Counselor / clinician input on common distress phrasings in
   university student populations
 """

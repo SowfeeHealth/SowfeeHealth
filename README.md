@@ -196,7 +196,15 @@ Startup runs `migrate_schemas` to apply migrations across all tenant schemas. CI
 │  - 1K concurrent connections                 │
 └─────┬───────────────────────────────────────┘
       │
-      │ Persist + publish
+      ▼
+┌─────────────────────────────────────────────┐
+│      Stage 0: PII Redaction (Presidio)      │  Same redactor as
+│  - Strip PERSON / LOCATION / EMAIL / PHONE  │  survey pipeline
+│  - Redacted text persisted; raw text not    │  (asyncio.to_thread)
+│    stored long-term                         │
+└─────┬───────────────────────────────────────┘
+      │
+      │ Persist redacted + publish
       ▼
 ┌─────────────────────────────────────────────┐
 │         PostgreSQL (message storage)         │

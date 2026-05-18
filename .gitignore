@@ -41,3 +41,4 @@ migrate.py
 docs/unverified-tests.md
 
 backend/smoke_tests/
+locust_tests/

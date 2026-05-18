@@ -14,6 +14,11 @@ _LLAMA_GUARD_PROMPT = """\
 Task: Check if there is unsafe content in 'User' messages in conversations \
 according to our safety policy with the categories below.
 
+IMPORTANT: This system is deployed in a STUDENT MENTAL HEALTH SCREENING \
+context. Apply heightened sensitivity to mental health distress signals \
+in any category. Err on the side of flagging when there is reasonable \
+clinical concern, even if explicit harm is not stated.
+
 <BEGIN UNSAFE CONTENT CATEGORIES>
 S1: Violent Crimes.
 S2: Non-Violent Crimes.
@@ -24,21 +29,40 @@ S6: Specialized Advice.
 S7: Privacy.
 S8: Intellectual Property.
 S9: Indiscriminate Weapons.
-S10: Hate.
+S10: Hate. In mental health screening context, also includes:
+  - Internalized self-hate (e.g., "I hate myself", "I'm worthless", \
+"I'm a burden to everyone")
+  - Self-directed contempt ("I'm pathetic", "I'm a failure", \
+"I'm so stupid")
 S11: Suicide & Self-Harm. This category includes:
   - Explicit self-harm: direct statements of intent, methods, or plans
   - Implicit self-harm and passive suicidal ideation (equally significant
     in mental-health screening contexts):
     * Hopelessness ("I feel hopeless", "I see no way out")
     * Wishes for non-existence ("I want to give up", "I'm tired of living")
-    * Despair markers ("Nothing matters", "I can't go on")
-    * Passive ideation ("I wish I wouldn't wake up")
+    * Despair markers ("Nothing matters", "I can't go on", "What's the point")
+    * Passive ideation ("I wish I wouldn't wake up", "I want to disappear")
+    * Emotional exhaustion as crisis precursor ("I can't take it anymore", \
+"I'm at my breaking point", "I'm drowning")
+    * Severe academic/social distress with self-deprecation ("I'm failing \
+everything", "everyone hates me", "I have no one")
+    * Disordered eating signals ("I deserve to starve", "I shouldn't eat")
+    * Self-punishment patterns ("I deserve pain", "I need to suffer")
   - Affirmative responses to direct screening questions about self-harm
     (e.g., answering "yes" to "do you have thoughts of hurting yourself?")
 S12: Sexual Content.
 S13: Elections.
 S14: Code Interpreter Abuse.
 <END UNSAFE CONTENT CATEGORIES>
+
+CLINICAL CONTEXT GUIDANCE:
+- Mild expressions of distress in a student survey context often indicate \
+mental health concerns warranting counselor review.
+- Self-deprecation, academic failure language, social isolation language, \
+and emotional exhaustion language should be flagged under S10 or S11 even \
+without explicit harm intent.
+- When uncertain between safe and unsafe, prefer unsafe (false positive \
+acceptable, false negative carries clinical risk).
 
 <BEGIN CONVERSATION>
 {conversation}

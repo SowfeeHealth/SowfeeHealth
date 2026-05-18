@@ -18,11 +18,11 @@ const DemoSurvey = () => {
       id: 'q1',
       text: '1. How would you rate your overall well-being this week?',
       options: [
-        { value: '5', label: '😊 Excellent' },
-        { value: '4', label: '🙂 Good' },
+        { value: '1', label: '😊 Excellent' },
+        { value: '2', label: '🙂 Good' },
         { value: '3', label: '😐 Neutral' },
-        { value: '2', label: '😕 Struggling' },
-        { value: '1', label: '😞 Difficult' }
+        { value: '4', label: '😕 Struggling' },
+        { value: '5', label: '😞 Difficult' }
       ]
     },
     {
@@ -40,33 +40,33 @@ const DemoSurvey = () => {
       id: 'q3',
       text: '3. How supported do you feel by campus resources?',
       options: [
-        { value: '5', label: 'Very Supported' },
-        { value: '4', label: 'Supported' },
+        { value: '1', label: 'Very Supported' },
+        { value: '2', label: 'Supported' },
         { value: '3', label: 'Neutral' },
-        { value: '2', label: 'Unsupported' },
-        { value: '1', label: 'Very Unsupported' }
+        { value: '4', label: 'Unsupported' },
+        { value: '5', label: 'Very Unsupported' }
       ]
     },
     {
       id: 'q4',
       text: '4. How would you rate your sleep quality?',
       options: [
-        { value: '5', label: '💤 Excellent' },
-        { value: '4', label: '😌 Good' },
+        { value: '1', label: '💤 Excellent' },
+        { value: '2', label: '😌 Good' },
         { value: '3', label: '🛌 Average' },
-        { value: '2', label: '😣 Poor' },
-        { value: '1', label: '😫 Very Poor' }
+        { value: '4', label: '😣 Poor' },
+        { value: '5', label: '😫 Very Poor' }
       ]
     },
     {
       id: 'q5',
       text: '5. How comfortable are you seeking mental health support?',
       options: [
-        { value: '5', label: '🌟 Very Comfortable' },
-        { value: '4', label: '👍 Comfortable' },
+        { value: '1', label: '🌟 Very Comfortable' },
+        { value: '2', label: '👍 Comfortable' },
         { value: '3', label: '🤔 Neutral' },
-        { value: '2', label: '😟 Uncomfortable' },
-        { value: '1', label: '😰 Very Uncomfortable' }
+        { value: '4', label: '😟 Uncomfortable' },
+        { value: '5', label: '😰 Very Uncomfortable' }
       ]
     }
   ];

@@ -1,4 +1,5 @@
 
+import hashlib
 import logging
 import calendar
 import re
@@ -125,6 +126,22 @@ def survey_view(request, hash_link=None):
     # Important: You can't return a @api_view within another @api_view
     return _handle_student_responses(request, survey_template, questions, False)
 
+
+def _compute_submit_lock_key(identity_kind: str, identity_id: int, template_id: int) -> int:
+    """Compute deterministic 64-bit signed int for pg_advisory_xact_lock.
+
+    identity_kind ('anon' or 'user') prevents collision between
+    anonymous_student.id and student.id which are independent
+    auto-increment sequences.
+
+    PostgreSQL advisory locks take bigint. We hash the composite key
+    (identity_kind, identity_id, template_id) into a stable 64-bit signed int.
+    """
+    key_str = f"survey_submit:{identity_kind}:{identity_id}:{template_id}"
+    digest = hashlib.md5(key_str.encode()).digest()[:8]
+    return int.from_bytes(digest, byteorder='big', signed=True)
+
+
 def _handle_student_responses(request, survey_template, questions, hashed=False):
     """
     Handle student survey responses and save them to the database.
@@ -192,71 +209,63 @@ def _handle_student_responses(request, survey_template, questions, hashed=False)
     # Create the survey response
     try:
         with transaction.atomic():
-            if not no_student_user:
-                recent = SurveyResponse.objects.select_for_update().filter(
-                    student=student,
-                    survey_template=survey_template,
-                    created__gte=timezone.now() - timezone.timedelta(seconds=60)
-                ).first()
+            identity = (
+                {"anonymous_student": ano_student}
+                if no_student_user
+                else {"student": student}
+            )
 
-                if recent:
-                    return JsonResponse({
-                        "success": False,
-                        "message": "You recently submitted this survey. Please wait before submitting again."
-                    })
+            # Acquire advisory lock on (identity_kind, identity_id, template_id).
+            # This serializes concurrent submits for the same student+template pair,
+            # closing the race condition that select_for_update cannot handle
+            # (no row exists yet -> no row to lock).
+            # Lock is transaction-scoped: auto-released on commit/rollback.
+            identity_kind = "anon" if no_student_user else "user"
+            identity_id = ano_student.email if no_student_user else student.email
+            lock_key = _compute_submit_lock_key(
+                identity_kind, identity_id, survey_template.id
+            )
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_xact_lock(%s)", [lock_key])
 
-                survey_response = SurveyResponse.objects.create(
-                    student=student,
-                    survey_template=survey_template,
-                    flagged=False  # Will update this after checking responses
-                )
-            else:
-                recent = SurveyResponse.objects.select_for_update().filter(
-                    anonymous_student=ano_student,
-                    survey_template=survey_template,
-                    created__gte=timezone.now() - timezone.timedelta(seconds=60)
-                ).first()
+            # With lock held, this check is race-free for the 60s window.
+            recent = SurveyResponse.objects.filter(
+                **identity,
+                survey_template=survey_template,
+                created__gte=timezone.now() - timezone.timedelta(seconds=60),
+            ).first()
 
-                if recent:
-                    return JsonResponse({
-                        "success": False,
-                        "message": "You recently submitted this survey. Please wait before submitting again."
-                    })
+            if recent:
+                return JsonResponse({
+                    "success": False,
+                    "message": "You recently submitted this survey. Please wait before submitting again."
+                })
 
-                survey_response = SurveyResponse.objects.create(
-                    anonymous_student=ano_student,
-                    survey_template = survey_template,
-                    flagged=False
-                )
+            survey_response = SurveyResponse.objects.create(
+                **identity,
+                survey_template=survey_template,
+                flagged=False,
+            )
             
             # Create individual question responses
-            should_flag = False
             for question in questions:
                 question_id = str(question.id)
                 response_value = request.data.get(question_id)
-                
+
                 if question.question_type == 'likert':
                     likert_value = int(response_value)
                     text_response = None
-                    # Check if this response should trigger flagging
-                    if likert_value >= 3:  # Assuming 3+ is concerning for any question
-                        should_flag = True
                 else:  # text response
                     likert_value = None
                     text_response = response_value
-                
+
                 QuestionResponse.objects.create(
                     survey_response=survey_response,
                     question=question,
                     likert_value=likert_value,
                     text_response=text_response
                 )
-            
-            # Update flagged status if needed
-            if should_flag:
-                survey_response.flagged = True
-                survey_response.save()
-            
+
             question_ids = [q.id for q in questions]
             schema_name = connection.schema_name
             transaction.on_commit(

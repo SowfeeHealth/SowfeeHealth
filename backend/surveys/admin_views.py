@@ -104,7 +104,10 @@ def dashboard_api(request):
         role=User.Role.STUDENT,
     ).annotate(
         has_response=Subquery(latest_registered_response.values('id')[:1]),
-        latest_flagged=Subquery(latest_registered_response.values('flagged')[:1])
+        latest_flagged=Subquery(latest_registered_response.values('flagged')[:1]),
+        latest_final_severity=Subquery(latest_registered_response.values('final_severity')[:1]),
+        latest_final_severity_order=Subquery(latest_registered_response.values('final_severity_order')[:1]),
+        latest_response_date=Subquery(latest_registered_response.values('created')[:1]),
     )
 
     registered_responded = registered_with_status.filter(
@@ -114,7 +117,13 @@ def dashboard_api(request):
     registered_flagged = list(
         registered_with_status.filter(
             latest_flagged=True
-        ).values_list('name', 'email')
+        ).order_by(
+            '-latest_final_severity_order', '-latest_response_date'
+        ).values_list(
+            'name', 'email',
+            'latest_final_severity', 'latest_final_severity_order',
+            'latest_response_date',
+        )
     )
 
     # ── Latest response per anonymous student (1 query using Subquery) ──
@@ -124,7 +133,10 @@ def dashboard_api(request):
 
     anon_with_status = AnonymousStudent.objects.annotate(
         has_response=Subquery(latest_anon_response.values('id')[:1]),
-        latest_flagged=Subquery(latest_anon_response.values('flagged')[:1])
+        latest_flagged=Subquery(latest_anon_response.values('flagged')[:1]),
+        latest_final_severity=Subquery(latest_anon_response.values('final_severity')[:1]),
+        latest_final_severity_order=Subquery(latest_anon_response.values('final_severity_order')[:1]),
+        latest_response_date=Subquery(latest_anon_response.values('created')[:1]),
     )
 
     anon_responded = anon_with_status.filter(
@@ -134,12 +146,33 @@ def dashboard_api(request):
     anon_flagged = list(
         anon_with_status.filter(
             latest_flagged=True
-        ).values_list('name', 'email')
+        ).order_by(
+            '-latest_final_severity_order', '-latest_response_date'
+        ).values_list(
+            'name', 'email',
+            'latest_final_severity', 'latest_final_severity_order',
+            'latest_response_date',
+        )
     )
 
     # ── Combine results ──
     responded_students = registered_responded + anon_responded
-    school_flagged_responses = registered_flagged + anon_flagged
+
+    # Cross-list re-sort: severity_order desc, then date desc. Each inner
+    # queryset is already sorted; this fixes ordering across the registered
+    # vs anonymous boundary.
+    # Two-pass stable sort: pass 1 by date desc, pass 2 by severity_order desc.
+    # Stable sort preserves date order within each severity bucket.
+    combined = registered_flagged + anon_flagged
+    combined.sort(key=lambda t: t[4], reverse=True)
+    combined.sort(key=lambda t: t[3] or 0, reverse=True)
+
+    # Emit (name, email, severity, severity_order) 4-tuples to frontend.
+    # Drop internal date column; apply NULL→default for legacy rows.
+    school_flagged_responses = [
+        (t[0], t[1], t[2] or 'none', t[3] or 0)
+        for t in combined
+    ]
     num_flagged_students = len(school_flagged_responses)
 
     # ── Latest responses only (for sleep/stress per-student metrics) ──
@@ -478,10 +511,14 @@ def flagged_students_view(request):
         flagged_registered = User.objects.filter(role=User.Role.STUDENT).annotate(
             latest_flagged=Subquery(latest_response.values('flagged')[:1]),
             latest_response_date=Subquery(latest_response.values('created')[:1]),
-            latest_response_id=Subquery(latest_response.values('id')[:1])
+            latest_response_id=Subquery(latest_response.values('id')[:1]),
+            latest_final_severity=Subquery(latest_response.values('final_severity')[:1]),
+            latest_final_severity_order=Subquery(latest_response.values('final_severity_order')[:1]),
         ).filter(
             latest_flagged=True
-        ).select_related('institution_details')
+        ).select_related('institution_details').order_by(
+            '-latest_final_severity_order', '-latest_response_date'
+        )
 
         flagged_registered_students = [{
             "id": s.id,
@@ -490,7 +527,9 @@ def flagged_students_view(request):
             "institution_id": s.institution_details.id if s.institution_details else None,
             "institution_name": s.institution_details.institution_name if s.institution_details else None,
             "latest_response_date": s.latest_response_date,
-            "latest_response_id": s.latest_response_id
+            "latest_response_id": s.latest_response_id,
+            "final_severity": s.latest_final_severity or 'none',
+            "final_severity_order": s.latest_final_severity_order or 0,
         } for s in flagged_registered]
 
         # ── Anonymous students ──
@@ -501,9 +540,13 @@ def flagged_students_view(request):
         flagged_anon = AnonymousStudent.objects.annotate(
             latest_flagged=Subquery(latest_anon_response.values('flagged')[:1]),
             latest_response_date=Subquery(latest_anon_response.values('created')[:1]),
-            latest_response_id=Subquery(latest_anon_response.values('id')[:1])
+            latest_response_id=Subquery(latest_anon_response.values('id')[:1]),
+            latest_final_severity=Subquery(latest_anon_response.values('final_severity')[:1]),
+            latest_final_severity_order=Subquery(latest_anon_response.values('final_severity_order')[:1]),
         ).filter(
             latest_flagged=True
+        ).order_by(
+            '-latest_final_severity_order', '-latest_response_date'
         )
 
         tenant = connection.tenant
@@ -515,7 +558,9 @@ def flagged_students_view(request):
             "survey_template_id": s.survey_template.id if s.survey_template else None,
             "latest_response_date": s.latest_response_date,
             "latest_response_id": s.latest_response_id,
-            "created_at": s.created_at
+            "created_at": s.created_at,
+            "final_severity": s.latest_final_severity or 'none',
+            "final_severity_order": s.latest_final_severity_order or 0,
         } for s in flagged_anon]
         
         return JsonResponse({

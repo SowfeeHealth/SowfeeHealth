@@ -93,6 +93,22 @@
     box-shadow: 0 2px 6px rgba(255, 107, 107, 0.2);
   }
 
+  .status-dot--high {
+    background: #ef4444;  /* red */
+  }
+
+  .status-dot--medium {
+    background: #f97316;  /* orange */
+  }
+
+  .status-dot--low {
+    background: #eab308;  /* yellow */
+  }
+
+  .status-dot--none {
+    background: #9ca3af;  /* gray */
+  }
+
   .charts-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));

@@ -56,7 +56,7 @@ services:
       - "8001:8000"
     volumes:
       - ./backend:/app
-    command: bash -c "python manage.py makemigrations tenants accounts surveys chat && python manage.py migrate_schemas && python manage.py collectstatic --noinput && daphne -b 0.0.0.0 -p 8000 core.asgi:application"
+    command: bash -c "python manage.py makemigrations tenants accounts surveys chat && python manage.py migrate_schemas && python manage.py seed_default_rules && python manage.py collectstatic --noinput && daphne -b 0.0.0.0 -p 8000 core.asgi:application"
 
   celery:
     build: .

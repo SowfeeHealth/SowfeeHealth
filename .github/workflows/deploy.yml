@@ -6,6 +6,7 @@ on:
       - main
       - nextjs-frontend
       - v2
+      - feat/drop-stage1-classifiers
 
 jobs:
   build:
@@ -105,6 +106,8 @@ jobs:
           ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
           EC2_HOST=${{secrets.EC2_HOST}}
           OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          TOGETHER_API_KEY=${{ secrets.TOGETHER_API_KEY }}
+          ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
           EOL
 
 

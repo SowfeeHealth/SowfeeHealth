@@ -19,7 +19,6 @@ from django.db.models import Subquery, OuterRef, Count, Q
 from django.conf import settings
 from django.core.cache import cache
 from datetime import datetime
-from surveys.tasks import analyze_survey_responses_async
 from django.db import connection, transaction, IntegrityError
 from tenants.models import EmailTenantMapping, Institution
 

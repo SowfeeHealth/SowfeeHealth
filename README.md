@@ -27,6 +27,12 @@ Sowfee Health enables institutions to run independent mental health survey progr
 - Daphne (ASGI server for WebSocket support)
 - Celery + Redis (async task processing and caching)
 
+**AI / Moderation:**
+- Anthropic Claude Sonnet 4.6 (Stage 2 clinical assessment, tool-use schema; sole content classifier)
+- OpenAI GPT-4o-mini (Stage 2 failover, structured outputs via Pydantic)
+- Microsoft Presidio + spaCy NER (Stage 0 PII redaction)
+- Pydantic v2 (schema validation, LLM source-of-truth)
+
 **Frontend:**
 - React.js
 
@@ -62,6 +68,68 @@ Sowfee Health enables institutions to run independent mental health survey progr
 - **Tenant routing**: `TenantSessionMiddleware` resolves tenant from session (`_tenant_schema`) or survey hash link UUID
 - **Login flow**: `EmailTenantMapping` (public schema) maps user email to tenant schema before authentication
 - **Data isolation**: Verified by 16 automated cross-tenant isolation tests
+
+## Survey Moderation Pipeline
+
+A 3-stage pipeline that runs on every survey submission. Stage 1a runs once at the survey level on Likert data; per-text-question stages run in parallel (`asyncio.gather`, Semaphore-bounded). Stage 2 Claude is the sole content classifier; the keyword filter is downgraded to audit + degraded-mode safety net.
+
+```
+┌─────────────────────────────────────────────────┐
+│         SURVEY RESPONSE (text + Likert)         │
+└──────────────────────┬──────────────────────────┘
+                       │
+        ┌──────────────┴──────────────────┐
+        ▼ (Likert, survey-level 1x)        ▼ (text, N × parallel)
+┌─────────────────┐         ┌──────────────────────┐
+│ Stage 1a:       │         │ Stage 0: PII         │  Presidio + spaCy
+│ Rule Engine     │         │ Redaction            │  fail-loud non-English
+│ (Likert)        │         └──────────┬───────────┘
+│ → rule severity │                    ▼
+└────────┬────────┘         ┌──────────────────────┐
+         │                  │ Stage 1c: Keyword    │  ~100 distress phrases
+         │                  │ (audit + degraded-   │  audit-only normally;
+         │                  │ mode safety net)     │  HIGH if Stage 2 fails
+         │                  └──────────┬───────────┘
+         │                              ▼
+         │                  ┌──────────────────────┐
+         │                  │ Stage 2: Clinical    │  Claude Sonnet 4.6
+         │                  │ Assessment (ALWAYS   │  Anthropic primary,
+         │                  │ runs in full mode)   │  GPT-4o-mini failover
+         │                  │ → per-Q severity     │
+         │                  └──────────┬───────────┘
+         │                              │
+         └──────────────────┬──────────┘
+                            ▼
+             ┌─────────────────────────────┐
+             │ severity_max(rule_severity, │
+             │   *per_question_severities) │
+             └──────────────┬──────────────┘
+                            ▼
+           ┌────────────────────────────────┐
+           │ CrisisAssessmentRecord per Q   │ → DB
+           │ + SurveyResponse audit fields  │ → counselor dashboard
+           └────────────────────────────────┘
+```
+
+**Stage details:**
+- **Stage 0**: Microsoft Presidio + spaCy NER redact PII (PERSON, LOCATION, EMAIL, PHONE, etc.) before any external API call. Async via `asyncio.to_thread` to avoid blocking the event loop. Raises ValueError on non-English input rather than silently mis-tagging.
+- **Stage 1a**: Likert rule engine aggregates per-category scores (depression, stress, sleep, support) against per-institution `FlaggingRule` thresholds. Rule types: `any_question` (wildcard), `sum`, `average`. Deterministic, no LLM cost. Runs once per survey at survey level.
+- **Stage 1c**: Keyword filter (~100 phrases spanning suicide / self-harm / hopelessness / self-deprecation / academic distress / social isolation / emotional exhaustion). **Audit-only in normal operation** — matches are recorded on `CrisisAssessmentRecord.keyword_matches` for clinical review but do not gate Stage 2. **Degraded-mode safety net**: when Stage 2 both providers fail and a crisis keyword matched, severity escalates to HIGH so the signal is preserved.
+- **Stage 2**: Claude Sonnet 4.6 via Anthropic tool use with structured assessment output (`severity`, `evidence_phrases`, `primary_concern`, `counselor_brief`, `confidence`). **Always runs in 'full' mode** for every text question — Stage 1b (Llama Guard) was removed after production testing revealed it misses implicit distress signals (academic failure, self-deprecation, social isolation) outside the MLCommons hazard taxonomy. GPT-4o-mini failover via OpenAI `beta.chat.completions.parse` with Pydantic `response_format`.
+
+**Design highlights:**
+
+- **Pydantic source-of-truth schema**: A single `AssessmentOutput` class generates both Anthropic tool `input_schema` (via `.model_json_schema()`) and OpenAI `response_format` (passed directly). Pattern inspired by the [Instructor library](https://python.useinstructor.com), used in production at OpenAI, Google, Microsoft, and AWS. Schema changes touch one Python class; both vendors stay in sync.
+
+- **Semantic error taxonomy**: `BackendUnavailable` (transient infrastructure: timeout, rate limit, 5xx) vs `BackendInvalidOutput` (data/schema problem: hallucinated evidence, parse failure). The failover wrapper only catches the former; switching vendors won't fix a schema mismatch. Invalid output propagates to the pipeline, which marks `degraded_mode=True` on that question's assessment.
+
+- **Evidence grounding**: LLM evidence phrases are validated against source text after the API call via case-insensitive substring match. Any hallucinated phrase triggers one retry with a stronger nudge; second failure raises `BackendInvalidOutput` rather than silently using ungrounded data. Counselors can trust that every quoted phrase traces to the student's actual words.
+
+- **Failover transparency**: `AssessorWithFailover` implements the same `AssessmentBackend` protocol as a single backend. Pipeline code doesn't know failover exists — it just calls `assess()`. Provider attribution (`anthropic/claude-sonnet-4-6` vs `openai/gpt-4o-mini`) is recorded on each `CrisisAssessment` for audit and observability.
+
+- **Atomic persistence**: Per-question `CrisisAssessmentRecord` rows and survey-level audit field updates (`final_severity`, `pipeline_latency_ms`, `inference_mode_used`, `flagged`) are wrapped in a single `transaction.atomic()` block in the Celery task — prevents partial-write inconsistency. The LLM API calls happen outside the atomic block (don't hold a DB transaction open for seconds).
+
+- **Survey-level severity aggregation**: `severity_max(rule_severity, *per_question_severities)` — Stage 1a contributes survey-level rule severity independently of per-question Stage 2 verdicts, so a clinically-significant Likert score still flags the survey even if the LLM returns severity=NONE on all text questions.
 
 ## Code Structure
 
@@ -114,7 +182,14 @@ Startup runs `migrate_schemas` to apply migrations across all tenant schemas. CI
 - Monthly response rates and trends
 - Support perception metrics
 
-### In progress: Crisis Detection Pipeline
+## Roadmap
+
+- **v2 (current)**: Survey moderation pipeline — orchestration + DB integration + eval set
+- **v3 (planned)**: Real-time chat moderation with async queue (SQS / Redis Stream) decoupling, keyword pre-filter + LLM analysis, and tier-based counselor routing
+
+### Future improvement: Crisis Detection Pipeline (Chat)
+
+```
 ┌─────────────────────────────────────────────┐
 │           Chat Service (WebSocket)          │
 │  - Real-time message delivery               │
@@ -145,7 +220,8 @@ Startup runs `migrate_schemas` to apply migrations across all tenant schemas. CI
       │
       ▼
 ┌──────────────────────┬──────────────────────┐
-│  Tier 1: Page MD     │  User UI: 988 popup  │
-│  Tier 2: Queue MD    │  via WebSocket push  │
-│  Tier 3: Log         │                      │
-└──────────────────────┴──────────────────────┘
+│  Tier 1: Page counselor │ User UI: 988 popup  │
+│  Tier 2: Queue counselor│ via WebSocket push  │
+│  Tier 3: Log            │                     │
+└─────────────────────────┴─────────────────────┘
+```

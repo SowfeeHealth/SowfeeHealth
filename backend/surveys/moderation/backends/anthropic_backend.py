@@ -49,7 +49,7 @@ Always submit your assessment via the submit_crisis_assessment tool.
 
 
 class AnthropicAssessmentBackend:
-    """Stage 2 assessment backend using Anthropic's Claude Haiku via tool-use.
+    """Stage 2 assessment backend using Anthropic's Claude Sonnet via tool-use.
 
     Forces structured output by requiring a `submit_crisis_assessment` tool call
     whose `input_schema` is generated from `AssessmentOutput`. Retries once with
@@ -57,7 +57,7 @@ class AnthropicAssessmentBackend:
     source text; raises `BackendInvalidOutput` on second failure.
     """
 
-    MODEL = "claude-haiku-4-5"
+    MODEL = "claude-sonnet-4-6"
     MAX_OUTPUT_TOKENS = 1024
     REQUEST_TIMEOUT_SECONDS = 15.0
 
@@ -99,7 +99,7 @@ class AnthropicAssessmentBackend:
             primary_concern=tool_input["primary_concern"],
             counselor_brief=tool_input["counselor_brief"],
             confidence=tool_input["confidence"],
-            provider="anthropic/claude-haiku-4-5",
+            provider="anthropic/claude-sonnet-4-6",
             latency_ms=latency_ms,
         )
 

@@ -344,7 +344,7 @@ class CrisisAssessmentRecord(models.Model):
     provider = models.CharField(
         max_length=50,
         blank=True,
-        help_text="LLM provider (e.g. 'anthropic/claude-haiku-4-5'). Empty if no Stage 2."
+        help_text="LLM provider (e.g. 'anthropic/claude-sonnet-4-6'). Empty if no Stage 2."
     )
     degraded_mode = models.BooleanField(default=False)
     degraded_reason = models.TextField(blank=True)
